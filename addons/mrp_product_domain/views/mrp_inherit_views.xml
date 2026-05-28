@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         Manufacturing Order Form
+         - product_id       → only Finished Product category
+         - move_raw_ids     → everything EXCEPT Finished Product
+    ══════════════════════════════════════════════════════════════════ -->
+    <record id="view_mrp_production_form_inherit_product_domain" model="ir.ui.view">
+        <field name="name">mrp.production.form.inherit.product.domain</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_id']" position="attributes">
+                <attribute name="domain">
+                    [('categ_id.name', '=', 'Finished Product')]
+                </attribute>
+            </xpath>
+            <xpath expr="//field[@name='move_raw_ids']//field[@name='product_id']" position="attributes">
+                <attribute name="domain">
+                    [('categ_id.name', '!=', 'Finished Product')]
+                </attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         Bill of Materials Form
+         - product_tmpl_id  → only Finished Product category
+         - bom_line_ids     → everything EXCEPT Finished Product
+    ══════════════════════════════════════════════════════════════════ -->
+    <record id="view_mrp_bom_form_inherit_product_domain" model="ir.ui.view">
+        <field name="name">mrp.bom.form.inherit.product.domain</field>
+        <field name="model">mrp.bom</field>
+        <field name="inherit_id" ref="mrp.mrp_bom_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Main product being produced — restrict to Finished Product -->
+            <xpath expr="//field[@name='product_tmpl_id']" position="attributes">
+                <attribute name="domain">
+                    [('categ_id.name', '=', 'Finished Product')]
+                </attribute>
+            </xpath>
+
+            <!-- Components — restrict to everything except Finished Product -->
+            <xpath expr="//field[@name='bom_line_ids']//field[@name='product_id']" position="attributes">
+                <attribute name="domain">
+                    [('categ_id.name', '!=', 'Finished Product')]
+                </attribute>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

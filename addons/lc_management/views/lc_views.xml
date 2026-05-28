@@ -1,0 +1,405 @@
+<odoo>
+
+    <!-- ===================================================== -->
+    <!-- LC LIST VIEW -->
+    <!-- ===================================================== -->
+    <record id="view_lc_list" model="ir.ui.view">
+        <field name="name">lc.management.list</field>
+        <field name="model">lc.management</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="bank_journal_id"/>
+                <field name="margin_account_id"/>
+                <field name="partner_id"/>
+                <field name="amount"/>
+                <field name="currency_id"/>
+                <field name="margin_amount"/>
+                <field name="state"
+                       widget="badge"
+                        decoration-muted="state == 'draft'"
+                       decoration-info="state == 'open'"
+                       decoration-warning="state == 'utilized'"
+                       decoration-success="state == 'settled'"
+                       decoration-danger="state == 'closed'"/>
+                       
+                <field name="expiry_date"/>
+            </list>
+        </field>
+    </record>
+
+       <!-- ===================================================== -->
+       <!-- LC KANBAN VIEW -->
+       <!-- ===================================================== -->
+       <record id="view_lc_kanban" model="ir.ui.view">
+              <field name="name">lc.management.kanban</field>
+              <field name="model">lc.management</field>
+              <field name="arch" type="xml">
+                     <kanban default_group_by="state" class="o_kanban_small_column">
+                            <field name="name"/>
+                            <field name="bank_journal_id"/>
+                            <field name="partner_id"/>
+                            <field name="amount"/>
+                            <field name="currency_id"/>
+                            <field name="state"/>
+                            <field name="expiry_date"/>
+                            <templates>
+                                   <t t-name="card">
+                                          <div class="oe_kanban_global_click">
+                                                 <div class="fw-bold text-primary"><field name="name"/></div>
+                                                 <div class="text-muted small"><field name="bank_journal_id"/></div>
+                                                 <div class="small mt-1"><field name="partner_id"/></div>
+                                                 <div class="small">Amount: <field name="amount"/> <field name="currency_id"/></div>
+                                                 <div class="small">Expiry: <field name="expiry_date"/></div>
+                                                 <div class="small mt-1">
+                                                        <field name="state"
+                                                                  widget="badge"
+                                                                  decoration-muted="state == 'draft'"
+                                                                  decoration-info="state == 'open'"
+                                                                  decoration-warning="state == 'utilized'"
+                                                                  decoration-success="state == 'settled'"
+                                                                  decoration-danger="state == 'closed'"/>
+                                                 </div>
+                                          </div>
+                                   </t>
+                            </templates>
+                     </kanban>
+              </field>
+       </record>
+
+    <!-- ===================================================== -->
+    <!-- LC FORM VIEW -->
+    <!-- ===================================================== -->
+    <record id="view_lc_form" model="ir.ui.view">
+        <field name="name">lc.management.form</field>
+        <field name="model">lc.management</field>
+        <field name="arch" type="xml">
+
+            <form>
+
+                <header>
+
+                    <button name="action_open"
+                            string="Open LC"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+
+                    <button name="action_settle"
+                            string="Settle LC"
+                            type="object"
+                            class="btn-success"
+                            invisible="state != 'utilized'"/>
+
+                    <button name="action_close"
+                            string="Close LC"
+                            type="object"
+                            class="btn-danger"
+                            invisible="state in ('draft','open','utilized','closed') or not can_close"/>
+                            
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,open,utilized,settled,closed"/>
+
+                </header>
+
+                <sheet>
+
+                    <!-- ===================================================== -->
+                    <!-- TOP INFORMATION -->
+                    <!-- ===================================================== -->
+
+                    <group>
+
+                        <group string="LC Information">
+
+                            <field name="name"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                            <field name="partner_id"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                            <field name="lc_type_id"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                            <field name="expiry_date"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                        </group>
+
+                        <group string="Banking Information">
+
+                            <field name="bank_journal_id"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                            <field name="margin_account_id"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                            <field name="currency_id"
+                                   readonly="state in ('utilized','settled','closed')"/>
+
+                            <field name="exchange_rate"
+                                   readonly="state != 'draft'"/>
+
+                            <!-- <field name="opening_rate"
+                                   readonly="1"
+                                   invisible="state == 'draft'"/> -->
+
+                        </group>
+
+                    </group>
+
+                    <!-- ===================================================== -->
+                    <!-- AMOUNTS -->
+                    <!-- ===================================================== -->
+
+                    <group>
+
+                        <group string="LC Amount Details">
+
+                            <field name="amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"
+                                   readonly="state in ('open','utilized','settled','closed')"/>
+
+                            <field name="company_currency_id"
+                                   invisible="1"/>
+
+                            <field name="margin_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"
+                                   readonly="1"/>
+
+                            <field name="remaining_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"
+                                   readonly="1"/>
+
+                        </group>
+
+                        <group string="FX / Local Currency">
+
+                            <field name="local_currency_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="1"/>
+
+                            <field name="settlement_etb_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="1"
+                                   invisible="state in ('draft','open','utilized')"/>
+
+                            <field name="fx_gain_loss"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="1"
+                                   invisible="state in ('draft','open','utilized')"/>
+
+                        </group>
+
+                    </group>
+
+                    <!-- ===================================================== -->
+                    <!-- CHARGES -->
+                    <!-- ===================================================== -->
+
+                    <group>
+                        <!-- OPENING -->
+                        <group string="LC Opening Charges">
+
+                            <field name="opening_fee"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="opening_fee_account_id"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="opening_vat_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="opening_vat_account_id"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="opening_date"
+                                   readonly="state in ('settled','closed')"
+                                   required="state != 'draft'"/>
+
+                        </group>
+
+                        <!-- SETTLEMENT -->
+                        <group string="LC Settlement Charges"
+                               invisible="state in ('draft','open')">
+
+                            <field name="settlement_currency_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"
+                                   invisible="state in ('draft','open')"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="settlement_fee"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="settlement_rate"
+                                   invisible="state in ('draft','open')"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="settlement_fee_account_id"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="settlement_vat_amount"
+                                   widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="settlement_vat_account_id"
+                                   readonly="state in ('settled','closed')"/>
+
+                            <field name="settlement_date"
+                                   readonly="state in ('settled','closed')"
+                                   required="state == 'utilized'"/>
+
+                        </group>"
+
+
+                    </group>
+
+                    <!-- ===================================================== -->
+                    <!-- PURCHASE ORDERS -->
+                    <!-- ===================================================== -->
+
+                    <notebook>
+
+                        <page string="Purchase Orders">
+
+                            <field name="purchase_ids" options="{'delete': false, 'create': false}"/>
+
+                        </page>
+
+                    </notebook>
+
+                </sheet>
+
+            </form>
+
+        </field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC ACTION -->
+    <!-- ===================================================== -->
+    <record id="action_lc" model="ir.actions.act_window">
+        <field name="name">Letters of Credit</field>
+        <field name="res_model">lc.management</field>
+              <field name="view_mode">list,kanban,form</field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC TYPE LIST VIEW -->
+    <!-- ===================================================== -->
+    <record id="view_lc_type_list" model="ir.ui.view">
+        <field name="name">lc.type.list</field>
+        <field name="model">lc.type</field>
+        <field name="arch" type="xml">
+
+            <list>
+                <field name="name"/>
+                <field name="margin_percentage"/>
+                <field name="active"/>
+            </list>
+
+        </field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC TYPE FORM VIEW -->
+    <!-- ===================================================== -->
+    <record id="view_lc_type_form" model="ir.ui.view">
+        <field name="name">lc.type.form</field>
+        <field name="model">lc.type</field>
+        <field name="arch" type="xml">
+
+            <form>
+
+                <sheet>
+
+                    <group>
+
+                        <field name="name"/>
+                        <field name="margin_percentage"/>
+                        <field name="active"/>
+
+                    </group>
+
+                </sheet>
+
+            </form>
+
+        </field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC TYPE ACTION -->
+    <!-- ===================================================== -->
+    <record id="action_lc_type" model="ir.actions.act_window">
+        <field name="name">LC Types</field>
+        <field name="res_model">lc.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- ROOT MENU -->
+    <!-- ===================================================== -->
+    <menuitem id="menu_lc_root"
+              name="LC Management"/>
+
+    <!-- ===================================================== -->
+    <!-- LC MENU -->
+    <!-- ===================================================== -->
+    <menuitem id="menu_lc"
+              name="Letters of Credit"
+              parent="menu_lc_root"
+              action="action_lc"/>
+
+    <!-- ===================================================== -->
+    <!-- LC TYPE MENU -->
+    <!-- ===================================================== -->
+    <menuitem id="menu_lc_type"
+              name="LC Types"
+              parent="menu_lc_root"
+              action="action_lc_type"/>
+
+    <!-- ===================================================== -->
+    <!-- PURCHASE ORDER INHERIT -->
+    <!-- ===================================================== -->
+    <record id="purchase_order_lc_inherit" model="ir.ui.view">
+
+        <field name="name">purchase.order.lc</field>
+
+        <field name="model">purchase.order</field>
+
+        <field name="inherit_id"
+               ref="purchase.purchase_order_form"/>
+
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='partner_id']"
+                   position="after">
+
+                <field name="lc_id"
+                       options="{'no_create': True, 'no_create_edit': True}"
+                       readonly="state in ('purchase','done')"/>
+
+            </xpath>
+
+        </field>
+
+    </record>
+
+</odoo>

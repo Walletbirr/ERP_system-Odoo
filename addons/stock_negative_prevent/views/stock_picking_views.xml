@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Stock Picking view extensions.
+        The core logic is in the Python model override.
+        This file is a placeholder for any future UI enhancements
+        such as stock availability indicators on the transfer form.
+    -->
+</odoo>

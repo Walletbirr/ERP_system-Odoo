@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/views/shipment_views.xml -->
+<odoo>
+
+    <!-- ══ CSS Asset — Odoo 18 Community compatible ══ -->
+    <record id="shipment_tracking_css_asset" model="ir.asset">
+        <field name="name">Shipment Tracking CSS</field>
+        <field name="bundle">web.assets_backend</field>
+        <field name="path">shipment_tracking/static/src/css/shipment_tracking.css</field>
+    </record>
+
+    <!-- ══ LIST VIEW ══ -->
+    <record id="view_shipment_tracking_list" model="ir.ui.view">
+        <field name="name">shipment.tracking.list</field>
+        <field name="model">shipment.tracking</field>
+        <field name="arch" type="xml">
+            <list string="Shipments" default_order="eta asc">
+                <field name="reference"/>
+                <field name="carrier"/>
+                <field name="supplier_id"/>
+                <field name="purchase_order_id"/>
+                <field name="port_of_loading"/>
+                <field name="port_of_discharge"/>
+                <field name="etd"/>
+                <field name="eta"/>
+                <field name="actual_arrival_date" optional="show"/>
+                <field name="container_count"/>
+                <!-- <field name="payment_confirmed" widget="boolean" string="Paid" optional="show"/> -->
+                <field name="has_insurance" widget="boolean" string="Insured" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'planned'"
+                       decoration-warning="state == 'in_transit'"
+                       decoration-success="state == 'arrived'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ══ FORM VIEW ══ -->
+    <record id="view_shipment_tracking_form" model="ir.ui.view">
+        <field name="name">shipment.tracking.form</field>
+        <field name="model">shipment.tracking</field>
+        <field name="arch" type="xml">
+            <form string="Shipment">
+
+                <header>
+                    <!-- Invisible helper fields -->
+                    <field name="arrive_button_label"  invisible="1"/>
+                    <field name="depart_button_label"  invisible="1"/>
+                    <field name="at_port_button_label" invisible="1"/>
+                    <field name="port_of_discharge"    invisible="1"/>
+                    <field name="has_started_moving"   invisible="1"/>
+                    <field name="show_arrive_btn"      invisible="1"/>
+                    <field name="show_depart_btn"      invisible="1"/>
+                    <field name="show_final_btn"       invisible="1"/>
+
+                    <!-- PLANNED -->
+                    <button name="action_set_in_transit"
+                            string="Depart (In Transit)"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'planned'"/>
+
+                    <!-- IN TRANSIT Phase A: heading to next intermediate port -->
+                    <button name="action_arrive_at_intermediate_port"
+                            type="object"
+                            class="btn-warning"
+                            invisible="state != 'in_transit' or not show_arrive_btn">
+                        <field name="arrive_button_label" readonly="1" class="o_field_char"/>
+                    </button>
+
+                    <!-- IN TRANSIT Phase B: docked at intermediate port -->
+                    <button name="action_depart_from_intermediate_port"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'in_transit' or not show_depart_btn">
+                        <field name="depart_button_label" readonly="1" class="o_field_char"/>
+                    </button>
+
+                    <!-- IN TRANSIT Phase C: all ports cleared, depart to destination -->
+                    <button name="action_set_arrived_at_destination"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'in_transit' or not show_final_btn">
+                        <field name="at_port_button_label" readonly="1" class="o_field_char"/>
+                    </button>
+
+                    <!-- ARRIVED -->
+                    <button name="action_create_transport_trip"
+                            string="Create Transport Trip"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'arrived'"
+                            help="Create local transport trip to move containers to warehouse"/>
+
+                    <!-- Reset — only shown before any port has been reached -->
+                    <button name="action_reset_to_planned"
+                            string="Reset to Planned"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'in_transit' or has_started_moving"/>
+
+                    <!-- Hidden state — keeps internal Odoo tracking -->
+                    <field name="state" invisible="1"/>
+                </header>
+
+                <sheet>
+                    <!-- Overdue banner -->
+                    <div class="alert alert-danger mb-2"
+                         invisible="not has_overdue_payments" role="alert">
+                        <strong>&#9888; Overdue Payments!</strong>
+                        This shipment has one or more overdue cost entries. Check the Costs tab.
+                    </div>
+
+                    <!-- Professional Progress Bar (computed HTML field) -->
+                    <field name="progress_bar_html"
+                           widget="html"
+                           readonly="1"
+                           nolabel="1"
+                           style="width:100%;"/>
+
+                    <!-- Dynamic route banner (In Transit only) -->
+                    <div class="alert alert-info mb-2 py-2"
+                         invisible="state != 'in_transit'" role="status">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="fw-bold me-1">&#128674; In Transit</span>
+                            <span class="text-muted small">
+                                <field name="port_progress_summary" readonly="1"/>
+                            </span>
+                        </div>
+                        <div class="mt-1 small" invisible="not show_arrive_btn">
+                            <strong>Next Action: </strong>
+                            <field name="arrive_button_label" readonly="1"
+                                   class="text-warning fw-bold"/>
+                        </div>
+                        <div class="mt-1 small" invisible="not show_depart_btn">
+                            <strong>Next Action: </strong>
+                            <field name="depart_button_label" readonly="1"
+                                   class="text-warning fw-bold"/>
+                        </div>
+                        <div class="mt-1 small" invisible="not show_final_btn">
+                            <strong>Next Action: </strong>
+                            <field name="at_port_button_label" readonly="1"
+                                   class="text-warning fw-bold"/>
+                        </div>
+                    </div>
+
+
+                    <!-- Arrived banner -->
+                    <div class="alert alert-success mb-2 py-2"
+                         invisible="state != 'arrived'" role="status">
+                        <span class="fw-bold">&#10003; Shipment Arrived at </span>
+                        <field name="port_of_discharge" readonly="1" class="fw-bold"/>
+                        <span class="ms-2 text-muted small">
+                            Actual arrival:
+                            <field name="actual_arrival_date" readonly="1"/>
+                        </span>
+                    </div>
+
+                    <!-- Smart Buttons -->
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-cube" type="object"
+                                name="action_view_containers">
+                            <field name="container_count" string="Containers" widget="statinfo"/>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-truck" type="object"
+                                name="action_view_transport_trips"
+                                invisible="transport_trip_count == 0">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value"><field name="transport_trip_count"/></span>
+                                <span class="o_stat_text">Trips</span>
+                            </div>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-money" type="object"
+                                name="action_view_costs">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value"><field name="cost_count"/></span>
+                                <span class="o_stat_text">Costs</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="oe_title">
+                        <label for="reference" string="Shipment"/>
+                        <h1><field name="reference" readonly="1"/></h1>
+                    </div>
+
+                    <!-- Shipment Details -->
+                    <group>
+                        <group string="Shipment Details">
+                            <field name="carrier" placeholder="e.g. Maersk, MSC, CMA CGM"/>
+                            <field name="incoterm_id"/>
+                            <field name="port_of_loading" placeholder="e.g. Shanghai, China"/>
+                            <field name="port_of_discharge" placeholder="e.g. Mojo"/>
+                        </group>
+                        <group string="Dates">
+                            <field name="etd"/>
+                            <field name="eta"/>
+                            <field name="actual_arrival_date" invisible="state != 'arrived'"/>
+                        </group>
+                    </group>
+
+                    <!-- Purchase Order -->
+                    <group string="Purchase Order">
+                        <field name="purchase_order_id"/>
+                        <field name="supplier_id" readonly="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="po_amount_total" readonly="1"/>
+                    </group>
+
+                    <!-- Insurance -->
+                    <group string="Insurance">
+                        <field name="has_insurance" widget="boolean_toggle"/>
+                        <field name="insurance_reference" placeholder="e.g. INS/2026/00123"
+                               invisible="not has_insurance"/>
+                    </group>
+
+                    <!-- Cost Summary -->
+                    <group string="Cost Summary">
+                        <group>
+                            <field name="cost_currency_id" invisible="1"/>
+                            <field name="total_cost" readonly="1"/>
+                            <field name="total_paid" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="total_pending" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <!-- Route / Ports Tab -->
+                        <page string="Route / Ports" name="intermediate_ports">
+                            <div class="o_field_widget mb-3 p-2 rounded"
+                                 style="background: #f8f9fa; border-left: 4px solid #017e84;">
+                                <div class="d-flex align-items-center flex-wrap gap-1">
+                                    <span class="badge text-bg-primary fs-6">
+                                        <field name="port_of_loading" readonly="1"
+                                               placeholder="Origin"/>
+                                    </span>
+                                    <span class="text-muted px-1">&#8594;</span>
+                                    <span class="text-muted fst-italic small">intermediate stops</span>
+                                    <span class="text-muted px-1">&#8594;</span>
+                                    <span class="badge text-bg-success fs-6">
+                                        <field name="port_of_discharge" readonly="1"
+                                               placeholder="Destination"/>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <field name="intermediate_port_ids"
+                                   context="{'default_shipment_id': id}">
+                                <list editable="bottom" default_order="sequence">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name" placeholder="e.g. Port Said, Egypt"/>
+                                    <field name="arrival_date" string="Expected Arrival"/>
+                                    <field name="actual_arrival_date" string="Actual Arrival"/>
+                                    <field name="notes" placeholder="e.g. Transshipment hub"/>
+                                    <field name="state" widget="badge"
+                                           decoration-muted="state == 'pending'"
+                                           decoration-warning="state == 'reached'"
+                                           decoration-success="state == 'passed'"
+                                           readonly="1"/>
+                                </list>
+                            </field>
+
+                            <div class="text-muted small mt-2 p-2"
+                                 style="border-top: 1px solid #dee2e6;">
+                                <i class="fa fa-info-circle me-1"/>
+                                Add ports in route order. Drag the handle to reorder.
+                                While <strong>In Transit</strong>, use the header buttons to
+                                track each stop. All ports must be
+                                <strong class="text-success">Passed</strong>
+                                before advancing to the final port.
+                            </div>
+                        </page>
+
+                        <!-- Containers Tab -->
+                        <page string="Containers" name="containers">
+                            <field name="container_ids" context="{'default_shipment_id': id}">
+                                <list editable="bottom">
+                                    <field name="container_number" placeholder="MSCU1234567"/>
+                                    <field name="size"/>
+                                    <field name="seal_number"/>
+                                    <field name="notes"/>
+                                    <field name="local_transport_state" widget="badge"
+                                           decoration-muted="local_transport_state == 'not_assigned'"
+                                           decoration-info="local_transport_state == 'pending'"
+                                           decoration-warning="local_transport_state == 'in_transit'"
+                                           decoration-success="local_transport_state == 'delivered'"
+                                           optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <!-- Costs Tab -->
+                        <page string="Costs" name="costs">
+                            <field name="cost_ids" context="{'default_shipment_id': id}">
+                                <list string="Cost Stages"
+                                      decoration-danger="state == 'overdue'"
+                                      decoration-success="state == 'paid'"
+                                      decoration-muted="state == 'cancelled'"
+                                      open_form_view="True"
+                                      delete="0">
+                                    <field name="stage" widget="badge"/>
+                                    <field name="payee_id" optional="show"/>
+                                    <field name="currency_id" optional="show"/>
+                                    <field name="amount" string="Fee"/>
+                                    <field name="tax_amount" string="Tax" optional="show"/>
+                                    <field name="total_amount" string="Total" readonly="1"/>
+                                    <field name="fee_account_id" optional="show"/>
+                                    <field name="due_date"/>
+                                    <field name="payment_date" optional="show"/>
+                                    <field name="invoice_number" optional="show"/>
+                                    <field name="state" widget="badge"
+                                           decoration-warning="state == 'pending'"
+                                           decoration-danger="state == 'overdue'"
+                                           decoration-success="state == 'paid'"
+                                           decoration-muted="state == 'cancelled'"/>
+                                    <button name="action_mark_paid" string="Pay"
+                                            type="object" class="btn-sm btn-success"
+                                            invisible="state in ('paid','cancelled')"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Notes" name="notes_page">
+                            <field name="notes" placeholder="Add internal notes..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ══ KANBAN VIEW ══ -->
+    <record id="view_shipment_tracking_kanban" model="ir.ui.view">
+        <field name="name">shipment.tracking.kanban</field>
+        <field name="model">shipment.tracking</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="state"/>
+                <field name="reference"/>
+                <field name="carrier"/>
+                <field name="eta"/>
+                <field name="container_count"/>
+                <field name="supplier_id"/>
+                <field name="current_port_label"/>
+                <field name="port_progress_summary"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click">
+                            <div class="fw-bold text-primary"><field name="reference"/></div>
+                            <div class="text-muted small"><i class="fa fa-ship me-1"/><field name="carrier"/></div>
+                            <div class="small mt-1"><i class="fa fa-building-o me-1"/><field name="supplier_id"/></div>
+                            <div class="small"><i class="fa fa-calendar me-1"/> ETA: <field name="eta"/></div>
+                            <div class="small"><i class="fa fa-cube me-1"/><field name="container_count"/> containers</div>
+                            <div class="small text-info mt-1" t-if="record.state.raw_value == 'in_transit'">
+                                <i class="fa fa-map-marker me-1"/>
+                                <t t-out="record.port_progress_summary.value"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ══ SEARCH VIEW ══ -->
+    <record id="view_shipment_tracking_search" model="ir.ui.view">
+        <field name="name">shipment.tracking.search</field>
+        <field name="model">shipment.tracking</field>
+        <field name="arch" type="xml">
+            <search string="Search Shipments">
+                <field name="reference"/>
+                <field name="carrier"/>
+                <field name="purchase_order_id"/>
+                <field name="supplier_id"/>
+                <field name="container_ids" string="Container Number"
+                       filter_domain="[('container_ids.container_number','ilike',self)]"/>
+                <field name="intermediate_port_ids" string="Intermediate Port"
+                       filter_domain="[('intermediate_port_ids.name','ilike',self)]"/>
+                <separator/>
+                <filter name="planned"    string="Planned"    domain="[('state','=','planned')]"/>
+                <filter name="in_transit" string="In Transit" domain="[('state','=','in_transit')]"/>
+                <filter name="arrived"    string="Arrived"    domain="[('state','=','arrived')]"/>
+                <separator/>
+                <filter name="payment_pending" string="Payment Pending"
+                        domain="[('payment_confirmed','=',False),('state','=','arrived')]"/>
+                <filter name="overdue_costs" string="Overdue Costs"
+                        domain="[('has_overdue_payments','=',True)]"/>
+                <filter name="insured" string="Insured" domain="[('has_insurance','=',True)]"/>
+                <separator/>
+                <filter name="overdue" string="Overdue ETA"
+                        domain="[('eta','&lt;',context_today().strftime('%Y-%m-%d')),('state','not in',['arrived'])]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state"    string="Status"    context="{'group_by':'state'}"/>
+                    <filter name="group_carrier"  string="Carrier"   context="{'group_by':'carrier'}"/>
+                    <filter name="group_supplier" string="Supplier"  context="{'group_by':'supplier_id'}"/>
+                    <filter name="group_eta"      string="ETA Month" context="{'group_by':'eta:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ══ ACTION ══ -->
+    <record id="action_shipment_tracking" model="ir.actions.act_window">
+        <field name="name">Shipments</field>
+        <field name="res_model">shipment.tracking</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="view_shipment_tracking_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first shipment!</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_shipment_root" name="Shipment Tracking" sequence="55"
+              web_icon="shipment_tracking,static/description/icon.png"/>
+    <menuitem id="menu_shipment_list" name="Shipments" parent="menu_shipment_root"
+              action="action_shipment_tracking" sequence="10"/>
+</odoo>

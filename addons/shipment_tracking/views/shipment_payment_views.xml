@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/views/shipment_payment_views.xml -->
+<odoo>
+
+    <!-- ══ COST — FORM VIEW ══ -->
+    <record id="view_shipment_cost_form" model="ir.ui.view">
+        <field name="name">shipment.cost.form</field>
+        <field name="model">shipment.cost</field>
+        <field name="arch" type="xml">
+            <!--
+                delete="0"  → removes the Delete option from the ⚙ action menu entirely.
+                We block it server-side too (unlink override) so even API calls are safe.
+                For non-paid records, deletion is still possible from the list view.
+            -->
+            <form string="Shipment Cost">
+                <header>
+                    <button name="action_mark_paid" string="Mark as Paid"
+                            type="object" class="btn-success"
+                            invisible="state in ('paid','cancelled')"/>
+                    <button name="action_mark_pending" string="Reset to Pending"
+                            type="object" class="btn-secondary"
+                            invisible="state != 'overdue'"/>
+                    <button name="action_cancel" string="Cancel"
+                            type="object" class="btn-danger"
+                            invisible="state in ('paid','cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,paid"/>
+                </header>
+
+                <sheet>
+                    <!-- Overdue banner -->
+                    <div class="alert alert-danger mb-3" invisible="state != 'overdue'" role="alert">
+                        <strong>⚠ Overdue!</strong> This payment is past its due date.
+                    </div>
+
+                 
+
+                    <!-- Paid — read-only reminder banner -->
+                    <div class="alert alert-success mb-3" invisible="state != 'paid'" role="alert">
+                        <strong>Payment Recorded.</strong>
+                        This entry is locked.
+                    </div>
+
+                    <!-- Smart button: open linked journal entry -->
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="object"
+                                name="action_view_journal_entry"
+                                icon="fa-book"
+                                invisible="not move_id">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Journal Entry</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Cost Stage -->
+                    <group string="Cost Stage">
+                        <field name="stage" nolabel="1"/>
+                    </group>
+
+                    <!-- Shipment -->
+                    <group string="Shipment">
+                        <field name="shipment_id" options="{'no_create': True}" readonly="state == 'paid'"/>
+                    </group>
+
+                    <!-- Payee -->
+                    <group string="Payee">
+                        <field name="payee_id" options="{'no_create_edit': True}"
+                               placeholder="Select from contacts..."
+                               readonly="state == 'paid'"/>
+                    </group>
+
+                    <!-- Fee -->
+                    <group string="Fee">
+                        <group>
+                            <field name="currency_id" options="{'no_create': True}"
+                                   readonly="state == 'paid'"/>
+                            <field name="amount" string="Fee Amount" readonly="state == 'paid'"/>
+                            <!-- Bank Journal right below Fee Amount -->
+                            <field name="journal_id"
+                                   options="{'no_create': True}"
+                                   readonly="state == 'paid'"
+                                   placeholder="Select bank or cash journal..."
+                                   help="Bank or Cash journal credited (money goes out) when marked as Paid."/>
+                            <!-- Exchange Rate: only visible when foreign currency is selected -->
+                            <field name="is_foreign_currency" invisible="1"/>
+                            <field name="manual_exchange_rate"
+                                   invisible="not is_foreign_currency"
+                                   readonly="state == 'paid'"
+                                   placeholder="e.g. 57.50"
+                                   help="Enter today's rate: 1 foreign unit = X company currency (ETB). Used for Total Payment and the journal entry."/>
+                        </group>
+                        <group>
+                            <field name="tax_amount" readonly="state == 'paid'"/>
+                            <field name="tax_account_id" readonly="state == 'paid'"/>
+                            <field name="total_amount" readonly="1" string="Total (Fee + Tax)"/>
+                            <field name="company_currency_id" invisible="1"/>
+                            <field name="amount_company" readonly="1" string="Total"/>
+                        </group>
+                    </group>
+
+                    <!-- Payment Details -->
+                    <group string="Payment Details">
+                        <group>
+                            <field name="fee_account_id"
+                                   readonly="state == 'paid'"
+                                   help="Chart of Accounts entry debited when this cost is paid (e.g. GIT account, Freight Expense)."/>
+                            <field name="due_date" readonly="state == 'paid'"/>
+                            <field name="payment_date"/>
+                        </group>
+                        <group>
+                            <field name="payment_reference"
+                                   placeholder="e.g. TXN-20260506-001"
+                                   readonly="state == 'paid'"/>
+                            <field name="invoice_number"
+                                   placeholder="e.g. INV-2026-0123"
+                                   readonly="state == 'paid'"/>
+                            <field name="move_id" readonly="1" string="Journal Entry"
+                                   invisible="not move_id"/>
+                        </group>
+                    </group>
+
+                    <group string="Notes">
+                        <field name="notes" nolabel="1" placeholder="Additional notes..."
+                               readonly="state == 'paid'"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ══ COST — LIST VIEW (standalone, from Costs menu) ══ -->
+    <!--
+        The trash / delete button in a list view is rendered per-row by Odoo.
+        In Odoo 18 the correct way to suppress it conditionally is:
+          • Use `delete` attribute on the <list> tag set to "0" to hide it for ALL rows, OR
+          • Rely on the server-side unlink() override (our primary guard).
+        There is no supported per-row conditional delete attribute in Odoo 18 list views.
+        We keep delete="0" on the list so the column never appears; deletion of
+        non-paid records can still be done via the Action menu (which our unlink()
+        allows). The unlink() override is the definitive guard for paid records.
+    -->
+    <record id="view_shipment_cost_list" model="ir.ui.view">
+        <field name="name">shipment.cost.list</field>
+        <field name="model">shipment.cost</field>
+        <field name="arch" type="xml">
+            <list string="Shipment Costs"
+                  decoration-danger="state == 'overdue'"
+                  decoration-success="state == 'paid'"
+                  decoration-muted="state == 'cancelled'"
+                  delete="0">
+                <field name="shipment_id"/>
+                <field name="stage" widget="badge"/>
+                <field name="payee_id" optional="show"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="amount" string="Fee"/>
+                <field name="tax_amount" string="Tax" optional="show"/>
+                <field name="total_amount" string="Total" readonly="1"/>
+                <field name="manual_exchange_rate" optional="show" string="Exch. Rate"/>
+                <field name="amount_company" string="Total (ETB)" readonly="1" optional="show"/>
+                <field name="journal_id" optional="show" string="Bank Journal"/>
+                <field name="fee_account_id" optional="show" string="Fee Account"/>
+                <field name="due_date"/>
+                <field name="payment_date" optional="show"/>
+                <field name="invoice_number" optional="show"/>
+                <field name="move_id" optional="show" string="Journal Entry"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'pending'"
+                       decoration-danger="state == 'overdue'"
+                       decoration-success="state == 'paid'"
+                       decoration-muted="state == 'cancelled'"/>
+                <button name="action_mark_paid" string="Mark Paid"
+                        type="object" class="btn-sm btn-success"
+                        invisible="state in ('paid','cancelled')"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ══ COST — SEARCH VIEW ══ -->
+    <record id="view_shipment_cost_search" model="ir.ui.view">
+        <field name="name">shipment.cost.search</field>
+        <field name="model">shipment.cost</field>
+        <field name="arch" type="xml">
+            <search string="Search Costs">
+                <field name="shipment_id"/>
+                <field name="payee_id"/>
+                <field name="invoice_number"/>
+                <field name="journal_id"/>
+                <separator/>
+                <filter name="pending"   string="Pending"  domain="[('state','=','pending')]"/>
+                <filter name="overdue"   string="Overdue"  domain="[('state','=','overdue')]"/>
+                <filter name="paid"      string="Paid"     domain="[('state','=','paid')]"/>
+                <filter name="has_entry" string="Has Journal Entry" domain="[('move_id','!=',False)]"/>
+                <filter name="foreign"   string="Foreign Currency" domain="[('is_foreign_currency','=',True)]"/>
+                <separator/>
+                <filter name="s1" string="Factory to Port"   domain="[('stage','=','1_factory_border')]"/>
+                <filter name="s2" string="Sea Freight"       domain="[('stage','=','2_sea_freight')]"/>
+                <filter name="s3" string="Custom / Duty"     domain="[('stage','=','3_custom_duty')]"/>
+                <filter name="s4" string="Transit Fee"       domain="[('stage','=','4_transit_fee')]"/>
+                <filter name="s5" string="Storage Fee"       domain="[('stage','=','5_storage_fee')]"/>
+                <filter name="s6" string="Local Transport"   domain="[('stage','=','6_local_transport')]"/>
+                <filter name="s7" string="Loading Unloading" domain="[('stage','=','7_loading_unloading')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="g_shipment" string="Shipment"     context="{'group_by':'shipment_id'}"/>
+                    <filter name="g_stage"    string="Stage"        context="{'group_by':'stage'}"/>
+                    <filter name="g_state"    string="Status"       context="{'group_by':'state'}"/>
+                    <filter name="g_payee"    string="Payee"        context="{'group_by':'payee_id'}"/>
+                    <filter name="g_journal"  string="Bank Journal" context="{'group_by':'journal_id'}"/>
+                    <filter name="g_month"    string="Due Month"    context="{'group_by':'due_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ══ COST — PIVOT ══ -->
+    <record id="view_shipment_cost_pivot" model="ir.ui.view">
+        <field name="name">shipment.cost.pivot</field>
+        <field name="model">shipment.cost</field>
+        <field name="arch" type="xml">
+            <pivot string="Cost Analysis" disable_linking="False">
+                <field name="shipment_id" type="row"/>
+                <field name="stage" type="col"/>
+                <field name="total_amount" type="measure" string="Total"/>
+                <field name="amount_company" type="measure" string="Total (Company Currency)"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ══ COST — GRAPH ══ -->
+    <record id="view_shipment_cost_graph" model="ir.ui.view">
+        <field name="name">shipment.cost.graph</field>
+        <field name="model">shipment.cost</field>
+        <field name="arch" type="xml">
+            <graph string="Cost by Stage" type="bar" stacked="True">
+                <field name="stage" type="row"/>
+                <field name="amount_company" type="measure" string="Amount (Company Currency)"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ══ ACTION ══ -->
+    <record id="action_shipment_cost" model="ir.actions.act_window">
+        <field name="name">Shipment Costs</field>
+        <field name="res_model">shipment.cost</field>
+        <field name="view_mode">list,form,pivot,graph</field>
+        <field name="search_view_id" ref="view_shipment_cost_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No cost entries yet.</p>
+            <p>Track all 7 cost stages per shipment — from factory freight to local transport.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_shipment_costs" name="Costs" parent="menu_shipment_root"
+              action="action_shipment_cost" sequence="40"/>
+
+</odoo>

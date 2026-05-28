@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<data>
+
+    <!-- ══ 1. FORM: Product Model field below Category ══ -->
+    <record id="product_template_form_compatibility"
+            model="ir.ui.view">
+        <field name="name">product.template.form.compatibility</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id"
+               ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='categ_id']"
+                   position="after">
+                <field
+                    name="product_model"
+                    string="Product Model"
+                    placeholder="e.g. HH150ZH"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ══ 2. LIST: Product Model optional column ══ -->
+    <record id="product_template_list_compatibility"
+            model="ir.ui.view">
+        <field name="name">product.template.list.compatibility</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id"
+               ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='categ_id']"
+                   position="after">
+                <field
+                    name="product_model"
+                    optional="show"
+                    string="Product Model"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ══ 3. SEARCH: search, filter, group by model ══ -->
+    <record id="product_template_search_compatibility"
+            model="ir.ui.view">
+        <field name="name">product.template.search.compatibility</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id"
+               ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+
+                <field
+                    name="product_model"
+                    string="Product Model"
+                    filter_domain="[('product_model',
+                                    'ilike', self)]"/>
+
+                <filter
+                    name="filter_has_model"
+                    string="Has Product Model"
+                    domain="[('product_model', '!=', False),
+                              ('product_model', '!=', '')]"/>
+
+                <filter
+                    name="filter_no_model"
+                    string="No Model Assigned"
+                    domain="['|',
+                              ('product_model', '=', False),
+                              ('product_model', '=', '')]"/>
+
+                <group expand="0" string="Group By">
+                    <filter
+                        name="group_by_model"
+                        string="Product Model"
+                        context="{'group_by': 'product_model'}"/>
+                </group>
+
+            </xpath>
+        </field>
+    </record>
+
+</data>
+</odoo>

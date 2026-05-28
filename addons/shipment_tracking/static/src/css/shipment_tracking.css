@@ -1,0 +1,148 @@
+/* ============================================================
+   Shipment Tracking — Custom Progress Bar Styles
+   Odoo 18 Community
+   ============================================================ */
+
+/* ── Progress Bar Container ── */
+.shp_progress_bar {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid #e0e4ea;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    margin-bottom: 16px;
+    overflow-x: auto;
+    gap: 0;
+}
+
+/* ── Each Step ── */
+.shp_step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    flex: 1;
+    min-width: 80px;
+    z-index: 1;
+}
+
+/* ── Connector Line between steps ── */
+.shp_step::before {
+    content: '';
+    position: absolute;
+    top: 16px;
+    right: 50%;
+    width: 100%;
+    height: 3px;
+    background: #dee2e6;
+    z-index: 0;
+    transform: translateX(-50%);
+}
+
+.shp_step:first-child::before {
+    display: none;
+}
+
+/* Active / done connectors */
+.shp_step.done::before,
+.shp_step.active::before {
+    background: linear-gradient(90deg, #2e7d32, #43a047);
+}
+
+/* ── Circle Icon ── */
+.shp_circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    border: 3px solid #dee2e6;
+    background: #ffffff;
+    color: #adb5bd;
+    position: relative;
+    z-index: 2;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+}
+
+.shp_step.done .shp_circle {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(46, 125, 50, 0.35);
+}
+
+.shp_step.active .shp_circle {
+    background: #1565c0;
+    border-color: #1565c0;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(21, 101, 192, 0.45);
+    animation: shp_pulse 1.8s infinite;
+}
+
+.shp_step.pending .shp_circle {
+    background: #f8f9fa;
+    border-color: #ced4da;
+    color: #adb5bd;
+}
+
+@keyframes shp_pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(21, 101, 192, 0.45); }
+    70%  { box-shadow: 0 0 0 8px rgba(21, 101, 192, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(21, 101, 192, 0); }
+}
+
+/* ── Step Label ── */
+.shp_label {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    color: #6c757d;
+    line-height: 1.3;
+    max-width: 90px;
+    word-break: break-word;
+}
+
+.shp_step.done .shp_label {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.shp_step.active .shp_label {
+    color: #1565c0;
+    font-weight: 700;
+}
+
+/* ── Sub-label (e.g. "Current" badge) ── */
+.shp_sublabel {
+    font-size: 10px;
+    color: #1565c0;
+    font-weight: 600;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .shp_progress_bar {
+        padding: 10px 8px;
+        gap: 0;
+    }
+    .shp_circle {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+    .shp_label {
+        font-size: 10px;
+        max-width: 68px;
+    }
+}

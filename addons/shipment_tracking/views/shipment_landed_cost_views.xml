@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         INHERIT shipment.tracking FORM
+         Adds a "Landed Costs" stat button next to the existing Costs button
+         in the button_box area at the top of the Shipment form.
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_shipment_tracking_inherit_landed_cost" model="ir.ui.view">
+        <field name="name">shipment.tracking.form.inherit.landed.cost</field>
+        <field name="model">shipment.tracking</field>
+        <field name="inherit_id" ref="shipment_tracking.view_shipment_tracking_form"/>
+        <field name="arch" type="xml">
+
+            <!--
+                Insert the new Landed Costs stat button immediately after
+                the existing "Costs" stat button (action_view_costs).
+            -->
+            <xpath expr="//button[@name='action_view_costs']" position="after">
+
+                <button class="oe_stat_button"
+                        icon="fa-calculator"
+                        type="object"
+                        name="action_view_landed_costs"
+                        help="View Inventory Landed Costs linked to this shipment">
+                    <field name="landed_cost_count"
+                           widget="statinfo"
+                           string="Landed Costs"/>
+                </button>
+
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

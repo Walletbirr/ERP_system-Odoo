@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_shipment_tracking_user,Shipment Tracking User,model_shipment_tracking,purchase.group_purchase_user,1,1,1,0
+access_shipment_tracking_manager,Shipment Tracking Manager,model_shipment_tracking,purchase.group_purchase_manager,1,1,1,1
+access_shipment_container_user,Shipment Container User,model_shipment_container,purchase.group_purchase_user,1,1,1,0
+access_shipment_container_manager,Shipment Container Manager,model_shipment_container,purchase.group_purchase_manager,1,1,1,1
+access_local_transport_trip_user,Local Transport Trip User,model_local_transport_trip,purchase.group_purchase_user,1,1,1,0
+access_local_transport_trip_manager,Local Transport Trip Manager,model_local_transport_trip,purchase.group_purchase_manager,1,1,1,1
+access_local_transport_assignment_user,Local Transport Assignment User,model_local_transport_assignment,purchase.group_purchase_user,1,1,1,0
+access_local_transport_assignment_manager,Local Transport Assignment Manager,model_local_transport_assignment,purchase.group_purchase_manager,1,1,1,1
+access_shipment_cost_user,Shipment Cost User,model_shipment_cost,purchase.group_purchase_user,1,1,1,0
+access_shipment_cost_manager,Shipment Cost Manager,model_shipment_cost,purchase.group_purchase_manager,1,1,1,1
+access_shipment_port_user,Shipment Port User,model_shipment_port,purchase.group_purchase_user,1,1,1,0
+access_shipment_port_manager,Shipment Port Manager,model_shipment_port,purchase.group_purchase_manager,1,1,1,1

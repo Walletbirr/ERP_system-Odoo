@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         INHERIT stock.landed.cost FORM  (Odoo 18 Community)
+
+         Adds:
+           1. "Shipment Reference" field after the date field.
+              Selecting a shipment auto-fills cost_lines via _onchange_shipment_id.
+           2. "Re-sync Costs" button in the header so the user can refresh
+              cost_lines after updating shipment costs (draft state only).
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="view_stock_landed_cost_inherit_shipment" model="ir.ui.view">
+        <field name="name">stock.landed.cost.form.inherit.shipment</field>
+        <field name="model">stock.landed.cost</field>
+        <field name="inherit_id" ref="stock_landed_costs.view_stock_landed_cost_form"/>
+        <field name="arch" type="xml">
+
+            <!-- 1. Insert "Shipment Reference" field after the "date" field -->
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="shipment_id"
+                       string="Shipment Reference"
+                       options="{'no_create': True}"
+                       placeholder="Link to an Import Shipment…"/>
+            </xpath>
+
+            <!-- 2. Add "Re-sync Costs from Shipment" button next to Validate -->
+            <!--    Only visible in Draft state when a shipment is selected    -->
+            <xpath expr="//button[@name='button_validate']" position="after">
+                <button name="action_sync_costs_from_shipment"
+                        type="object"
+                        string="↺ Re-sync Costs from Shipment"
+                        class="btn-secondary"
+                        invisible="state != 'draft' or not shipment_id"
+                        title="Reload cost lines from the linked shipment's costs"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
