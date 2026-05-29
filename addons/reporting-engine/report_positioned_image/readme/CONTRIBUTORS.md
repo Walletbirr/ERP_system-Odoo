@@ -1,3 +1,0 @@
-- Quartile \<<https://www.quartile.co>\>
-  - Tatsuki Kanda
-  - Aung Ko Ko Lin

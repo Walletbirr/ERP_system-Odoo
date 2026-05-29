@@ -1,2 +1,0 @@
-- Telmo Santos \<<telmo.santos@camptocamp.com>\>
-- Alexandre Fayolle \<<alexandre.fayolle@camptocamp.com>\>
