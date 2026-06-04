@@ -127,10 +127,15 @@
             <field name="model">account.report</field>
             <field name="arch" type="xml">
                 <form string="Report Options">
-                    <group col="4">
+                    <group>
+                        <field name="date_range_id"/>
+
+                        <group col="2">
+                                <field name="date_from"/>
+                                <field name="date_to"/>
+                        </group>
+
                         <field name="target_move" widget="radio"/>
-                        <field name="date_from"/>
-                        <field name="date_to"/>
                     </group>
                     <group>
                         <field name="journal_ids" widget="many2many_tags"

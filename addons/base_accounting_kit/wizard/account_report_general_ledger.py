@@ -20,13 +20,26 @@
 #
 #############################################################################
 from odoo import fields, models, _
+from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+
 
 
 class AccountReportGeneralLedger(models.TransientModel):
     _name = "account.report.general.ledger"
     _inherit = "account.common.account.report"
     _description = "General Ledger Report"
+
+    date_range_id = fields.Many2one(
+        "date.range",
+        string="Period"
+    )
+
+    @api.onchange("date_range_id")
+    def _onchange_date_range_id(self):
+        if self.date_range_id:
+            self.date_from = self.date_range_id.date_start
+            self.date_to = self.date_range_id.date_end
 
     section_main_report_ids = fields.Many2many(string="Section Of",
                                                comodel_name='account.report',

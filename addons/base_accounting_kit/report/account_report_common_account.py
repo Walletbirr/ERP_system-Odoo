@@ -19,7 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.tools.misc import get_lang
 
 
@@ -45,10 +45,19 @@ class AccountCommonAccountReport(models.TransientModel):
     target_move = fields.Selection([('posted', 'All Posted Entries'),
                                     ('all', 'All Entries'),
                                     ], string='Target Moves', required=True, default='posted')
+    date_range_id = fields.Many2one(
+    'date.range',
+    string='Period'
+    )
     date_from = fields.Date(string='Start Date')
     date_to = fields.Date(string='End Date')
     company_id = fields.Many2one('res.company', string='Company', required=True, readonly=True,
                                  default=lambda self: self.env.company)
+    @api.onchange('date_range_id')
+    def _onchange_date_range_id(self):
+        if self.date_range_id:
+            self.date_from = self.date_range_id.date_start
+            self.date_to = self.date_range_id.date_end
 
     def _build_contexts(self, data):
         result = {}

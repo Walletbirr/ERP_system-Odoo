@@ -2,17 +2,28 @@
 <odoo>
 <!--Account Report General Ledger Form View-->
     <record id="account_report_general_ledger_view" model="ir.ui.view">
-        <field name="name">account.report.general.ledger.view.form.inherit.base.accounting.kit</field>
-        <field name="model">account.report.general.ledger</field>
-        <field name="inherit_id" ref="base_accounting_kit.account_report_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='target_move']" position="after">
-                <field name="sortby" widget="radio"/>
-                <field name="display_account" widget="radio"/>
-                <field name="initial_balance"/>
-                <newline/>
-            </xpath>
-        </field>
+
+    <xpath expr="//field[@name='target_move']" position="before">
+
+    <field name="date_range_id"/>
+
+    <xpath expr="//field[@name='date_from']" position="move"/>
+    <xpath expr="//field[@name='date_to']" position="move"/>
+
+</xpath>
+
+    <xpath expr="//field[@name='target_move']" position="after">
+
+        <field name="sortby" widget="radio"/>
+        <field name="display_account" widget="radio"/>
+        <field name="initial_balance"/>
+
+        <newline/>
+
+    </xpath>
+
+</field>
     </record>
 <!--Action Account Report General Ledger-->
     <record id="action_account_general_ledger_menu" model="ir.actions.act_window">
