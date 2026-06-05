@@ -1,0 +1,47 @@
+name: Odoo 18 CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy Odoo
+    runs-on: [self-hosted, uat-runner]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Stop Odoo Service
+        run: |
+          sudo systemctl stop odoo || true
+
+      - name: Sync Code to Production Folder
+        run: |
+          rsync -av --delete ./ /data/ERP_system-Odoo/
+
+      - name: Install Python Dependencies
+        run: |
+          source /data/ERP_system-Odoo/venv/bin/activate
+          pip install -r /data/ERP_system-Odoo/requirements.txt
+
+      - name: Upgrade Odoo Modules
+        run: |
+          /data/ERP_system-Odoo/venv/bin/python /opt/odoo/odoo-bin \
+          -c /etc/odoo.conf \
+          -d erpodoo \
+          -u all \
+          --stop-after-init
+
+      - name: Start Odoo Service
+        run: |
+          sudo systemctl start odoo
+
+      - name: Verify Service Status
+        run: |
+          sudo systemctl status odoo --no-pager
