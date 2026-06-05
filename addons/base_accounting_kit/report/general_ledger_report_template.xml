@@ -60,23 +60,23 @@
                 Date
             </th>
 
-            <th style="padding:7px; border:1px solid #999;">
+            <th style="padding:7px; border:1px solid #999;" t-if="data['show_journal']">
                 JRNL
             </th>
 
-            <th style="padding:7px; border:1px solid #999;">
+            <th style="padding:7px; border:1px solid #999;" t-if="data['show_partner']">
                 Partner
             </th>
 
-            <th style="padding:7px; border:1px solid #999;">
+            <th style="padding:7px; border:1px solid #999;" t-if="data['show_ref']">
                 Ref
             </th>
 
-            <th style="padding:7px; border:1px solid #999;">
+            <th style="padding:7px; border:1px solid #999;" t-if="data['show_move']">
                 Move
             </th>
 
-            <th style="padding:7px; border:1px solid #999;">
+            <th style="padding:7px; border:1px solid #999;" t-if="data['show_entry_label']">
                 Entry Label
             </th>
 
@@ -129,7 +129,7 @@
                 border-top:2px solid #666;
             ">
 
-                <td colspan="6"
+                <td t-att-colspan="visible_info_columns"
                     style="padding:8px; border:1px solid #bbb;">
 
                     <span t-esc="account['code']"/>
@@ -187,6 +187,40 @@
             </tr>
 
             <!-- ============================================= -->
+            <!-- INITIAL BALANCE -->
+            <!-- ============================================= -->   
+            
+            <t t-if="data['initial_balance']">
+
+            <tr style="
+                background:#f5f5f5;
+                font-weight:bold;
+            ">
+
+                <td t-att-colspan="visible_info_columns + 2"
+                    class="text-end">
+
+                    Initial Balance
+
+                </td>
+
+                <td class="text-end">
+
+                    <span t-esc="account['initial_balance']"
+                        t-options="{
+                            'widget':'monetary',
+                            'display_currency': env.company.currency_id
+                        }"/>
+
+                </td>
+
+            </tr>
+
+            </t>
+
+
+
+            <!-- ============================================= -->
             <!-- MOVE LINES -->
             <!-- ============================================= -->
 
@@ -197,41 +231,26 @@
                     <span t-esc="line['ldate']"/>
                 </td>
 
-                <td style="padding:6px; border:1px solid #ddd;">
+                <td style="padding:6px; border:1px solid #ddd;" t-if="data['show_journal']">
                     <span t-esc="line['lcode']"/>
                 </td>
 
-                <td style="padding:6px; border:1px solid #ddd;">
+                <td style="padding:6px; border:1px solid #ddd;" t-if="data['show_partner']">
                     <span t-esc="line['partner_name']"/>
                 </td>
 
-                <td style="padding:6px; border:1px solid #ddd;">
+                <td style="padding:6px; border:1px solid #ddd;" t-if="data['show_ref']">
 
                     <span t-if="line['lref']"
                           t-esc="line['lref']"/>
 
                 </td>
 
-                <td style="padding:6px; border:1px solid #ddd;">
+                <td style="padding:6px; border:1px solid #ddd;" t-if="data['show_move']">
                     <span t-esc="line['move_name']"/>
                 </td>
 
-                <td style="padding:6px; border:1px solid #ddd;">
-
-                    <!-- INITIAL BALANCE STYLE -->
-
-                    <span t-if="line['lname'] == 'Initial Balance'"
-                          style="font-weight:bold; color:#444;">
-
-                        <span t-esc="line['lname']"/>
-
-                    </span>
-
-                    <span t-if="line['lname'] != 'Initial Balance'"
-                          t-esc="line['lname']"/>
-
-                </td>
-
+               
                 <td class="text-end"
                     style="
                         padding:6px;
@@ -289,7 +308,7 @@
                 border-top:2px solid #999;
             ">
 
-                <td colspan="8"
+                <td t-att-colspan="visible_info_columns + 2"
                     class="text-end"
                     style="padding:8px; border:1px solid #bbb;">
 

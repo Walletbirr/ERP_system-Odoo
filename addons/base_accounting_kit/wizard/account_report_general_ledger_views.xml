@@ -7,8 +7,11 @@
     <xpath expr="//field[@name='target_move']" position="before">
 
     <field name="date_range_id"/>
+    <newline/>
 
     <xpath expr="//field[@name='date_from']" position="move"/>
+    
+
     <xpath expr="//field[@name='date_to']" position="move"/>
 
 </xpath>
@@ -19,8 +22,19 @@
         <field name="display_account" widget="radio"/>
         <field name="initial_balance"/>
 
-        <newline/>
+        <separator string="Display Columns"/>
+        
+        <field name="show_journal"/>
+        <field name="show_partner"/>
+        <field name="show_ref"/>
+        <field name="show_move"/>
+        <field name="show_entry_label"/>
 
+        <separator string="Accounts"/>
+        <newline/>
+        <field name="account_ids"
+       widget="many2many_tags"
+       options="{'no_create': True}"/>
     </xpath>
 
 </field>

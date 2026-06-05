@@ -41,6 +41,35 @@ class AccountReportGeneralLedger(models.TransientModel):
             self.date_from = self.date_range_id.date_start
             self.date_to = self.date_range_id.date_end
 
+    account_ids = fields.Many2many(
+    'account.account',
+    string='Accounts'
+    )
+    show_journal = fields.Boolean(
+    string="Show Journal",
+    default=True
+    )
+
+    show_partner = fields.Boolean(
+    string="Show Partner",
+    default=True
+    )
+
+    show_ref = fields.Boolean(
+        string="Show Reference",
+        default=True
+    )
+
+    show_move = fields.Boolean(
+        string="Show Move",
+        default=True
+    )
+
+    show_entry_label = fields.Boolean(
+        string="Show Entry Label",
+        default=True
+    )
+
     section_main_report_ids = fields.Many2many(string="Section Of",
                                                comodel_name='account.report',
                                                relation="account_report_general_section_rel",
@@ -52,6 +81,11 @@ class AccountReportGeneralLedger(models.TransientModel):
                                           column1="main_report_id",
                                           column2="sub_report_id")
     name = fields.Char(string="General Ledger", default="General Ledger", required=True, translate=True)
+    account_ids = fields.Many2many(
+    'account.account',
+    string='Accounts'
+    )
+
     initial_balance = fields.Boolean(string='Include Initial Balances',
                                      help='If you selected date, this field '
                                           'allow you to add a row to display '
@@ -68,7 +102,19 @@ class AccountReportGeneralLedger(models.TransientModel):
 
     def _print_report(self, data):
         data = self.pre_print_report(data)
-        data['form'].update(self.read(['initial_balance', 'sortby'])[0])
+        # data['form'].update(self.read(['initial_balance', 'sortby'])[0])
+        data['form'].update(
+            self.read([
+                'initial_balance',
+                'sortby',
+                'show_journal',
+                'show_partner',
+                'show_ref',
+                'show_move',
+                'show_entry_label',
+                'account_ids',
+            ])[0]
+        )
         if data['form'].get('initial_balance') and not data['form'].get(
                 'date_from'):
             raise UserError(_("You must define a Start Date"))
