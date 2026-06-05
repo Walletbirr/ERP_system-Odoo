@@ -17,9 +17,11 @@ jobs:
         run: |
           whoami
           id
+          sudo -V
           sudo -l
-          which systemctl
-          readlink -f $(which systemctl)
+          sudo -n true
+          echo "STOP TEST"
+          sudo -n /usr/bin/systemctl status odoo
 
       - name: Stop Odoo
         run: sudo /usr/bin/systemctl stop odoo
