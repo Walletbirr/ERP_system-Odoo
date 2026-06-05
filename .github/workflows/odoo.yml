@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, odoo18]
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code
