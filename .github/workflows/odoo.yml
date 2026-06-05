@@ -1,0 +1,52 @@
+name: Odoo 18 Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug runner
+        run: |
+          echo "=== Runner Information ==="
+          whoami
+          id
+          groups
+          echo "=== Odoo service status before deployment ==="
+          systemctl status odoo --no-pager || echo "Odoo service not active or not found"
+          echo "=== Stopping Odoo for deployment ==="
+
+      - name: Stop Odoo
+        run: systemctl stop odoo
+
+      - name: Sync project
+        run: rsync -av --delete ./ /data/ERP_system-Odoo/
+
+      - name: Install dependencies
+        run: |
+          source /data/ERP_system-Odoo/venv/bin/activate
+          pip install -r /data/ERP_system-Odoo/requirements.txt
+
+      - name: Upgrade modules
+        run: |
+          /data/ERP_system-Odoo/venv/bin/python /opt/odoo/odoo-bin \
+            -c /etc/odoo.conf \
+            -d erpodoo \
+            -u all \
+            --stop-after-init
+
+      - name: Start Odoo
+        run: systemctl start odoo
+
+      - name: Verify Odoo
+        run: |
+          echo "=== Waiting for Odoo to start ==="
+          sleep 8
+          systemctl status odoo --no-pager
