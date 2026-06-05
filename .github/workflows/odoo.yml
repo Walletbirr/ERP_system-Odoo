@@ -15,16 +15,16 @@ jobs:
 
       - name: Debug runner
         run: |
+          echo "=== Runner Information ==="
           whoami
           id
-          sudo -V
-          sudo -l
-          sudo -n true
-          echo "STOP TEST"
-          sudo -n /usr/bin/systemctl status odoo
+          groups
+          echo "=== Odoo service status before deployment ==="
+          systemctl status odoo --no-pager || echo "Odoo service not active or not found"
+          echo "=== Stopping Odoo for deployment ==="
 
       - name: Stop Odoo
-        run: sudo /usr/bin/systemctl stop odoo
+        run: systemctl stop odoo
 
       - name: Sync project
         run: rsync -av --delete ./ /data/ERP_system-Odoo/
@@ -43,7 +43,10 @@ jobs:
             --stop-after-init
 
       - name: Start Odoo
-        run: sudo /usr/bin/systemctl start odoo
+        run: systemctl start odoo
 
       - name: Verify Odoo
-        run: sudo /usr/bin/systemctl status odoo --no-pager
+        run: |
+          echo "=== Waiting for Odoo to start ==="
+          sleep 8
+          systemctl status odoo --no-pager
