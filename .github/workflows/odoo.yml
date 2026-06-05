@@ -13,11 +13,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug runner
+        run: |
+          echo "=== USER ==="
+          whoami
+
+          echo "=== ID ==="
+          id
+
+          echo "=== SUDO PERMISSIONS ==="
+          sudo -l
+
+          echo "=== SYSTEMCTL PATH ==="
+          which systemctl
+          readlink -f $(which systemctl)
+
       - name: Stop Odoo
-        run: sudo -n /usr/bin/systemctl stop odoo
+        run: |
+          sudo -n /usr/bin/systemctl stop odoo
 
       - name: Sync project
-        run: rsync -av --delete ./ /data/ERP_system-Odoo/
+        run: |
+          rsync -av --delete ./ /data/ERP_system-Odoo/
 
       - name: Install dependencies
         run: |
@@ -27,13 +44,15 @@ jobs:
       - name: Upgrade modules
         run: |
           /data/ERP_system-Odoo/venv/bin/python /opt/odoo/odoo-bin \
-          -c /etc/odoo.conf \
-          -d erpodoo \
-          -u all \
-          --stop-after-init
+            -c /etc/odoo.conf \
+            -d erpodoo \
+            -u all \
+            --stop-after-init
 
       - name: Start Odoo
-        run: sudo -n /usr/bin/systemctl start odoo
+        run: |
+          sudo -n /usr/bin/systemctl start odoo
 
-      - name: Verify
-        run: sudo -n /usr/bin/systemctl status odoo --no-pager
+      - name: Verify Odoo
+        run: |
+          sudo -n /usr/bin/systemctl status odoo --no-pager
