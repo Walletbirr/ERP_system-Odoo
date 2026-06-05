@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Stop Odoo
-        run: sudo systemctl stop odoo
+        run: sudo -n systemctl stop odoo
 
       - name: Sync project
         run: rsync -av --delete ./ /data/ERP_system-Odoo/
