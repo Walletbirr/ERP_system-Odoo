@@ -19,7 +19,7 @@
 #    If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
-from odoo import api, fields, models
+from odoo import api, fields, models 
 from odoo.tools.misc import get_lang
 
 
@@ -28,6 +28,15 @@ class AccountCommonAccountReport(models.TransientModel):
     _description = 'Account Common Account Report'
     _inherit = "account.report"
 
+    date_range_id = fields.Many2one(
+    'date.range',
+    string='Period'
+)
+    @api.onchange('date_range_id')
+    def _onchange_date_range_id(self):
+        if self.date_range_id:
+            self.date_from = self.date_range_id.date_start
+            self.date_to = self.date_range_id.date_end
     section_main_report_ids = fields.Many2many(string="Section Of",
                                                comodel_name='account.report',
                                                relation="account_common_report_section_rel",
@@ -45,19 +54,10 @@ class AccountCommonAccountReport(models.TransientModel):
     target_move = fields.Selection([('posted', 'All Posted Entries'),
                                     ('all', 'All Entries'),
                                     ], string='Target Moves', required=True, default='posted')
-    date_range_id = fields.Many2one(
-    'date.range',
-    string='Period'
-    )
     date_from = fields.Date(string='Start Date')
     date_to = fields.Date(string='End Date')
     company_id = fields.Many2one('res.company', string='Company', required=True, readonly=True,
                                  default=lambda self: self.env.company)
-    @api.onchange('date_range_id')
-    def _onchange_date_range_id(self):
-        if self.date_range_id:
-            self.date_from = self.date_range_id.date_start
-            self.date_to = self.date_range_id.date_end
 
     def _build_contexts(self, data):
         result = {}
@@ -74,13 +74,30 @@ class AccountCommonAccountReport(models.TransientModel):
 
     def check_report(self):
         self.ensure_one()
+
         data = {}
         data['ids'] = self.env.context.get('active_ids', [])
         data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
-        data['form'] = self.read(['date_from', 'date_to', 'journal_ids', 'target_move', 'company_id'])[0]
+
+        data['form'] = self.read([
+            'date_range_id',
+            'date_from',
+            'date_to',
+            'journal_ids',
+            'target_move',
+            'company_id'
+        ])[0]
+
         used_context = self._build_contexts(data)
-        data['form']['used_context'] = dict(used_context, lang=get_lang(self.env).code)
-        return self.with_context(discard_logo_check=True)._print_report(data)
+
+        data['form']['used_context'] = dict(
+            used_context,
+            lang=get_lang(self.env).code
+        )
+
+        return self.with_context(
+            discard_logo_check=True
+        )._print_report(data)
 
     def pre_print_report(self, data):
         data['form'].update(self.read(['display_account'])[0])

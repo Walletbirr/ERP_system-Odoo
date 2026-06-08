@@ -24,12 +24,10 @@ from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 
-
 class AccountReportGeneralLedger(models.TransientModel):
     _name = "account.report.general.ledger"
     _inherit = "account.common.account.report"
     _description = "General Ledger Report"
-
     date_range_id = fields.Many2one(
         "date.range",
         string="Period"
@@ -70,6 +68,7 @@ class AccountReportGeneralLedger(models.TransientModel):
         default=True
     )
 
+
     section_main_report_ids = fields.Many2many(string="Section Of",
                                                comodel_name='account.report',
                                                relation="account_report_general_section_rel",
@@ -81,11 +80,6 @@ class AccountReportGeneralLedger(models.TransientModel):
                                           column1="main_report_id",
                                           column2="sub_report_id")
     name = fields.Char(string="General Ledger", default="General Ledger", required=True, translate=True)
-    account_ids = fields.Many2many(
-    'account.account',
-    string='Accounts'
-    )
-
     initial_balance = fields.Boolean(string='Include Initial Balances',
                                      help='If you selected date, this field '
                                           'allow you to add a row to display '
@@ -100,6 +94,51 @@ class AccountReportGeneralLedger(models.TransientModel):
                                    'account_id', 'journal_id',
                                    string='Journals', required=True)
 
+    def action_view_report(self):
+        self.ensure_one()
+        return self.view_report()
+
+    def view_report(self):
+        self.ensure_one()
+
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get(
+            'active_model',
+            'ir.ui.menu'
+        )
+
+        data['form'] = self.read([
+            'date_from',
+            'date_to',
+            'journal_ids',
+            'target_move',
+            'company_id',
+            'display_account',
+            'initial_balance',
+            'sortby',
+            'show_journal',
+            'show_partner',
+            'show_ref',
+            'show_move',
+            'show_entry_label',
+            'account_ids',
+        ])[0]
+
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = used_context
+
+        records = self.env[data['model']].browse(
+            data.get('ids', [])
+        )
+
+        return self.env.ref(
+            'base_accounting_kit.action_report_general_ledger_html'
+        ).report_action(
+            records,
+            data=data
+        )
+    
     def _print_report(self, data):
         data = self.pre_print_report(data)
         # data['form'].update(self.read(['initial_balance', 'sortby'])[0])

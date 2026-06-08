@@ -128,6 +128,7 @@ class ReportGeneralLedger(models.AbstractModel):
             sql = """
                 SELECT
                     l.id AS lid,
+                    m.id AS move_id,
                     l.date AS ldate,
                     j.code AS lcode,
                     p.name AS partner_name,

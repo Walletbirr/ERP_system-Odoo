@@ -8,8 +8,15 @@
         <field name="arch" type="xml">
             <field name="journal_ids" position="replace"/>
             <xpath expr="//field[@name='target_move']" position="after">
+
+                <newline/>
+
+
                 <field name="display_account" widget="radio"/>
                 <newline/>
+                <field name="date_range_id"/>
+
+
             </xpath>
         </field>
     </record>
