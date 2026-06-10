@@ -138,6 +138,7 @@ class AccountReportGeneralLedger(models.TransientModel):
             records,
             data=data
         )
+    #----- print report -----
     
     def _print_report(self, data):
         data = self.pre_print_report(data)
