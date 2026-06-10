@@ -86,6 +86,12 @@ class ShipmentCost(models.Model):
     )
 
     # ── Tax ───────────────────────────────────────────────────────────────────
+    tax_id = fields.Many2one(
+        'account.tax', string='Tax',
+        domain="[('type_tax_use', 'in', ['purchase', 'all'])]",
+        tracking=True,
+        help='Select a tax type; the Tax Amount will be computed automatically based on the Fee Amount.',
+    )
     tax_amount = fields.Monetary(
         string='Tax Amount', currency_field='currency_id',
         default=0.0, tracking=True,
@@ -201,6 +207,31 @@ class ShipmentCost(models.Model):
             # else: leave at 0 so the warning banner prompts the user
         else:
             self.manual_exchange_rate = 0.0
+
+    @api.onchange('tax_id', 'amount')
+    def _onchange_tax_id(self):
+        """
+        When the user selects a tax type (or changes the Fee Amount),
+        automatically compute and set the Tax Amount.
+        - For percentage taxes: tax_amount = amount * (tax.amount / 100)
+        - For fixed taxes: tax_amount = tax.amount
+        - Clears tax_amount when no tax is selected.
+        """
+        for rec in self:
+            if rec.tax_id and rec.amount:
+                tax = rec.tax_id
+                if tax.amount_type == 'percent':
+                    rec.tax_amount = rec.amount * (tax.amount / 100.0)
+                elif tax.amount_type == 'fixed':
+                    rec.tax_amount = tax.amount
+                elif tax.amount_type == 'division':
+                    # Tax-inclusive: derive the tax portion
+                    divisor = 1.0 + (tax.amount / 100.0)
+                    rec.tax_amount = rec.amount - (rec.amount / divisor) if divisor else 0.0
+                else:
+                    rec.tax_amount = 0.0
+            elif not rec.tax_id:
+                rec.tax_amount = 0.0
 
     @api.depends('amount', 'tax_amount', 'currency_id', 'company_currency_id', 'manual_exchange_rate')
     def _compute_total(self):

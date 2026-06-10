@@ -1,7 +1,7 @@
 # /custom_addons/shipment_tracking/models/shipment.py
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 class ShipmentTracking(models.Model):
@@ -129,6 +129,30 @@ class ShipmentTracking(models.Model):
     active = fields.Boolean(default=True)
 
     # ── Computed ──────────────────────────────────────────────────────────────
+    @api.constrains('etd', 'eta')
+    def _check_dates_not_in_past(self):
+        today = fields.Date.today()
+        for rec in self:
+            if rec.etd and rec.etd < today:
+                raise ValidationError(_(
+                    'ETD (Est. Departure) cannot be set to a past date. '
+                    'Please select today or a future date.'
+                ))
+            if rec.eta and rec.eta < today:
+                raise ValidationError(_(
+                    'ETA (Est. Arrival) cannot be set to a past date. '
+                    'Please select today or a future date.'
+                ))
+            if rec.etd and rec.eta and rec.etd == rec.eta:
+                raise ValidationError(_(
+                    'ETD (Est. Departure) and ETA (Est. Arrival) cannot be the same date. '
+                    'Arrival must be after departure.'
+                ))
+            if rec.etd and rec.eta and rec.eta < rec.etd:
+                raise ValidationError(_(
+                    'ETA (Est. Arrival) cannot be earlier than ETD (Est. Departure).'
+                ))
+
     @api.depends('container_ids')
     def _compute_container_count(self):
         for rec in self:
