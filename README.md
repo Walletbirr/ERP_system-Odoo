@@ -124,18 +124,12 @@ git clone https://github.com/Walletbirr/ERP_system-Odoo.git
 cd ERP_System_Odoo
 ```
 
-### Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
 ### Configure PostgreSQL
 
 Create a PostgreSQL database:
 
 ```bash
-createdb erp_db
+createdb erpodoo
 ```
 
 ### Run Odoo
