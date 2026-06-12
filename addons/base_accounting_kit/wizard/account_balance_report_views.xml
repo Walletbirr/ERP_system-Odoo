@@ -18,6 +18,20 @@
 
 
             </xpath>
+            <xpath expr="//footer" position="replace">
+                <footer>
+                    <button name="check_report"
+                            string="Print"
+                            type="object"
+                            class="oe_highlight"/>
+                    <button name="action_view_report"
+                            string="View"
+                            type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel"
+                            special="cancel"/>
+                </footer>
+            </xpath>
         </field>
     </record>
 <!--Action Account Balance Report-->

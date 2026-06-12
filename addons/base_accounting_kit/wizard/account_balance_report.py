@@ -55,3 +55,31 @@ class AccountBalanceReport(models.TransientModel):
         return self.env.ref(
             'base_accounting_kit.action_report_trial_balance').report_action(
             records, data=data)
+    def action_view_report(self):
+        self.ensure_one()
+        return self.view_report()
+
+    def view_report(self):
+        self.ensure_one()
+
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+
+        data['form'] = self.read([
+            'date_from',
+            'date_to',
+            'journal_ids',
+            'target_move',
+            'company_id',
+            'display_account',
+        ])[0]
+
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = used_context
+
+        records = self.env[data['model']].browse(data.get('ids', []))
+
+        return self.env.ref(
+            'base_accounting_kit.action_report_trial_balance_html'  # ⚠ needs confirming
+        ).report_action(records, data=data)

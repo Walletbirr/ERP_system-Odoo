@@ -57,13 +57,17 @@
         <field name="report_file">base_accounting_kit.report_tax</field>
     </record>
     <!--    # Trial balance report    -->
-    <record id="action_report_trial_balance" model="ir.actions.report">
-        <field name="name">Trial Balance</field>
-        <field name="model">account.balance.report</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">base_accounting_kit.report_trial_balance</field>
-        <field name="report_file">base_accounting_kit.report_trial_balance</field>
-    </record>
+    <record id="action_report_trial_balance_html"
+        model="ir.actions.report">
+
+    <field name="name">Trial Balance</field>
+    <field name="model">account.balance.report</field>
+    <field name="report_type">qweb-html</field>
+
+    <field name="report_name">base_accounting_kit.report_trial_balance</field>
+    <field name="report_file">base_accounting_kit.report_trial_balance</field>
+
+</record>
     <!--    # CAsh flow statements    -->
     <record id="action_report_cash_flow" model="ir.actions.report">
         <field name="name">Cash Flow Statement</field>

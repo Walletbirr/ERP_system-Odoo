@@ -1,57 +1,113 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 <!--Account Report General Ledger Form View-->
-    <record id="account_report_general_ledger_view" model="ir.ui.view">
-        <field name="arch" type="xml">
+   <record id="account_report_general_ledger_view" model="ir.ui.view">
+    <field name="arch" type="xml">
 
-    <xpath expr="//field[@name='target_move']" position="before">
+        <!-- TOP FILTER AREA -->
+        <xpath expr="//form/group[1]" position="replace">
 
-    <field name="date_range_id"/>
-    <newline/>
+            <group>
 
-    <xpath expr="//field[@name='date_from']" position="move"/>
-    
+                <!-- LEFT COLUMN -->
+                <group>
 
-    <xpath expr="//field[@name='date_to']" position="move"/>
+                    <field name="date_range_id"/>
 
-</xpath>
+                    <field name="date_from"/>
 
-    <xpath expr="//field[@name='target_move']" position="after">
+                    <field name="date_to"/>
 
-        <field name="sortby" widget="radio"/>
-        <field name="display_account" widget="radio"/>
-        <field name="initial_balance"/>
+                </group>
 
-        <separator string="Display Columns"/>
-        
-        <field name="show_journal"/>
-        <field name="show_partner"/>
-        <field name="show_ref"/>
-        <field name="show_move"/>
-        <field name="show_entry_label"/>
+                <!-- RIGHT COLUMN -->
+                <group>
 
-        <separator string="Accounts"/>
-        <newline/>
-        <field name="account_ids"
-       widget="many2many_tags"
-       options="{'no_create': True}"/>
-    </xpath>
-            <xpath expr="//footer" position="replace">
-                <footer>
-                    <button name="check_report"
-                            string="Print"
-                            type="object"
-                            class="oe_highlight"/>
-                    <button name="action_view_report"
-                            string="View"
-                            type="object"
-                            class="btn-primary"/>
-                    <button string="Cancel"
-                            special="cancel"/>
-                </footer>
-            </xpath>
-        </field>
-    </record>
+                    <field name="target_move" widget="radio"/>
+
+                    <field name="sortby" widget="radio"/>
+
+                    <field name="display_account" widget="radio"/>
+
+                </group>
+
+            </group>
+
+        </xpath>
+
+        <!-- REMOVE ORIGINAL ACCOUNT/JOURNAL AREA -->
+        <xpath expr="//field[@name='journal_ids']" position="replace">
+
+            <separator string="Display Columns"/>
+
+            <group>
+
+                <group>
+
+                    <field name="show_journal"/>
+
+                    <field name="show_ref"/>
+
+                    <field name="show_entry_label"/>
+
+                </group>
+
+                <group>
+
+                    <field name="show_partner"/>
+
+                    <field name="show_move"/>
+
+                </group>
+
+            </group>
+
+          
+
+   <group colspan="4">
+
+    <field name="initial_balance"/>
+
+    <separator string="Accounts" colspan="4"/>
+
+    <field name="account_ids"
+           widget="many2many_tags"
+           nolabel="0"
+           options="{'no_create': True}"/>
+
+    <field name="journal_ids"
+           widget="many2many_tags"
+           nolabel="0"
+           options="{'no_create': True}"/>
+
+</group>
+
+
+        </xpath>
+
+        <xpath expr="//footer" position="replace">
+
+            <footer>
+
+                <button name="check_report"
+                        string="Print"
+                        type="object"
+                        class="oe_highlight"/>
+
+                <button name="action_view_report"
+                        string="View"
+                        type="object"
+                        class="btn-primary"/>
+
+                <button string="Cancel"
+                        special="cancel"/>
+
+            </footer>
+
+        </xpath>
+
+    </field>
+</record>
 <!--Action Account Report General Ledger-->
     <record id="action_account_general_ledger_menu" model="ir.actions.act_window">
         <field name="name">General Ledger</field>

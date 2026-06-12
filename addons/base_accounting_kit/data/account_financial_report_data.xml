@@ -130,10 +130,10 @@
                     <group>
                         <field name="date_range_id"/>
 
-                        <group col="1">
-                                <field name="date_from"/>
-                                <field name="date_to"/>
-                        </group>
+                        
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                        
 
                         <field name="target_move" widget="radio"/>
                     </group>
