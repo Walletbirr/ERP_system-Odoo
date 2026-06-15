@@ -19,38 +19,101 @@ class LCManagement(models.Model):
     # Opening Charges
     opening_fee = fields.Monetary(
         string="Opening Bank Fee",
-        currency_field='company_currency_id'
+        currency_field='company_currency_id',
+        required=True
     )
     opening_fee_account_id = fields.Many2one(
-        'account.account', string="Opening Fee Account"
+        'account.account', 
+        string="Opening Fee Account",
+        required=True
     )
     opening_date = fields.Date(
         string="Opening Date",
+        required=True,
         default=fields.Date.today
     )
     opening_vat_amount = fields.Monetary(
         string="Opening VAT Amount",
-        currency_field='company_currency_id'
+        currency_field='company_currency_id',
+        required=True
     )
     opening_vat_account_id = fields.Many2one(
-        'account.account', string="Opening VAT Account"
+        'account.account', 
+        string="Opening VAT Account",
+        required=True
     )
+
+    # # Opening Tax
+    # opening_tax_id = fields.Many2one(
+    #     'account.tax',
+    #     string="Opening Tax Type",
+    #     domain="[('type_tax_use', '=', 'purchase')]"
+    # )
+
+    # opening_tax_amount = fields.Monetary(
+    #     string="Opening Tax Amount",
+    #     currency_field='company_currency_id',
+    #     compute="_compute_opening_tax_amount",
+    #     store=True
+    # )
+
+    # opening_tax_account_id = fields.Many2one(
+    #     'account.account',
+    #     string="Opening Tax Account"
+    # )
+    # Settlement Charges
+
+
+    cancel_reason = fields.Text(
+        readonly=True
+    )
+
+
     settlement_fee = fields.Monetary(
         string="LC Settlement Fee",
-        currency_field='company_currency_id'
+        currency_field='company_currency_id',
+        # required=True
     )
     settlement_fee_account_id = fields.Many2one(
-        'account.account', string="Settlement Fee Account"
+        'account.account', 
+        string="Settlement Fee Account",
+        # required=True
     )
+
+
+    # # Settlement Tax
+    # settlement_tax_id = fields.Many2one(
+    #     'account.tax',
+    #     string="Settlement Tax Type",
+    #     domain="[('type_tax_use', '=', 'purchase')]"
+    # )
+
+    # settlement_tax_amount = fields.Monetary(
+    #     string="Settlement Tax Amount",
+    #     currency_field='company_currency_id',
+    #     compute="_compute_settlement_tax_amount",
+    # store=True
+    # )
+
+    # settlement_tax_account_id = fields.Many2one(
+    #     'account.account',
+    #     string="Settlement Tax Account"
+    # )
+
+
     settlement_vat_amount = fields.Monetary(
         string="Settlement VAT Amount",
-        currency_field='company_currency_id'
+        currency_field='company_currency_id',
+        # required=True
     )
     settlement_vat_account_id = fields.Many2one(
-        'account.account', string="Settlement VAT Account"
+        'account.account', 
+        string="Settlement VAT Account",
+        # required=True
     )
     settlement_date = fields.Date(
         string="Settlement Date",
+        # required=True,
         default=fields.Date.today
     )
 
@@ -72,6 +135,7 @@ class LCManagement(models.Model):
     amount = fields.Monetary(
         string='Amount',
         currency_field='currency_id',
+        required=True
     )
     currency_id = fields.Many2one(
         'res.currency',
@@ -187,11 +251,12 @@ class LCManagement(models.Model):
     )
 
     state = fields.Selection([
-        ('draft', 'Draft'),
-        ('open', 'Open'),
-        ('utilized', 'Utilized'),
-        ('settled', 'Settled'),
-        ('closed', 'Closed'),
+    ('draft', 'Draft'),
+    ('open', 'Open'),
+    ('utilized', 'Utilized'),
+    ('settled', 'Settled'),
+    ('closed', 'Closed'),
+    ('cancelled', 'Cancelled'),
     ], default='draft')
 
     purchase_ids = fields.One2many('purchase.order', 'lc_id')
@@ -216,9 +281,6 @@ class LCManagement(models.Model):
 
     # ========================= BUTTONS =========================
 
-    # -------------------------
-    # OPEN LOGIC
-    # -------------------------
     def action_open(self):
 
         for rec in self:
@@ -257,6 +319,22 @@ class LCManagement(models.Model):
                 raise ValidationError(
                     "Bank journal missing default account."
                 )
+
+
+            # =========================
+            # TOTAL CREDIT AMOUNT
+            # =========================
+
+            # total_credit = (
+            #     rec.amount
+            #     + rec.opening_fee
+            #     + rec.opening_tax_amount
+            # )
+            # total_credit = (
+            #     rec.margin_amount
+            #     + rec.opening_fee
+            #     + rec.opening_tax_amount
+            # )
             total_credit = (
             rec.margin_amount_company_currency
             + rec.opening_fee
@@ -274,6 +352,17 @@ class LCManagement(models.Model):
                 'journal_id': rec.bank_journal_id.id,
 
                 'line_ids': [
+
+                # ---------------------------------
+                # LC MARGIN FREEZE
+                # ---------------------------------
+
+                    # (0, 0, {
+                    #     'name': f"LC Margin - {rec.name}",
+                    #     'account_id': rec.margin_account_id.id,
+                    #     'debit': rec.margin_amount_company_currency,
+                    #     'credit': 0.0,
+                    # }),
                 # ----------------------------
                 # DR LC Margin/GIT
                 # ----------------------------
@@ -326,12 +415,298 @@ class LCManagement(models.Model):
                 'opening_move_id': move.id,
             })
 
-    # ========================= SETTLEMENT LOGIC =========================
+    # def action_settle(self):
+
+    #     for rec in self:
+    #         if rec.state != 'utilized':
+    #             raise ValidationError(
+    #                 "Only utilized LC can be settled."
+    #         )
+
+    #         if not rec.settlement_fee:
+    #             raise ValidationError(
+    #                 "Please enter settlement fee."
+    #             )
+
+    #         if not rec.settlement_fee_account_id:
+    #             raise ValidationError(
+    #                 "Please select settlement fee account."
+    #             )
+
+    #         if not rec.settlement_date:
+    #             raise ValidationError(
+    #                 "Please enter settlement date."
+    #             )
+
+    #         rec.state = 'settled'
+    # def action_settle(self):
+
+    #     for rec in self:
+
+    #         if rec.state != 'utilized':
+    #             raise ValidationError(
+    #                 "Only utilized LC can be settled."
+    #             )
+
+    #     # =========================
+    #     # VALIDATIONS
+    #     # =========================
+
+    #         if not rec.settlement_fee:
+    #             raise ValidationError(
+    #                 "Please enter settlement fee."
+    #             )
+
+    #         if not rec.settlement_fee_account_id:
+    #             raise ValidationError(
+    #                 "Please select settlement fee account."
+    #             )
+
+    #         if not rec.settlement_vat_account_id:
+    #             raise ValidationError(
+    #                 "Please select settlement VAT account."
+    #             )
+
+    #         if not rec.settlement_date:
+    #             raise ValidationError(
+    #                 "Please enter settlement date."
+    #             )
+
+    #         bank_account = rec.bank_journal_id.default_account_id
+
+    #         if not bank_account:
+    #             raise ValidationError(
+    #                 "Bank journal missing default account."
+    #         )
+
+    #     # =========================
+    #     # TOTAL CREDIT
+    #     # =========================
+
+    #         total_credit = (
+    #             rec.settlement_fee
+    #             + rec.settlement_tax_amount
+    #         )
+
+    #     # =========================
+    #     # ACCOUNTING ENTRY
+    #     # =========================
+
+    #         move = self.env['account.move'].create({
+
+    #             'move_type': 'entry',
+    #             'journal_id': rec.bank_journal_id.id,
+
+    #             'line_ids': [
+
+    #             # ---------------------------------
+    #             # SETTLEMENT FEE
+    #             # ---------------------------------
+
+    #                 (0, 0, {
+    #                     'name': f"LC Settlement Fee - {rec.name}",
+    #                     'account_id': rec.settlement_fee_account_id.id,
+    #                     'debit': rec.settlement_fee,
+    #                     'credit': 0.0,
+    #                 }),
+
+    #             # ---------------------------------
+    #             # SETTLEMENT TAX
+    #             # ---------------------------------
+
+    #                 (0, 0, {
+    #                     'name': f"LC Settlement Tax - {rec.name}",
+    #                     'account_id': rec.settlement_tax_account_id.id,
+    #                     'debit': rec.settlement_tax_amount,
+    #                     'credit': 0.0,
+    #                 }),
+
+    #             # ---------------------------------
+    #             # BANK CREDIT
+    #             # ---------------------------------
+
+    #                 (0, 0, {
+    #                     'name': f"LC Settlement - {rec.name}",
+    #                     'account_id': bank_account.id,
+    #                     'debit': 0.0,
+    #                     'credit': total_credit,
+    #                 }),
+    #             ]
+    #         })
+
+    #         move.action_post()
+
+    #         rec.write({
+    #             'state': 'settled',
+    #             'settlement_move_id': move.id,
+    #         })
+
+    # # def action_close(self):
+    # #     for rec in self:
+    # #         rec.state = 'closed'
+    # def action_settle(self):
+
+    #     for rec in self:
+    #         if rec.state != 'utilized':
+    #             raise ValidationError(
+    #                 "Only utilized LC can be settled."
+    #             )
+    #         if not rec.settlement_currency_amount:
+    #             rec.settlement_currency_amount = (
+    #             rec.remaining_amount
+    #         )
+    #         # =========================
+    #         # VALIDATIONS
+    #         # =========================
+
+    #         if not rec.settlement_fee:
+    #             raise ValidationError(
+    #                 "Please enter settlement fee."
+    #             )
+
+    #         if not rec.settlement_fee_account_id:
+    #             raise ValidationError(
+    #                 "Please select settlement fee account."
+    #             )
+
+    #         if not rec.settlement_tax_account_id:
+    #             raise ValidationError(
+    #                 "Please select settlement tax account."
+    #             )
+
+    #         if not rec.settlement_date:
+    #             raise ValidationError(
+    #                 "Please enter settlement date."
+    #             )
+
+    #         bank_account = rec.bank_journal_id.default_account_id
+
+    #         if not bank_account:
+    #             raise ValidationError(
+    #                 "Bank journal missing default account."
+    #             )
+
+    #         # =========================
+    #         # FETCH CURRENT FX RATE
+    #         # =========================
+
+    #         # company_currency = self.env.company.currency_id
+
+    #         # settlement_rate = self.env[
+    #         #     'res.currency'
+    #         # ]._get_conversion_rate(
+    #         #     rec.currency_id,
+    #         #     company_currency,
+    #         #     self.env.company,
+    #         #     fields.Date.today()
+    #         # )
+    #         if float_is_zero(rec.settlement_rate, precision_digits=6):
+    #             company_currency = self.env.company.currency_id
+    #             settlement_rate = self.env['res.currency']._get_conversion_rate(
+    #                 rec.currency_id,
+    #                 company_currency,
+    #                 self.env.company,
+    #                 rec.settlement_date or fields.Date.today()
+    #             )
+    #             rec.settlement_rate = settlement_rate
+
+    #         rec.settlement_rate = settlement_rate
+
+    #         # =========================
+    #         # TOTAL CREDIT
+    #         # =========================
+
+    #         total_credit = (
+    #             rec.settlement_fee
+    #             + rec.settlement_tax_amount
+    #         )
+
+    #         # =========================
+    #         # ACCOUNTING ENTRY
+    #         # =========================
+
+    #         move = self.env['account.move'].create({
+    #             'move_type': 'entry',
+    #             'journal_id': rec.bank_journal_id.id,
+    #             'line_ids': [
+    #                 # ---------------------------------
+    #                 # SETTLEMENT FEE
+    #                 # ---------------------------------
+
+    #                 (0, 0, {
+    #                     'name': f"LC Settlement Fee - {rec.name}",
+    #                     'account_id': rec.settlement_fee_account_id.id,
+    #                     'debit': rec.settlement_fee,
+    #                     'credit': 0.0,
+    #                 }),
+
+    #                 # ---------------------------------
+    #                 # SETTLEMENT TAX
+    #                 # ---------------------------------
+
+    #                 (0, 0, {
+    #                     'name': f"LC Settlement Tax - {rec.name}",
+    #                     'account_id': rec.settlement_tax_account_id.id,
+    #                     'debit': rec.settlement_tax_amount,
+    #                     'credit': 0.0,
+    #                 }),
+
+    #                 # ---------------------------------
+    #                 # BANK CREDIT
+    #                 # ---------------------------------
+                    
+    #                 (0, 0, {
+    #                     'name': f"LC Settlement - {rec.name}",
+    #                     'account_id': bank_account.id,
+    #                     'debit': 0.0,
+    #                     'credit': total_credit,
+    #                 }),
+    #             ]
+    #         })
+
+    #         move.action_post()
+
+    #         rec.write({
+    #             'state': 'settled',
+    #             'settlement_move_id': move.id,
+    #         })
     def action_settle(self):
         for rec in self:
             if rec.state != 'utilized':
                 raise ValidationError("Only utilized LC can be settled.")
+        # =========================
+        # PURCHASE RECEIPT VALIDATION
+        # =========================
+        
+        if not rec.purchase_ids:
+            raise ValidationError(
+                "No Purchase Orders are linked to this LC."
+            )
+        for po in rec.purchase_ids:
+            if po.state not in ('purchase', 'done'):
+                raise ValidationError(
+                    f"Purchase Order {po.name} is not confirmed."
+                )
+            
+        for po in rec.purchase_ids:
 
+            incoming_pickings = po.picking_ids.filtered(
+                lambda p: p.picking_type_code == 'incoming'
+            )
+
+            if not incoming_pickings:
+                raise ValidationError(
+                    f"Purchase Order {po.name} has no receipt."
+                )
+
+            not_done = incoming_pickings.filtered(
+                lambda p: p.state != 'done'
+            )
+
+            if not_done:
+                raise ValidationError(
+                    f"Purchase Order {po.name} still has receipts that are not validated."
+                )
             # Auto fill settlement amount if empty
             if not rec.settlement_currency_amount:
                 rec.settlement_currency_amount = rec.remaining_amount
@@ -403,7 +778,15 @@ class LCManagement(models.Model):
                 'settlement_move_id': move.id,
             })
 
-    # ========================= CLOSE LOGIC =========================
+    
+    # def action_close(self):
+    #     for rec in self:
+
+    #         if not rec.can_close:
+    #             raise ValidationError(
+    #                 "LC cannot be closed yet."
+    #             )
+    #         rec.state = 'closed'
     def action_close(self):
         for rec in self:
             if not rec.can_close:
@@ -418,6 +801,70 @@ class LCManagement(models.Model):
                 'state': 'closed',
                 # Maybe store close_date = fields.Date.today()
             })
+    # -------------------------
+    # USAGE CALCULATION
+    # -------------------------
+    # @api.depends('purchase_ids.amount_total', 'purchase_ids.state')
+    # def _compute_used_amount(self):
+    #     for rec in self:
+    #         total = 0.0
+    #         for po in rec.purchase_ids:
+    #             if po.state in ('purchase', 'done'):
+    #                 total += po.amount_total
+
+    #         rec.used_amount = total
+
+    #         # 🔥 AUTO STATE LOGIC INSIDE COMPUTE (BEST PRACTICE)
+    #         # if rec.state not in ('draft', 'closed'):
+    #         #     if rec.used_amount <= 0:
+    #         #         rec.state = 'open'
+    #         #     elif rec.used_amount < rec.amount:
+    #         #         rec.state = 'utilized'
+    #         #     else:
+    #         #         rec.state = 'closed'
+    #         #         if rec.state not in ('draft', 'settled', 'closed'):
+
+           
+    # # -------------------------
+    # # AUTO STATE UPDATE
+    # # -------------------------
+    # # @api.depends('used_amount', 'amount')
+    # # def _compute_state_auto(self):
+    # #     for rec in self:
+    # #         if rec.state in ('draft', 'closed'):
+    # #             continue
+
+    # #         if rec.used_amount <= 0:
+    # #             rec.state = 'open'
+    # #         elif rec.used_amount < rec.amount:
+    # #             rec.state = 'utilized'
+    # #         elif rec.used_amount >= rec.amount:
+    # #             rec.state = 'closed'
+    
+    # @api.depends('purchase_ids.amount_total', 'purchase_ids.state')
+    # def _compute_used_amount(self):
+    #     for rec in self:
+    #         total = 0.0
+    #         for po in rec.purchase_ids:
+    #             if po.state in ('purchase', 'done'):
+    #                 # total += po.amount_total
+    #                 # total += po.amount_total_currency
+    #                 total += po.amount_total
+    #         rec.used_amount = total
+
+    #         # =========================
+    #         # AUTO STATE UPDATE
+    #         # =========================
+    #         # Never touch finalized states
+    #         if rec.state in ('draft', 'settled', 'closed'):
+    #             continue
+
+    #         # No PO linked yet
+    #         if rec.used_amount <= 0:
+    #             rec.state = 'open'
+    #         # PO linked / LC being used
+    #         elif rec.used_amount > 0:
+    #             rec.state = 'utilized'
     @api.depends('purchase_ids.amount_total', 'purchase_ids.state', 'purchase_ids.currency_id')
     def _compute_used_amount(self):
         for rec in self:
@@ -476,9 +923,6 @@ class LCManagement(models.Model):
                 rec.amount * rec.lc_type_id.margin_percentage
             ) / 100
     
-    # -------------------------
-    # SETTLEMENT ETB CALCULATION
-    # ------------------------- 
     @api.depends(
     'amount',
     'settlement_rate',
@@ -503,9 +947,34 @@ class LCManagement(models.Model):
                 final_total_etb
                 - margin_paid_etb
             )
-    # -------------------------
-    # EXCHANGE RATE CALCULATION 
-    # -------------------------
+    # @api.depends(
+    # 'settlement_currency_amount',
+    # 'settlement_rate'
+    # )
+    # def _compute_settlement_etb(self):
+
+    #     for rec in self:
+
+    #         rec.settlement_etb_amount = (
+    #             rec.settlement_currency_amount
+    #             * rec.settlement_rate
+    #         )
+    # @api.onchange('currency_id')
+    # def _onchange_currency_id(self):
+    #     company_currency = self.env.company.currency_id
+
+    #     if self.currency_id and self.currency_id != company_currency:
+    #         rate = self.env['res.currency']._get_conversion_rate(
+    #             self.currency_id,
+    #             company_currency,
+    #             self.env.company,
+    #             fields.Date.today()
+    #         )
+
+    #         self.exchange_rate = rate
+
+    #     else:
+    #         self.exchange_rate = 1.0
     @api.onchange('currency_id')
     def _onchange_currency_id(self):
 
@@ -534,9 +1003,30 @@ class LCManagement(models.Model):
                 rec.amount * rec.exchange_rate
             )
 
-    # -------------------------
-    # FX GAIN/LOSS CALCULATION
-    # -------------------------
+    # @api.depends(
+    # 'amount',
+    # 'opening_rate',
+    # 'settlement_rate',
+    # 'lc_type_id.margin_percentage'
+    # )
+    # def _compute_fx_gain_loss(self):
+    #     for rec in self:
+    #         if not rec.opening_rate or not rec.settlement_rate:
+    #             rec.fx_gain_loss = 0.0
+    #             continue
+
+    #         exposed_percentage = (
+    #             100 - rec.lc_type_id.margin_percentage
+    #         ) / 100
+    #         exposed_amount = (
+    #             rec.settlement_currency_amount
+    #             * exposed_percentage
+    #         )
+
+    #         rec.fx_gain_loss = (
+    #             rec.settlement_rate
+    #             - rec.opening_rate
+    #         ) * exposed_amount
     @api.depends(
     'settlement_currency_amount',
     'opening_rate',
@@ -585,6 +1075,27 @@ class LCManagement(models.Model):
                 rec.margin_amount
                 * rec.exchange_rate
             )
+    
+    # @api.depends('purchase_ids.invoice_ids')
+    # def _compute_vendor_bills(self):
+    #     for rec in self:
+    #         bills = self.env['account.move']
+    #         for po in rec.purchase_ids:
+    #             bills |= po.invoice_ids
+    #         rec.vendor_bill_ids = bills
+    #         rec.bill_count = len(bills)
+    # @api.depends('state', 'remaining_amount', 'vendor_bill_ids.state')
+    # def _compute_can_close(self):
+    #     for rec in self:
+    #         rec.can_close = (
+    #             rec.state == 'settled'
+    #             and float_is_zero(
+    #                 rec.remaining_amount, 
+    #                 precision_rounding=rec.currency_id.rounding
+    #             )
+    #             and bool(rec.vendor_bill_ids)                     # Bills must exist
+    #             and all(bill.state == 'posted' for bill in rec.vendor_bill_ids)  # All posted
+    #         )
     # ====================== BILLED AMOUNT ======================
     @api.depends('purchase_ids.invoice_ids', 
                  'purchase_ids.invoice_ids.state',
@@ -686,4 +1197,197 @@ class LCManagement(models.Model):
                         if bill.state == 'posted'
                     )
             )
-   
+    def action_cancel_lc(self):
+
+        for rec in self:
+
+            # ===================================
+            # ALREADY CANCELLED
+            # ===================================
+
+            if rec.state == 'cancelled':
+                raise ValidationError(
+                    "This LC is already cancelled."
+                )
+
+            # ===================================
+            # CLOSED LC
+            # ===================================
+
+            if rec.state == 'closed':
+                raise ValidationError(
+                    "Closed LC cannot be cancelled."
+                )
+
+            # ===================================
+            # PURCHASE ORDER VALIDATION
+            # ===================================
+
+            active_pos = rec.purchase_ids.filtered(
+                lambda po: po.state != 'cancel'
+            )
+
+            if active_pos:
+                po_names = ", ".join(active_pos.mapped('name'))
+
+                raise ValidationError(
+                    f"This LC cannot be cancelled because the following Purchase Orders are still active:\n\n"
+                    f"{po_names}\n\n"
+                    f"Cancel them first and try again."
+                )
+            # ===================================
+            # VENDOR BILL VALIDATION
+            # ===================================
+
+            posted_bills = rec.vendor_bill_ids.filtered(
+                lambda b: b.state == 'posted'
+            )
+
+            if posted_bills:
+                raise ValidationError(
+                    "This LC cannot be cancelled because "
+                    "posted Vendor Bills already exist.\n\n"
+                    "Reverse the Vendor Bills first."
+                )
+
+            # ===================================
+            # EXTRA PROTECTION FOR SETTLED LCs
+            # ===================================
+
+            if rec.state == 'settled':
+
+                if not self.env.user.has_group(
+                    'account.group_account_manager'
+                ):
+                    raise ValidationError(
+                        "Only Accounting Managers can cancel a settled LC."
+                    )
+
+            # ===================================
+            # REVERSE SETTLEMENT ENTRY
+            # ===================================
+
+            if rec.settlement_move_id:
+                rec._reverse_move(
+                    rec.settlement_move_id
+                )
+
+            # ===================================
+            # REVERSE RELEASE ENTRY
+            # ===================================
+
+            if rec.release_move_id:
+                rec._reverse_move(
+                    rec.release_move_id
+                )
+
+            # ===================================
+            # REVERSE OPENING ENTRY
+            # ===================================
+
+            if rec.opening_move_id:
+                rec._reverse_move(
+                    rec.opening_move_id
+                )
+
+            # ===================================
+            # RESET IMPORTANT FIELDS
+            # ===================================
+
+            rec.write({
+                'state': 'cancelled',
+                'rate_locked': False,
+                'margin_released': False,
+            })
+    def _reverse_move(self, move):
+        """
+        Reverse and post an accounting move.
+        """
+        if not move:
+            return
+
+        reverse_move = move._reverse_moves(
+            default_values_list=[{
+                'date': fields.Date.today(),
+                'ref': f"Reversal of {move.name}",
+            }],
+            cancel=False,
+        )
+
+        reverse_move.action_post()
+    def unlink(self):
+
+        for rec in self:
+
+            if rec.state != 'draft':
+
+                raise ValidationError(
+                    "Only Draft LC records can be deleted.\n\n"
+                    "Use Cancel LC instead."
+                )
+
+        return super().unlink()
+    def _validate_lc_cancellation(self):
+
+        for rec in self:
+
+            if rec.state == 'cancelled':
+                raise ValidationError(
+                    "This LC is already cancelled."
+                )
+
+            if rec.state == 'closed':
+                raise ValidationError(
+                    "Closed LC cannot be cancelled."
+                )
+
+            active_pos = rec.purchase_ids.filtered(
+                lambda po: po.state != 'cancel'
+            )
+
+            if active_pos:
+                po_names = ", ".join(active_pos.mapped('name'))
+
+                raise ValidationError(
+                    f"This LC cannot be cancelled because the following Purchase Orders are still active:\n\n"
+                    f"{po_names}\n\n"
+                    f"Cancel them first and try again."
+                )
+
+            posted_bills = rec.vendor_bill_ids.filtered(
+                lambda b: b.state == 'posted'
+            )
+
+            if posted_bills:
+                raise ValidationError(
+                    "This LC cannot be cancelled because posted Vendor Bills exist.\n\n"
+                    "Reverse the Vendor Bills first."
+                )
+
+            if rec.state == 'settled':
+
+                if not self.env.user.has_group(
+                    'account.group_account_manager'
+                ):
+                    raise ValidationError(
+                        "Only Accounting Managers can cancel a settled LC."
+                    )
+    def action_open_cancel_wizard(self):
+
+        self.ensure_one()
+
+        # Run all validations here first
+
+        self._validate_lc_cancellation()
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Cancel LC',
+            'res_model': 'lc.cancel.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_lc_id': self.id,
+            },
+        }
+

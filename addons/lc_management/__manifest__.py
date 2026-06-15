@@ -6,6 +6,7 @@
     'data': [
         'security/ir.model.access.csv',
         'views/lc_views.xml',
+        'wizard/lc_cancel_wizard_view.xml',
     ],
     'installable': True,
 }

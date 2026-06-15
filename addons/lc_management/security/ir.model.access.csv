@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_lc_management,access_lc_management,model_lc_management,,1,1,1,1
 access_lc_type,access_lc_type,model_lc_type,,1,1,1,1
+access_lc_cancel_wizard,access_lc_cancel_wizard,model_lc_cancel_wizard,base.group_user,1,1,1,1

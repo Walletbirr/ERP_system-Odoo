@@ -96,11 +96,26 @@
                             type="object"
                             class="btn-danger"
                             invisible="state in ('draft','open','utilized','closed') or not can_close"/>
-                            
+                     <!-- <button name="action_cancel_lc"
+                            string="Cancel LC"
+                            type="object"
+                            class="btn-warning"
+                            invisible="state in ('closed','cancelled')"/> -->
+                     <button name="action_open_cancel_wizard"
+                            string="Cancel LC"
+                            type="object"
+                            class="btn-danger"
+                            invisible="state in ('closed','cancelled')"/>/>
 
                     <field name="state"
                            widget="statusbar"
                            statusbar_visible="draft,open,utilized,settled,closed"/>
+                     <group string="Cancellation Information"
+                            invisible="state != 'cancelled'">
+
+                            <field name="cancel_reason" readonly="1"/>
+
+                     </group>
 
                 </header>
 
@@ -115,29 +130,29 @@
                         <group string="LC Information">
 
                             <field name="name"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="partner_id"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="lc_type_id"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="expiry_date"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                         </group>
 
                         <group string="Banking Information">
 
                             <field name="bank_journal_id"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="margin_account_id"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="currency_id"
-                                   readonly="state in ('utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="exchange_rate"
                                    readonly="state != 'draft'"/>
@@ -212,21 +227,21 @@
                             <field name="opening_fee"
                                    widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="opening_fee_account_id"
-                                   readonly="state in ('settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="opening_vat_amount"
                                    widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="opening_vat_account_id"
-                                   readonly="state in ('settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled','closed')"/>
 
                             <field name="opening_date"
-                                   readonly="state in ('settled','closed')"
+                                   readonly="state in ('open','utilized','settled','closed')"
                                    required="state != 'draft'"/>
 
                         </group>
@@ -265,7 +280,8 @@
                                    readonly="state in ('settled','closed')"
                                    required="state == 'utilized'"/>
 
-                        </group>"
+                        </group>
+
 
 
                     </group>
