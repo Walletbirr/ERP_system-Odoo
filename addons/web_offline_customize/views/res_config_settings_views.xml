@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_offline" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.web.offline.customize</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='general_settings']" position="inside">
+                <block title="Offline Page" name="offline_page_setting_container">
+
+                    <setting id="offline_page_title_setting"
+                             title="Text shown instead of &quot;You are offline&quot;. Leave empty for the default.">
+                        <field name="offline_page_title" placeholder="You are offline"/>
+                    </setting>
+
+                    <setting id="offline_page_message_setting"
+                             title="Text shown below the title. Leave empty for the default.">
+                        <field name="offline_page_message" placeholder="Check your network connection and come back here..."/>
+                    </setting>
+
+                    <setting id="offline_page_icon_setting"
+                             title="Image shown instead of the default Odoo icon. Leave empty for the default.">
+                        <field name="offline_page_icon" widget="image" class="oe_avatar" options="{'size': [96, 96]}"/>
+                    </setting>
+
+                    <setting id="offline_page_button_color_setting"
+                             title="Hex color code (e.g. #1A8754) for the 'Check again' button. Leave empty for the default.">
+                        <field name="offline_page_button_color" widget="offline_color_picker"/>
+                    </setting>
+
+                </block>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

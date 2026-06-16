@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="webclient_offline_custom" inherit_id="web.webclient_offline">
+
+        <!-- Replace the icon/logo with the custom one if configured -->
+        <xpath expr="//div[hasclass('card')]/img" position="attributes">
+            <attribute name="t-attf-src">data:image/png;base64,{{custom_icon or odoo_icon}}</attribute>
+        </xpath>
+
+        <!-- Replace the title -->
+        <xpath expr="//div[hasclass('card')]/h1" position="replace">
+            <h1 t-esc="custom_title or 'You are offline'"/>
+        </xpath>
+
+        <!-- Replace the message -->
+        <xpath expr="//div[hasclass('card')]/p" position="replace">
+            <p t-esc="custom_message or &quot;Check your network connection and come back here. Odoo will load as soon as you're back online.&quot;"/>
+        </xpath>
+
+        <!-- Replace the button color -->
+        <xpath expr="//div[hasclass('card')]/button" position="attributes">
+            <attribute name="t-attf-style">background-color: {{custom_button_color or ''}}; border-color: {{custom_button_color or ''}};</attribute>
+        </xpath>
+
+    </template>
+
+</odoo>

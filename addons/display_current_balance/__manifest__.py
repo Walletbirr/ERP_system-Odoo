@@ -4,6 +4,7 @@
     'summary': 'Display account balances based on natural account sign',
     'author': 'Your Name',
     'category': 'Accounting',
+    'author': 'John Nigus',
     'depends': [
         'account',
         'base_accounting_kit',

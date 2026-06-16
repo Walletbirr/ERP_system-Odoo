@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="web_offline_customize.ColorPickerField">
+        <div class="d-flex align-items-center gap-2">
+            <input type="color"
+                   t-att-value="displayValue"
+                   t-on-change="onColorChange"
+                   class="o_offline_color_swatch"
+                   style="width: 40px; height: 32px; padding: 2px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;"/>
+            <input type="text"
+                   t-att-value="displayValue"
+                   t-on-change="onTextChange"
+                   placeholder="#714B67"
+                   class="o_input"
+                   style="max-width: 120px;"/>
+        </div>
+    </t>
+
+</templates>
