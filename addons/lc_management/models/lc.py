@@ -79,7 +79,7 @@ class LCManagement(models.Model):
 
     # Core LC Fields
     lc_type_id = fields.Many2one(
-        'lc.type', string="LC Type", required=True
+        'lc.margin', string="LC margin", required=True
     )
     margin_account_id = fields.Many2one(
         'account.account', string="Margin Account", required=True

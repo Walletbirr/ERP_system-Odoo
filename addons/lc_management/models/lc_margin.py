@@ -1,9 +1,9 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
-class LCType(models.Model):
-    _name = 'lc.type'
-    _description = 'LC Type'
+class LCMargin(models.Model):
+    _name = 'lc.margin'
+    _description = 'LC margin'
 
     name = fields.Char(required=True)
 
