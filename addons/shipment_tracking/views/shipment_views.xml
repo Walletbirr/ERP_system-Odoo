@@ -193,11 +193,8 @@
                             <field name="port_of_discharge" placeholder="e.g. Mojo"/>
                         </group>
                         <group string="Dates">
-                            <field name="etd"
-                                   options="{'datepicker': {'minDate': context_today().strftime('%Y-%m-%d')}}"/>
-                            <field name="eta"
-                                   options="{'datepicker': {'minDate': context_today().strftime('%Y-%m-%d')}}"
-                                   help="Must be a future date and different from the Departure date (ETD)."/>
+                            <field name="etd"/>
+                            <field name="eta"/>
                             <field name="actual_arrival_date" invisible="state != 'arrived'"/>
                         </group>
                     </group>
@@ -251,7 +248,7 @@
 
                             <field name="intermediate_port_ids"
                                    context="{'default_shipment_id': id}">
-                                <list editable="bottom" default_order="sequence" delete="0">
+                                <list editable="bottom" default_order="sequence">
                                     <field name="sequence" widget="handle"/>
                                     <field name="name" placeholder="e.g. Port Said, Egypt"/>
                                     <field name="arrival_date" string="Expected Arrival"/>
@@ -262,10 +259,6 @@
                                            decoration-warning="state == 'reached'"
                                            decoration-success="state == 'passed'"
                                            readonly="1"/>
-                                    <button name="action_delete_port" type="object"
-                                            icon="fa-trash"
-                                            title="Delete"
-                                            invisible="state != 'pending'"/>
                                 </list>
                             </field>
 

@@ -1,8 +1,8 @@
 # /custom_addons/shipment_tracking/models/shipment.py
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError, ValidationError
-
+from odoo.exceptions import UserError
+from odoo.exceptions import ValidationError
 
 class ShipmentTracking(models.Model):
     _name = 'shipment.tracking'
@@ -49,10 +49,14 @@ class ShipmentTracking(models.Model):
 
     # ── Status ────────────────────────────────────────────────────────────────
     state = fields.Selection([
-        ('planned',    'Planned'),
+        ('planned', 'Planned'),
         ('in_transit', 'In Transit'),
-        ('arrived',    'Arrived'),
-    ], string='Status', default='planned', required=True, tracking=True)
+        ('arrived', 'Arrived'),
+        ('cancelled', 'Cancelled'),
+    ], string='Status',
+    default='planned',
+    required=True,
+    tracking=True)
 
     current_port_label = fields.Char(
         string='Current Port', compute='_compute_current_port_label', store=False,
@@ -129,30 +133,6 @@ class ShipmentTracking(models.Model):
     active = fields.Boolean(default=True)
 
     # ── Computed ──────────────────────────────────────────────────────────────
-    @api.constrains('etd', 'eta')
-    def _check_dates_not_in_past(self):
-        today = fields.Date.today()
-        for rec in self:
-            if rec.etd and rec.etd < today:
-                raise ValidationError(_(
-                    'ETD (Est. Departure) cannot be set to a past date. '
-                    'Please select today or a future date.'
-                ))
-            if rec.eta and rec.eta < today:
-                raise ValidationError(_(
-                    'ETA (Est. Arrival) cannot be set to a past date. '
-                    'Please select today or a future date.'
-                ))
-            if rec.etd and rec.eta and rec.etd == rec.eta:
-                raise ValidationError(_(
-                    'ETD (Est. Departure) and ETA (Est. Arrival) cannot be the same date. '
-                    'Arrival must be after departure.'
-                ))
-            if rec.etd and rec.eta and rec.eta < rec.etd:
-                raise ValidationError(_(
-                    'ETA (Est. Arrival) cannot be earlier than ETD (Est. Departure).'
-                ))
-
     @api.depends('container_ids')
     def _compute_container_count(self):
         for rec in self:
@@ -480,3 +460,31 @@ class ShipmentTracking(models.Model):
                 ))
             rec.intermediate_port_ids.write({'state': 'pending'})
             rec.state = 'planned'
+    
+    def action_cancel(self):
+
+        for rec in self:
+
+            if rec.state == 'arrived':
+                raise ValidationError(
+                    "Arrived shipment cannot be cancelled."
+                )
+
+            rec.state = 'cancelled'
+    def _validate_po_cancellation(self):
+        active_shipments = self.filtered(
+            lambda s: s.state != 'cancelled'
+        )
+
+        if active_shipments:
+
+            shipment_names = ", ".join(
+                active_shipments.mapped('reference')
+            )
+
+            raise ValidationError(
+                f"Cannot cancel Purchase Order.\n\n"
+                f"Active shipment(s) exist:\n"
+                f"{shipment_names}\n\n"
+                f"Cancel the shipment first."
+            )

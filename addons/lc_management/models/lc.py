@@ -79,7 +79,7 @@ class LCManagement(models.Model):
 
     # Core LC Fields
     lc_type_id = fields.Many2one(
-        'lc.margin', string="LC margin", required=True
+        'lc.type', string="LC margin", required=True
     )
     margin_account_id = fields.Many2one(
         'account.account', string="Margin Account", required=True
@@ -374,22 +374,19 @@ class LCManagement(models.Model):
             
         for po in rec.purchase_ids:
 
-            incoming_pickings = po.picking_ids.filtered(
-                lambda p: p.picking_type_code == 'incoming'
-            )
+            shipment = shipment_model.search([
+                ('purchase_order_id', '=', po.id)
+            ], limit=1)
 
-            if not incoming_pickings:
+            if not shipment:
                 raise ValidationError(
-                    f"Purchase Order {po.name} has no receipt."
+                    f"Purchase Order {po.name} is not linked to any shipment."
                 )
 
-            not_done = incoming_pickings.filtered(
-                lambda p: p.state != 'done'
-            )
-
-            if not_done:
+            if shipment.state != 'arrived':
                 raise ValidationError(
-                    f"Purchase Order {po.name} still has receipts that are not validated."
+                    f"Shipment {shipment.reference} for Purchase Order {po.name} "
+                    f"has not yet arrived at the destination port."
                 )
             # Auto fill settlement amount if empty
             if not rec.settlement_currency_amount:
