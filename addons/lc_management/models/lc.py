@@ -59,8 +59,6 @@ class LCManagement(models.Model):
         string="Settlement Fee Account",
         # required=True
     )
-
-
     settlement_vat_amount = fields.Monetary(
         string="Settlement VAT Amount",
         currency_field='company_currency_id',
@@ -79,7 +77,7 @@ class LCManagement(models.Model):
 
     # Core LC Fields
     lc_type_id = fields.Many2one(
-        'lc.type', string="LC margin", required=True
+        'lc.type', string="LC margine", required=True
     )
     margin_account_id = fields.Many2one(
         'account.account', string="Margin Account", required=True
@@ -301,8 +299,6 @@ class LCManagement(models.Model):
                 'journal_id': rec.bank_journal_id.id,
 
                 'line_ids': [
-
-               
                 # ----------------------------
                 # DR LC Margin/GIT
                 # ----------------------------
@@ -372,6 +368,8 @@ class LCManagement(models.Model):
                     f"Purchase Order {po.name} is not confirmed."
                 )
             
+        shipment_model = self.env['shipment.tracking']
+
         for po in rec.purchase_ids:
 
             shipment = shipment_model.search([
@@ -512,7 +510,17 @@ class LCManagement(models.Model):
         for rec in self:
             if rec.expiry_date and rec.expiry_date < date.today():
                 raise ValidationError("LC is expired!")
+    # -------------------------
+    # REMAINING AMOUNT CALCULATION  
+    # -------------------------
+    # @api.depends('amount', 'used_amount')
+    # def _compute_remaining_amount(self):
+    #     for rec in self:
+    #         rec.remaining_amount = rec.amount - rec.used_amount
 
+    # -------------------------
+    # MARGIN CALCULATION
+    # -------------------------
     @api.depends('amount', 'lc_type_id.margin_percentage')
     def _compute_margin_amount(self):
         for rec in self:
@@ -544,6 +552,34 @@ class LCManagement(models.Model):
                 final_total_etb
                 - margin_paid_etb
             )
+    # @api.depends(
+    # 'settlement_currency_amount',
+    # 'settlement_rate'
+    # )
+    # def _compute_settlement_etb(self):
+
+    #     for rec in self:
+
+    #         rec.settlement_etb_amount = (
+    #             rec.settlement_currency_amount
+    #             * rec.settlement_rate
+    #         )
+    # @api.onchange('currency_id')
+    # def _onchange_currency_id(self):
+    #     company_currency = self.env.company.currency_id
+
+    #     if self.currency_id and self.currency_id != company_currency:
+    #         rate = self.env['res.currency']._get_conversion_rate(
+    #             self.currency_id,
+    #             company_currency,
+    #             self.env.company,
+    #             fields.Date.today()
+    #         )
+
+    #         self.exchange_rate = rate
+
+    #     else:
+    #         self.exchange_rate = 1.0
     @api.onchange('currency_id')
     def _onchange_currency_id(self):
 
@@ -572,6 +608,30 @@ class LCManagement(models.Model):
                 rec.amount * rec.exchange_rate
             )
 
+    # @api.depends(
+    # 'amount',
+    # 'opening_rate',
+    # 'settlement_rate',
+    # 'lc_type_id.margin_percentage'
+    # )
+    # def _compute_fx_gain_loss(self):
+    #     for rec in self:
+    #         if not rec.opening_rate or not rec.settlement_rate:
+    #             rec.fx_gain_loss = 0.0
+    #             continue
+
+    #         exposed_percentage = (
+    #             100 - rec.lc_type_id.margin_percentage
+    #         ) / 100
+    #         exposed_amount = (
+    #             rec.settlement_currency_amount
+    #             * exposed_percentage
+    #         )
+
+    #         rec.fx_gain_loss = (
+    #             rec.settlement_rate
+    #             - rec.opening_rate
+    #         ) * exposed_amount
     @api.depends(
     'settlement_currency_amount',
     'opening_rate',
@@ -621,6 +681,26 @@ class LCManagement(models.Model):
                 * rec.exchange_rate
             )
     
+    # @api.depends('purchase_ids.invoice_ids')
+    # def _compute_vendor_bills(self):
+    #     for rec in self:
+    #         bills = self.env['account.move']
+    #         for po in rec.purchase_ids:
+    #             bills |= po.invoice_ids
+    #         rec.vendor_bill_ids = bills
+    #         rec.bill_count = len(bills)
+    # @api.depends('state', 'remaining_amount', 'vendor_bill_ids.state')
+    # def _compute_can_close(self):
+    #     for rec in self:
+    #         rec.can_close = (
+    #             rec.state == 'settled'
+    #             and float_is_zero(
+    #                 rec.remaining_amount, 
+    #                 precision_rounding=rec.currency_id.rounding
+    #             )
+    #             and bool(rec.vendor_bill_ids)                     # Bills must exist
+    #             and all(bill.state == 'posted' for bill in rec.vendor_bill_ids)  # All posted
+    #         )
     # ====================== BILLED AMOUNT ======================
     @api.depends('purchase_ids.invoice_ids', 
                  'purchase_ids.invoice_ids.state',
