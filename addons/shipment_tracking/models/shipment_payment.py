@@ -21,7 +21,7 @@ class ShipmentCost(models.Model):
     _description = 'Shipment Cost Stage'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _rec_name = 'display_name'
-    _order = 'shipment_id, stage'
+    _order = 'shipment_id, stage_id'
 
     # ── Linked Shipment ───────────────────────────────────────────────────────
     shipment_id = fields.Many2one(
@@ -30,15 +30,13 @@ class ShipmentCost(models.Model):
     )
 
     # ── Stage ─────────────────────────────────────────────────────────────────
-    stage = fields.Selection([
-        ('1_factory_border',    'Factory to Port'),
-        ('2_sea_freight',       'Sea Freight'),
-        ('3_custom_duty',       'Custom / Duty'),
-        ('4_transit_fee',       'Transit Fee'),
-        ('5_storage_fee',       'Storage Fee'),
-        ('6_local_transport',   'Local Transport'),
-        ('7_loading_unloading', 'Loading / Unloading'),
-    ], string='Cost Stage', required=True, tracking=True)
+    # Configurable master-data field: users manage the list of Cost Stages
+    # themselves (Costs ▸ Configuration ▸ Cost Stages) instead of being
+    # limited to a fixed set of choices defined in code.
+    stage_id = fields.Many2one(
+        'shipment.cost.stage', string='Cost Stage',
+        required=True, tracking=True, ondelete='restrict',
+    )
 
     display_name = fields.Char(
         string='Name', compute='_compute_display_name', store=True,
@@ -155,11 +153,10 @@ class ShipmentCost(models.Model):
     notes = fields.Text(string='Notes')
 
     # ── Computed ──────────────────────────────────────────────────────────────
-    @api.depends('stage', 'shipment_id.reference')
+    @api.depends('stage_id.name', 'shipment_id.reference')
     def _compute_display_name(self):
-        stage_labels = dict(self._fields['stage'].selection)
         for rec in self:
-            label = stage_labels.get(rec.stage, rec.stage or '?')
+            label = rec.stage_id.name or '?'
             ref = rec.shipment_id.reference or ''
             rec.display_name = f"{ref} — {label}" if ref else label
 

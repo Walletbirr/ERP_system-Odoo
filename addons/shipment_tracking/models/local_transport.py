@@ -103,6 +103,24 @@ class LocalTransportTrip(models.Model):
     # ── Auto Reference ────────────────────────────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
+        shipment_ids = {vals['shipment_id'] for vals in vals_list if vals.get('shipment_id')}
+        if shipment_ids:
+            shipments = self.env['shipment.tracking'].browse(shipment_ids)
+            for shipment in shipments:
+                active_costs = shipment.cost_ids.filtered(lambda c: c.state != 'cancelled')
+                if not active_costs:
+                    raise UserError(_(
+                        'No cost entries have been recorded for shipment "%s" yet.\n'
+                        'Please add and pay all shipment costs before creating a local transport trip.'
+                    ) % shipment.reference)
+                unpaid_costs = active_costs.filtered(lambda c: c.state != 'paid')
+                if unpaid_costs:
+                    stage_names = ', '.join(unpaid_costs.mapped('stage_id.name'))
+                    raise UserError(_(
+                        'All costs for shipment "%s" must be marked as Paid before creating a '
+                        'local transport trip.\nOutstanding cost stage(s): %s'
+                    ) % (shipment.reference, stage_names))
+
         for vals in vals_list:
             if vals.get('reference', _('New')) == _('New'):
                 vals['reference'] = self.env['ir.sequence'].next_by_code(

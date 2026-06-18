@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/views/shipment_cost_stage_views.xml -->
+<odoo>
+
+    <!-- ══ COST STAGE — LIST VIEW (editable, drag to reorder) ══ -->
+    <record id="view_shipment_cost_stage_list" model="ir.ui.view">
+        <field name="name">shipment.cost.stage.list</field>
+        <field name="model">shipment.cost.stage</field>
+        <field name="arch" type="xml">
+            <list string="Cost Stages" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="notes"/>
+                <field name="active" widget="boolean_toggle" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ══ COST STAGE — FORM VIEW ══ -->
+    <record id="view_shipment_cost_stage_form" model="ir.ui.view">
+        <field name="name">shipment.cost.stage.form</field>
+        <field name="model">shipment.cost.stage</field>
+        <field name="arch" type="xml">
+            <form string="Cost Stage">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="e.g. Port Handling Fee"/>
+                        <field name="sequence"/>
+                        <field name="notes" placeholder="Optional description..."/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ══ COST STAGE — SEARCH VIEW ══ -->
+    <record id="view_shipment_cost_stage_search" model="ir.ui.view">
+        <field name="name">shipment.cost.stage.search</field>
+        <field name="model">shipment.cost.stage</field>
+        <field name="arch" type="xml">
+            <search string="Search Cost Stages">
+                <field name="name"/>
+                <filter name="inactive" string="Archived" domain="[('active','=',False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ══ ACTION ══ -->
+    <record id="action_shipment_cost_stage" model="ir.actions.act_window">
+        <field name="name">Cost Stages</field>
+        <field name="res_model">shipment.cost.stage</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_shipment_cost_stage_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first Cost Stage.</p>
+            <p>Cost Stages are fully customizable — add, rename, reorder, or archive
+               them as your shipping process changes. They appear as the "Cost Stage"
+               dropdown on every Shipment Cost record.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_shipment_costs_configuration" name="Configuration"
+              parent="menu_shipment_root" sequence="90"/>
+
+    <menuitem id="menu_shipment_cost_stage" name="Cost Stages"
+              parent="menu_shipment_costs_configuration"
+              action="action_shipment_cost_stage" sequence="10"/>
+
+</odoo>

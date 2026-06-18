@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/data/shipment_cost_stage_data.xml -->
+<odoo>
+    <data noupdate="1">
+
+        <!--
+            Seed the original 7 cost stages as editable master-data records.
+            Users can rename, reorder, archive, or add new stages from
+            Costs ▸ Configuration ▸ Cost Stages — these records are just the
+            starting point and are NOT re-synced on module upgrade (noupdate="1").
+        -->
+        <record id="shipment_cost_stage_factory_border" model="shipment.cost.stage">
+            <field name="name">Factory to Port</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="shipment_cost_stage_sea_freight" model="shipment.cost.stage">
+            <field name="name">Sea Freight</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <record id="shipment_cost_stage_custom_duty" model="shipment.cost.stage">
+            <field name="name">Custom / Duty</field>
+            <field name="sequence">30</field>
+        </record>
+
+        <record id="shipment_cost_stage_transit_fee" model="shipment.cost.stage">
+            <field name="name">Transit Fee</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <record id="shipment_cost_stage_storage_fee" model="shipment.cost.stage">
+            <field name="name">Storage Fee</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <record id="shipment_cost_stage_local_transport" model="shipment.cost.stage">
+            <field name="name">Local Transport</field>
+            <field name="sequence">60</field>
+        </record>
+
+        <record id="shipment_cost_stage_loading_unloading" model="shipment.cost.stage">
+            <field name="name">Loading / Unloading</field>
+            <field name="sequence">70</field>
+        </record>
+
+    </data>
+</odoo>

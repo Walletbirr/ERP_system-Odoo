@@ -4,6 +4,8 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 from odoo.exceptions import ValidationError
 
+
+
 class ShipmentTracking(models.Model):
     _name = 'shipment.tracking'
     _description = 'Import Shipment Tracking'
@@ -119,6 +121,11 @@ class ShipmentTracking(models.Model):
         store=True, currency_field='cost_currency_id',
     )
     has_overdue_payments = fields.Boolean(compute='_compute_cost_summary', store=True)
+    costs_fully_paid = fields.Boolean(
+        string='Costs Fully Paid', compute='_compute_cost_summary', store=True,
+        help='True only when there is at least one cost entry and all non-cancelled '
+             'cost entries are marked as Paid. Required before a Local Transport Trip can be created.',
+    )
 
     # ── Payment Confirmation ──────────────────────────────────────────────────
     payment_confirmed = fields.Boolean(string='Payment Confirmed', default=False, tracking=True)
@@ -167,6 +174,7 @@ class ShipmentTracking(models.Model):
             rec.total_paid = paid
             rec.total_pending = pending
             rec.has_overdue_payments = overdue
+            rec.costs_fully_paid = bool(active) and all(c.state == 'paid' for c in active)
             rec.cost_currency_id = self.env.company.currency_id
 
     @api.depends('state', 'intermediate_port_ids', 'intermediate_port_ids.state',
@@ -375,6 +383,21 @@ class ShipmentTracking(models.Model):
         self.ensure_one()
         if self.state != 'arrived':
             raise UserError(_('Local transport trips can only be created for Arrived shipments.'))
+
+        active_costs = self.cost_ids.filtered(lambda c: c.state != 'cancelled')
+        if not active_costs:
+            raise UserError(_(
+                'No cost entries have been recorded for this shipment yet.\n'
+                'Please add and pay all shipment costs before creating a local transport trip.'
+            ))
+        unpaid_costs = active_costs.filtered(lambda c: c.state != 'paid')
+        if unpaid_costs:
+            stage_names = ', '.join(unpaid_costs.mapped('stage_id.name'))
+            raise UserError(_(
+                'All shipment costs must be marked as Paid before creating a local transport trip.\n'
+                'Outstanding cost stage(s): %s'
+            ) % stage_names)
+
         return {
             'type': 'ir.actions.act_window', 'name': _('New Transport Trip'),
             'res_model': 'local.transport.trip', 'view_mode': 'form',
@@ -460,17 +483,17 @@ class ShipmentTracking(models.Model):
                 ))
             rec.intermediate_port_ids.write({'state': 'pending'})
             rec.state = 'planned'
-    
+
     def action_cancel(self):
 
-        for rec in self:
+            for rec in self:
 
-            if rec.state == 'arrived':
-                raise ValidationError(
-                    "Arrived shipment cannot be cancelled."
-                )
+                if rec.state == 'arrived':
+                    raise ValidationError(
+                        "Arrived shipment cannot be cancelled."
+                    )
 
-            rec.state = 'cancelled'
+                rec.state = 'cancelled'
     def _validate_po_cancellation(self):
         active_shipments = self.filtered(
             lambda s: s.state != 'cancelled'

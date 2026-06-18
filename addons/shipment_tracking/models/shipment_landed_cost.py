@@ -25,15 +25,25 @@
 from odoo import models, fields, api, _
 
 
-# ── Mapping: shipment.cost stage → LC split method ───────────────────────────
-# Adjust this mapping to match your preferred split method per cost type.
+# ── Mapping: shipment.cost stage name → LC split method ──────────────────────
+# Matched by keyword against the Cost Stage's name (case-insensitive),
+# since Cost Stages are now user-configurable records instead of a fixed
+# Selection list. Adjust these keywords to match your stage names.
 _SPLIT_METHOD_DEFAULT = 'by_current_cost_price'
-_STAGE_TO_SPLIT = {
-    'sea_freight':    'by_weight',
-    'customs':        'by_current_cost_price',
-    'local_freight':  'by_current_cost_price',
-    'other':          'by_current_cost_price',
+_STAGE_KEYWORD_TO_SPLIT = {
+    'sea freight':      'by_weight',
+    'custom':           'by_current_cost_price',
+    'duty':             'by_current_cost_price',
+    'local transport':  'by_current_cost_price',
 }
+
+
+def _split_method_for_stage(stage_name):
+    name = (stage_name or '').lower()
+    for keyword, method in _STAGE_KEYWORD_TO_SPLIT.items():
+        if keyword in name:
+            return method
+    return _SPLIT_METHOD_DEFAULT
 
 
 class ShipmentLandedCostInherit(models.Model):
@@ -104,11 +114,11 @@ class ShipmentLandedCostInherit(models.Model):
                 # Skip lines where we cannot determine a product — Odoo requires it
                 continue
 
-            split_method = _STAGE_TO_SPLIT.get(sc.stage, _SPLIT_METHOD_DEFAULT)
+            split_method = _split_method_for_stage(sc.stage_id.name)
 
             line_vals = {
                 'product_id': product.id,
-                'name': sc.display_name or sc.stage,
+                'name': sc.display_name or sc.stage_id.name,
                 'split_method': split_method,
                 'price_unit': sc.amount_company or sc.total_amount or sc.amount,
             }
@@ -130,15 +140,20 @@ class ShipmentLandedCostInherit(models.Model):
         Override this method to apply your own product-resolution logic.
         """
         Product = self.env['product.product']
+        stage_name = (shipment_cost.stage_id.name or '').lower()
 
-        stage_keywords = {
-            'sea_freight':   ['sea freight', 'ocean freight', 'freight'],
-            'customs':       ['customs', 'clearance', 'duty'],
-            'local_freight': ['local freight', 'local transport', 'transport'],
-            'other':         ['landed cost', 'shipment cost'],
-        }
+        stage_keywords_map = [
+            ('sea freight',     ['sea freight', 'ocean freight', 'freight']),
+            ('custom',          ['customs', 'clearance', 'duty']),
+            ('duty',            ['customs', 'clearance', 'duty']),
+            ('local transport', ['local freight', 'local transport', 'transport']),
+        ]
 
-        keywords = stage_keywords.get(shipment_cost.stage, ['landed cost'])
+        keywords = ['landed cost', 'shipment cost']
+        for needle, kws in stage_keywords_map:
+            if needle in stage_name:
+                keywords = kws
+                break
 
         for kw in keywords:
             product = Product.search([

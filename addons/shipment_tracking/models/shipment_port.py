@@ -1,6 +1,7 @@
 # /custom_addons/shipment_tracking/models/shipment_port.py
 
-from odoo import models, fields
+from odoo import models, fields, _
+from odoo.exceptions import UserError
 
 
 class ShipmentPort(models.Model):
@@ -22,3 +23,13 @@ class ShipmentPort(models.Model):
         ('passed',  'Passed'),
     ], string='Status', default='pending')
     notes = fields.Char(string='Notes')
+
+    def action_delete_port(self):
+        """Delete this port stop — blocked if already Passed."""
+        for record in self:
+            if record.state == 'passed':
+                raise UserError(
+                    _("Port '%s' has already been Passed and cannot be deleted.") % record.name
+                )
+            record.unlink()
+        return {'type': 'ir.actions.act_window_close'}
