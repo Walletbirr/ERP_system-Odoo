@@ -15,7 +15,7 @@ Configurable from Settings > General Settings > Offline Page:
  - Message (replaces the default description text)
  - Icon / logo (replaces the default Odoo icon)
 """,
-    'author': 'John Nigus',
+    'author': 'Your Company',
     'depends': ['web', 'base_setup'],
     'data': [
         'views/webclient_templates.xml',

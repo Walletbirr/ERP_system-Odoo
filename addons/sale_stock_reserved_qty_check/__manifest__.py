@@ -17,7 +17,7 @@ customer, only 10 can be sold from a new order in that warehouse - trying to
 confirm an order for 15 or 20 will raise a validation error showing the
 product name, the requested quantity, and the quantity actually available.
 """,
-    'author': 'Your Company',
+    'author': 'John king',
     'depends': ['sale_stock'],
     'data': [],
     'installable': True,
