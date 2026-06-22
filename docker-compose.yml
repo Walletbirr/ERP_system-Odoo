@@ -23,12 +23,14 @@ services:
       db:
         condition: service_healthy
     ports:
-      # - "${ODOO_PORT}:8069"
-      - "8069:8069"
+      # - "${ODOO_PORT}:9000"
+      - "9000:8069"
     environment:
-      HOST: 10.0.102.57
+      HOST: db
       USER: ${POSTGRES_USER}
       PASSWORD: ${POSTGRES_PASSWORD}
+      WEB_DB_SELECTOR_BRAND_NAME: My Company
+      WEB_DB_SELECTOR_BRAND_LOGO: /web_database_selector_branding/static/img/my_logo.png
     volumes:
       - odoo18-web-data:/var/lib/odoo
       - ./config:/etc/odoo
