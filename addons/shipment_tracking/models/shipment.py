@@ -21,7 +21,7 @@ class ShipmentTracking(models.Model):
     carrier = fields.Char(string='Carrier / Shipping Line', required=True, tracking=True)
     incoterm_id = fields.Many2one('account.incoterms', string='Incoterms', tracking=True)
     port_of_loading = fields.Char(string='Port of Loading', tracking=True)
-    port_of_discharge = fields.Char(string='Port of Discharge', tracking=True)
+    port_of_discharge = fields.Char(string='Final Destination', tracking=True)
     etd = fields.Date(string='ETD (Est. Departure)', required=True, tracking=True)
     eta = fields.Date(string='ETA (Est. Arrival)', required=True, tracking=True)
     actual_arrival_date = fields.Date(string='Actual Arrival Date', tracking=True)

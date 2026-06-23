@@ -34,7 +34,7 @@ class LocalTransportTrip(models.Model):
     )
     port_of_discharge = fields.Char(
         related='shipment_id.port_of_discharge',
-        string='Border / Port of Discharge', readonly=True,
+        string='Final Destination', readonly=True,
     )
     shipment_actual_arrival = fields.Date(
         related='shipment_id.actual_arrival_date', string='Shipment Arrival Date', readonly=True,
