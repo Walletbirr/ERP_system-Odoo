@@ -1,5 +1,4 @@
-from odoo import models, fields
-from odoo.exceptions import ValidationError
+from odoo import models
 
 
 class AccountMove(models.Model):
@@ -9,7 +8,6 @@ class AccountMove(models.Model):
         res = super().action_post()
 
         for move in self:
-
             # Only Vendor Bills
             if move.move_type != 'in_invoice':
                 continue
@@ -27,47 +25,13 @@ class AccountMove(models.Model):
             if not lc:
                 continue
 
-            # Prevent duplicate release
-            if lc.state == 'closed':
+            # Don't create settlement lines on closed/cancelled LCs
+            if lc.state in ('closed', 'cancelled'):
                 continue
-            if lc.release_move_id:
-                continue
-            bank_account = lc.bank_journal_id.default_account_id
 
-            if not bank_account:
-                raise ValidationError(
-                    "Bank journal missing default account."
-                )
+            # Creates a DRAFT settlement line only - no accounting move yet.
+            # A person reviews/confirms it from the LC's Settlement tab,
+            # which is what actually posts the fee/VAT and margin-release entries.
+            lc._create_draft_settlement_line(purchase, move)
 
-            amount = lc.margin_amount_company_currency
-
-            # =========================
-            # RELEASE LC COLLATERAL
-            # =========================
-            release_move = self.env['account.move'].create({
-                'move_type': 'entry',
-                'journal_id': lc.bank_journal_id.id,
-                'ref': f"LC Release - {lc.name}",
-                'line_ids': [
-
-                    # DR BANK
-                    (0, 0, {
-                        'name': f"LC Release - {lc.name}",
-                        'account_id': bank_account.id,
-                        'debit': amount,
-                        'credit': 0.0,
-                    }),
-
-                    # CR LC MARGIN
-                    (0, 0, {
-                        'name': f"LC Release - {lc.name}",
-                        'account_id': lc.margin_account_id.id,
-                        'debit': 0.0,
-                        'credit': amount,
-                    }),
-                ]
-            })
-
-            release_move.action_post()
-
-            lc.release_move_id = release_move.id    
+        return res

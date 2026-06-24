@@ -44,4 +44,130 @@
         </field>
     </record>
 
+    <record id="view_lc_open_confirm_wizard_form" model="ir.ui.view">
+        <field name="name">lc.open.confirm.wizard.form</field>
+        <field name="model">lc.open.confirm.wizard</field>
+        <field name="arch" type="xml">
+
+            <form string="Confirm Opening LC">
+
+                <sheet>
+
+                    <div class="alert alert-info" role="alert">
+                        Opening this LC will post the following journal entry. Review it, then
+                        confirm or cancel.
+                    </div>
+
+                    <group>
+                        <field name="lc_id" readonly="1"/>
+                        <field name="preview_text" readonly="1" nolabel="1"/>
+                    </group>
+
+                </sheet>
+
+                <footer>
+
+                    <button
+                        name="action_confirm_open"
+                        string="Confirm"
+                        type="object"
+                        class="btn-primary"/>
+
+                    <button
+                        string="Cancel"
+                        special="cancel"
+                        class="btn-secondary"/>
+
+                </footer>
+
+            </form>
+
+        </field>
+    </record>
+
+    <record id="view_lc_settlement_confirm_wizard_form" model="ir.ui.view">
+        <field name="name">lc.settlement.confirm.wizard.form</field>
+        <field name="model">lc.settlement.confirm.wizard</field>
+        <field name="arch" type="xml">
+
+            <form string="Confirm Settlement">
+
+                <sheet>
+
+                    <div class="alert alert-info" role="alert">
+                        Confirming this settlement will post the following journal entries
+                        and release the matching share of LC margin. Review, then confirm or cancel.
+                    </div>
+
+                    <group>
+                        <field name="settlement_line_id" readonly="1"/>
+                        <field name="preview_text" readonly="1" nolabel="1"/>
+                    </group>
+
+                </sheet>
+
+                <footer>
+
+                    <button
+                        name="action_confirm_settlement"
+                        string="Confirm"
+                        type="object"
+                        class="btn-primary"/>
+
+                    <button
+                        string="Cancel"
+                        special="cancel"
+                        class="btn-secondary"/>
+
+                </footer>
+
+            </form>
+
+        </field>
+    </record>
+
+    <record id="view_lc_settlement_split_wizard_form" model="ir.ui.view">
+        <field name="name">lc.settlement.split.wizard.form</field>
+        <field name="model">lc.settlement.split.wizard</field>
+        <field name="arch" type="xml">
+
+            <form string="Split Into Partial Settlement">
+
+                <sheet>
+
+                    <div class="alert alert-info" role="alert">
+                        Enter how much of the current amount you're settling right now.
+                        The remainder will stay as its own line until it's paid off too -
+                        each tranche can have its own bank fee, VAT, and rate.
+                    </div>
+
+                    <group>
+                        <field name="settlement_line_id" readonly="1"/>
+                        <field name="lc_currency_id" invisible="1"/>
+                        <field name="current_amount"/>
+                        <field name="split_amount"/>
+                    </group>
+
+                </sheet>
+
+                <footer>
+
+                    <button
+                        name="action_confirm_split"
+                        string="Split"
+                        type="object"
+                        class="btn-primary"/>
+
+                    <button
+                        string="Cancel"
+                        special="cancel"
+                        class="btn-secondary"/>
+
+                </footer>
+
+            </form>
+
+        </field>
+    </record>
+
 </odoo>

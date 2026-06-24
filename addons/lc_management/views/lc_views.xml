@@ -15,57 +15,61 @@
                 <field name="amount"/>
                 <field name="currency_id"/>
                 <field name="margin_amount"/>
+                <field name="remaining_amount"/>
                 <field name="state"
                        widget="badge"
-                        decoration-muted="state == 'draft'"
+                       decoration-muted="state == 'draft'"
                        decoration-info="state == 'open'"
                        decoration-warning="state == 'utilized'"
                        decoration-success="state == 'settled'"
                        decoration-danger="state == 'closed'"/>
-                       
                 <field name="expiry_date"/>
             </list>
         </field>
     </record>
 
-       <!-- ===================================================== -->
-       <!-- LC KANBAN VIEW -->
-       <!-- ===================================================== -->
-       <record id="view_lc_kanban" model="ir.ui.view">
-              <field name="name">lc.management.kanban</field>
-              <field name="model">lc.management</field>
-              <field name="arch" type="xml">
-                     <kanban default_group_by="state" class="o_kanban_small_column">
-                            <field name="name"/>
-                            <field name="bank_journal_id"/>
-                            <field name="partner_id"/>
-                            <field name="amount"/>
-                            <field name="currency_id"/>
-                            <field name="state"/>
-                            <field name="expiry_date"/>
-                            <templates>
-                                   <t t-name="card">
-                                          <div class="oe_kanban_global_click">
-                                                 <div class="fw-bold text-primary"><field name="name"/></div>
-                                                 <div class="text-muted small"><field name="bank_journal_id"/></div>
-                                                 <div class="small mt-1"><field name="partner_id"/></div>
-                                                 <div class="small">Amount: <field name="amount"/> <field name="currency_id"/></div>
-                                                 <div class="small">Expiry: <field name="expiry_date"/></div>
-                                                 <div class="small mt-1">
-                                                        <field name="state"
-                                                                  widget="badge"
-                                                                  decoration-muted="state == 'draft'"
-                                                                  decoration-info="state == 'open'"
-                                                                  decoration-warning="state == 'utilized'"
-                                                                  decoration-success="state == 'settled'"
-                                                                  decoration-danger="state == 'closed'"/>
-                                                 </div>
-                                          </div>
-                                   </t>
-                            </templates>
-                     </kanban>
-              </field>
-       </record>
+    <!-- ===================================================== -->
+    <!-- LC KANBAN VIEW -->
+    <!-- ===================================================== -->
+    <record id="view_lc_kanban" model="ir.ui.view">
+        <field name="name">lc.management.kanban</field>
+        <field name="model">lc.management</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="bank_journal_id"/>
+                <field name="partner_id"/>
+                <field name="amount"/>
+                <field name="currency_id"/>
+                <field name="state"/>
+                <field name="expiry_date"/>
+                <field name="has_draft_settlement_lines"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click">
+                            <div class="fw-bold text-primary"><field name="name"/></div>
+                            <div class="text-muted small"><field name="bank_journal_id"/></div>
+                            <div class="small mt-1"><field name="partner_id"/></div>
+                            <div class="small">Amount: <field name="amount"/> <field name="currency_id"/></div>
+                            <div class="small">Expiry: <field name="expiry_date"/></div>
+                            <div class="small mt-1">
+                                <field name="state"
+                                       widget="badge"
+                                       decoration-muted="state == 'draft'"
+                                       decoration-info="state == 'open'"
+                                       decoration-warning="state == 'utilized'"
+                                       decoration-success="state == 'settled'"
+                                       decoration-danger="state == 'closed'"/>
+                                <span class="badge text-bg-warning ms-1" invisible="not has_draft_settlement_lines">
+                                    Awaiting Review
+                                </span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
 
     <!-- ===================================================== -->
     <!-- LC FORM VIEW -->
@@ -79,43 +83,37 @@
 
                 <header>
 
-                    <button name="action_open"
+                    <button name="action_open_with_confirmation"
                             string="Open LC"
                             type="object"
                             class="btn-primary"
                             invisible="state != 'draft'"/>
 
-                    <button name="action_settle"
-                            string="Settle LC"
-                            type="object"
-                            class="btn-success"
-                            invisible="state != 'utilized'"/>
-
                     <button name="action_close"
                             string="Close LC"
                             type="object"
                             class="btn-danger"
-                            invisible="state in ('draft','open','utilized','closed') or not can_close"/>
-                     <!-- <button name="action_cancel_lc"
-                            string="Cancel LC"
-                            type="object"
-                            class="btn-warning"
-                            invisible="state in ('closed','cancelled')"/> -->
-                     <button name="action_open_cancel_wizard"
+                            invisible="state in ('draft','open','utilized','closed','cancelled') or not can_close"/>
+
+                    <button name="action_open_cancel_wizard"
                             string="Cancel LC"
                             type="object"
                             class="btn-danger"
-                            invisible="state in ('closed','cancelled')"/>/>
+                            invisible="state in ('closed','cancelled')"/>
 
                     <field name="state"
                            widget="statusbar"
                            statusbar_visible="draft,open,utilized,settled,closed"/>
-                     <group string="Cancellation Information"
-                            invisible="state != 'cancelled'">
 
-                            <field name="cancel_reason" readonly="1"/>
+                    <div class="alert alert-warning mt-2" role="alert"
+                         invisible="not has_draft_settlement_lines">
+                        <strong>Action needed:</strong> there are unconfirmed settlement lines waiting
+                        for review in the Settlement tab.
+                    </div>
 
-                     </group>
+                    <group string="Cancellation Information" invisible="state != 'cancelled'">
+                        <field name="cancel_reason" readonly="1"/>
+                    </group>
 
                 </header>
 
@@ -128,39 +126,17 @@
                     <group>
 
                         <group string="LC Information">
-
-                            <field name="name"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="partner_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="lc_type_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="expiry_date"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
+                            <field name="name" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="partner_id" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="lc_type_id" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="expiry_date" readonly="state in ('open','utilized','settled','closed')"/>
                         </group>
 
                         <group string="Banking Information">
-
-                            <field name="bank_journal_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="margin_account_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="currency_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="exchange_rate"
-                                   readonly="state != 'draft'"/>
-
-                            <!-- <field name="opening_rate"
-                                   readonly="1"
-                                   invisible="state == 'draft'"/> -->
-
+                            <field name="bank_journal_id" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="margin_account_id" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="currency_id" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="exchange_rate" readonly="state != 'draft'"/>
                         </group>
 
                     </group>
@@ -172,129 +148,99 @@
                     <group>
 
                         <group string="LC Amount Details">
-
-                            <field name="amount"
-                                   widget="monetary"
+                            <field name="amount" widget="monetary"
                                    options="{'currency_field': 'currency_id'}"
                                    readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="company_currency_id"
-                                   invisible="1"/>
-
-                            <field name="margin_amount"
-                                   widget="monetary"
-                                   options="{'currency_field': 'currency_id'}"
-                                   readonly="1"/>
-
-                            <field name="remaining_amount"
-                                   widget="monetary"
-                                   options="{'currency_field': 'currency_id'}"
-                                   readonly="1"/>
-
+                            <field name="company_currency_id" invisible="1"/>
+                            <field name="margin_amount" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
+                            <field name="paid_amount" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
+                            <field name="remaining_amount" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
                         </group>
 
-                        <group string="FX / Local Currency">
-
-                            <field name="local_currency_amount"
-                                   widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}"
-                                   readonly="1"/>
-
-                            <field name="settlement_etb_amount"
-                                   widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}"
-                                   readonly="1"
-                                   invisible="state in ('draft','open','utilized')"/>
-
-                            <field name="fx_gain_loss"
-                                   widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}"
-                                   readonly="1"
-                                   invisible="state in ('draft','open','utilized')"/>
-
+                        <group string="Margin Release Progress">
+                            <field name="margin_amount_company_currency" readonly="1"/>
+                            <field name="margin_released_amount" widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                            <field name="margin_remaining_to_release" widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                            <field name="local_currency_amount" widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                         </group>
 
                     </group>
 
                     <!-- ===================================================== -->
-                    <!-- CHARGES -->
+                    <!-- OPENING CHARGES -->
                     <!-- ===================================================== -->
 
                     <group>
-                        <!-- OPENING -->
                         <group string="LC Opening Charges">
-
-                            <field name="opening_fee"
-                                   widget="monetary"
+                            <field name="opening_fee" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
                                    readonly="state in ('open','utilized','settled','closed')"/>
-
                             <field name="opening_fee_account_id"
                                    readonly="state in ('open','utilized','settled','closed')"/>
-
-                            <field name="opening_vat_amount"
-                                   widget="monetary"
+                            <field name="opening_vat_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
                                    readonly="state in ('open','utilized','settled','closed')"/>
-
                             <field name="opening_vat_account_id"
                                    readonly="state in ('open','utilized','settled','closed')"/>
-
                             <field name="opening_date"
                                    readonly="state in ('open','utilized','settled','closed')"
                                    required="state != 'draft'"/>
-
                         </group>
 
-                        <!-- SETTLEMENT -->
-                        <group string="LC Settlement Charges"
-                               invisible="state in ('draft','open')">
-
-                            <field name="settlement_currency_amount"
-                                   widget="monetary"
-                                   options="{'currency_field': 'currency_id'}"
-                                   invisible="state in ('draft','open')"
-                                   readonly="state in ('settled','closed')"/>
-
-                            <field name="settlement_fee"
+                        <group string="FX Summary">
+                            <field name="fx_gain_loss"
                                    widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('settled','closed')"/>
-
-                            <field name="settlement_rate"
-                                   invisible="state in ('draft','open')"
-                                   readonly="state in ('settled','closed')"/>
-
-                            <field name="settlement_fee_account_id"
-                                   readonly="state in ('settled','closed')"/>
-
-                            <field name="settlement_vat_amount"
-                                   widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('settled','closed')"/>
-
-                            <field name="settlement_vat_account_id"
-                                   readonly="state in ('settled','closed')"/>
-
-                            <field name="settlement_date"
-                                   readonly="state in ('settled','closed')"
-                                   required="state == 'utilized'"/>
-
+                                   readonly="1"/>
                         </group>
-
-
-
                     </group>
 
                     <!-- ===================================================== -->
-                    <!-- PURCHASE ORDERS -->
+                    <!-- NOTEBOOK: PURCHASE ORDERS / SETTLEMENT -->
                     <!-- ===================================================== -->
 
                     <notebook>
 
                         <page string="Purchase Orders">
-
                             <field name="purchase_ids" options="{'delete': false, 'create': false}"/>
+                        </page>
+
+                        <page string="Settlement"
+                              invisible="state in ('draft',)">
+
+                            <div class="alert alert-info mb-2" role="alert">
+                                Each line below is created automatically the moment a Purchase Order's
+                                shipment reaches its final destination - the amount mirrors that PO's
+                                total exactly. Click a line to open it, enter the bank's settlement fee,
+                                VAT, and rate, then confirm to post the accounting entries and release
+                                the matching share of LC margin.
+                            </div>
+
+                            <field name="settlement_line_ids">
+                                <list decoration-muted="state == 'cancelled'"
+                                      decoration-success="state == 'confirmed'"
+                                      decoration-warning="state == 'draft'">
+                                    <field name="purchase_order_id"/>
+                                    <field name="shipment_id"/>
+                                    <field name="parent_settlement_line_id" optional="show" string="Split From"/>
+                                    <field name="vendor_bill_id"/>
+                                    <field name="lc_currency_id" column_invisible="1"/>
+                                    <field name="amount_to_settle" options="{'currency_field': 'lc_currency_id'}"/>
+                                    <field name="settlement_date"/>
+                                    <field name="company_currency_id" column_invisible="1"/>
+                                    <field name="margin_released_this_line" options="{'currency_field': 'company_currency_id'}"/>
+                                    <field name="state" widget="badge"
+                                           decoration-warning="state == 'draft'"
+                                           decoration-success="state == 'confirmed'"
+                                           decoration-muted="state == 'cancelled'"/>
+                                </list>
+                            </field>
 
                         </page>
 
@@ -313,67 +259,306 @@
     <record id="action_lc" model="ir.actions.act_window">
         <field name="name">Letters of Credit</field>
         <field name="res_model">lc.management</field>
-              <field name="view_mode">list,kanban,form</field>
+        <field name="view_mode">list,kanban,form</field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC SETTLEMENT LINES - STANDALONE LIST (ONE ROW PER PO) -->
+    <!-- Shows only root lines (one per Purchase Order/shipment), with -->
+    <!-- rolled-up totals across all of that PO's partial tranches. -->
+    <!-- Clicking a row opens the full per-PO settlement summary form. -->
+    <!-- ===================================================== -->
+    <record id="view_lc_settlement_line_list" model="ir.ui.view">
+        <field name="name">lc.settlement.line.list</field>
+        <field name="model">lc.settlement.line</field>
+        <field name="arch" type="xml">
+            <list decoration-info="state == 'draft'" decoration-success="po_is_fully_settled">
+                <field name="lc_id"/>
+                <field name="purchase_order_id"/>
+                <field name="shipment_id"/>
+                <field name="lc_currency_id" column_invisible="1"/>
+                <field name="po_total_amount" string="PO Total" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_total_settled" string="Settled So Far" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_remaining_to_settle" string="Remaining" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_tranche_count" string="Tranches"/>
+                <field name="po_is_fully_settled" widget="boolean_toggle" string="Fully Settled" readonly="1"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'draft'"
+                       decoration-success="state == 'confirmed'"
+                       decoration-muted="state == 'cancelled'"
+                       string="This Tranche"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC SETTLEMENT LINE - STANDALONE FORM -->
+    <!-- Doubles as: (a) the action screen for a single draft tranche -->
+    <!-- (Confirm/Split buttons), and (b) once you're looking at the root -->
+    <!-- line for a PO, a full settlement summary - simple if it was paid -->
+    <!-- in one shot, or a detailed tranche-by-tranche breakdown if it -->
+    <!-- was split into partial payments. -->
+    <!-- ===================================================== -->
+    <record id="view_lc_settlement_line_form" model="ir.ui.view">
+        <field name="name">lc.settlement.line.form</field>
+        <field name="model">lc.settlement.line</field>
+        <field name="arch" type="xml">
+            <form>
+
+                <header>
+                    <button name="action_confirm_with_preview"
+                            string="Confirm Settlement"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_open_split_wizard"
+                            string="Split Into Partial Payment"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
+                </header>
+
+                <sheet>
+
+                    <field name="lc_currency_id" invisible="1"/>
+                    <field name="company_currency_id" invisible="1"/>
+                    <field name="is_root_line" invisible="1"/>
+                    <field name="po_tranche_count" invisible="1"/>
+
+                    <!-- ============ PO SUMMARY HEADER (root lines only) ============ -->
+                    <div class="oe_title" invisible="not is_root_line">
+                        <h1>
+                            <field name="purchase_order_id" readonly="1" nolabel="1"/>
+                        </h1>
+                        <h3 class="text-muted">
+                            <field name="lc_id" readonly="1" nolabel="1"/> &#8226;
+                            <field name="shipment_id" readonly="1" nolabel="1"/>
+                        </h3>
+                    </div>
+
+                    <group invisible="not is_root_line">
+                        <group string="Settlement Progress">
+                            <field name="po_total_amount" string="PO Total" widget="monetary"
+                                   options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                            <field name="po_total_settled" string="Settled So Far" widget="monetary"
+                                   options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                            <field name="po_remaining_to_settle" string="Remaining" widget="monetary"
+                                   options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                        </group>
+                        <group string="Overview">
+                            <field name="po_tranche_count" string="Number of Tranches" readonly="1"/>
+                            <field name="po_is_fully_settled" string="Fully Settled" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <div class="alert alert-success" role="alert"
+                         invisible="not is_root_line or not po_is_fully_settled">
+                        This Purchase Order is fully settled.
+                    </div>
+
+                    <!-- ============ SIMPLE CASE: one tranche, no splits ============ -->
+                    <div invisible="not is_root_line or po_tranche_count != 1">
+
+                        <div class="alert alert-info" role="alert" invisible="state != 'draft'">
+                            Enter the settlement fee, VAT, and exchange rate exactly as charged
+                            by the bank for this draw, then click <strong>Confirm Settlement</strong>
+                            to post the accounting entries and release the matching share of LC margin.
+                            If you're only paying part of this amount now, click
+                            <strong>Split Into Partial Payment</strong> first.
+                        </div>
+
+                        <group>
+                            <group string="Amount to Settle">
+                                <field name="amount_to_settle" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="settlement_date" readonly="state != 'draft'"/>
+                                <field name="settlement_rate" readonly="state != 'draft'"/>
+                            </group>
+                            <group string="Bank Charges (enter as billed by the bank)">
+                                <field name="settlement_fee" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}"
+                                       readonly="state != 'draft'"/>
+                                <field name="settlement_fee_account_id" readonly="state != 'draft'"/>
+                                <field name="settlement_vat_amount" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}"
+                                       readonly="state != 'draft'"/>
+                                <field name="settlement_vat_account_id" readonly="state != 'draft'"/>
+                            </group>
+                        </group>
+
+                        <group invisible="state == 'draft'">
+                            <group string="Result">
+                                <field name="margin_released_this_line" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="fx_gain_loss_this_line" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                            </group>
+                            <group string="Posted Entries">
+                                <field name="settlement_move_id" readonly="1"/>
+                                <field name="release_move_id" readonly="1"/>
+                            </group>
+                        </group>
+
+                    </div>
+
+                    <!-- ============ DETAILED CASE: multiple tranches ============ -->
+                    <div invisible="not is_root_line or po_tranche_count &lt;= 1">
+                        <separator string="Tranche-by-Tranche Breakdown"/>
+                        <field name="all_tranche_ids">
+                            <list decoration-muted="state == 'cancelled'"
+                                  decoration-success="state == 'confirmed'"
+                                  decoration-warning="state == 'draft'">
+                                <field name="lc_currency_id" column_invisible="1"/>
+                                <field name="company_currency_id" column_invisible="1"/>
+                                <field name="amount_to_settle" string="Amount" options="{'currency_field': 'lc_currency_id'}"/>
+                                <field name="settlement_date"/>
+                                <field name="settlement_rate"/>
+                                <field name="settlement_fee" options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_vat_amount" options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="margin_released_this_line" string="Margin Released" options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="state" widget="badge"
+                                       decoration-warning="state == 'draft'"
+                                       decoration-success="state == 'confirmed'"
+                                       decoration-muted="state == 'cancelled'"/>
+                            </list>
+                        </field>
+                    </div>
+
+                    <!-- ============ NON-ROOT LINE: viewed directly (e.g. from the embedded LC tab) ============ -->
+                    <div invisible="is_root_line">
+
+                        <div class="alert alert-info" role="alert" invisible="state != 'draft'">
+                            Enter the settlement fee, VAT, and exchange rate exactly as charged
+                            by the bank for this draw, then click <strong>Confirm Settlement</strong>
+                            to post the accounting entries and release the matching share of LC margin.
+                        </div>
+
+                        <group>
+                            <group string="Linked To">
+                                <field name="lc_id" readonly="1"/>
+                                <field name="purchase_order_id" readonly="1"/>
+                                <field name="shipment_id" readonly="1"/>
+                                <field name="parent_settlement_line_id" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <group>
+                            <group string="Amount to Settle (this tranche)">
+                                <field name="amount_to_settle" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="settlement_date" readonly="state != 'draft'"/>
+                                <field name="settlement_rate" readonly="state != 'draft'"/>
+                            </group>
+                            <group string="Bank Charges (enter as billed by the bank)">
+                                <field name="settlement_fee" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}"
+                                       readonly="state != 'draft'"/>
+                                <field name="settlement_fee_account_id" readonly="state != 'draft'"/>
+                                <field name="settlement_vat_amount" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}"
+                                       readonly="state != 'draft'"/>
+                                <field name="settlement_vat_account_id" readonly="state != 'draft'"/>
+                            </group>
+                        </group>
+
+                        <group invisible="state == 'draft'">
+                            <group string="Result">
+                                <field name="margin_released_this_line" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="fx_gain_loss_this_line" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                            </group>
+                            <group string="Posted Entries">
+                                <field name="settlement_move_id" readonly="1"/>
+                                <field name="release_move_id" readonly="1"/>
+                            </group>
+                        </group>
+
+                    </div>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================================================== -->
+    <!-- LC SETTLEMENT LINE - SEARCH VIEW -->
+    <!-- ===================================================== -->
+    <record id="view_lc_settlement_line_search" model="ir.ui.view">
+        <field name="name">lc.settlement.line.search</field>
+        <field name="model">lc.settlement.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="lc_id"/>
+                <field name="purchase_order_id"/>
+                <field name="shipment_id"/>
+                <filter string="Fully Settled" name="fully_settled" domain="[('po_is_fully_settled', '=', True)]"/>
+                <filter string="Still Settling" name="still_settling" domain="[('po_is_fully_settled', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Letter of Credit" name="group_lc" context="{'group_by': 'lc_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_lc_settlement_line" model="ir.actions.act_window">
+        <field name="name">All LC Settlements</field>
+        <field name="res_model">lc.settlement.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_root_line', '=', True)]</field>
+        <field name="context">{}</field>
+        <field name="search_view_id" ref="view_lc_settlement_line_search"/>
     </record>
 
     <!-- ===================================================== -->
     <!-- LC TYPE LIST VIEW -->
     <!-- ===================================================== -->
-    <record id="view_lc_type_list" model="ir.ui.view">
-        <field name="name">lc.type.list</field>
-        <field name="model">lc.type</field>
+    <record id="view_lc_margin_list" model="ir.ui.view">
+        <field name="name">lc.margin.list</field>
+        <field name="model">lc.margin</field>
         <field name="arch" type="xml">
-
             <list>
                 <field name="name"/>
                 <field name="margin_percentage"/>
                 <field name="active"/>
             </list>
-
         </field>
     </record>
 
     <!-- ===================================================== -->
-    <!-- LC TYPE FORM VIEW -->
+    <!-- LC MARGIN FORM VIEW -->
     <!-- ===================================================== -->
-    <record id="view_lc_type_form" model="ir.ui.view">
-        <field name="name">lc.type.form</field>
-        <field name="model">lc.type</field>
+    <record id="view_lc_margin_form" model="ir.ui.view">
+        <field name="name">lc.margin.form</field>
+        <field name="model">lc.margin</field>
         <field name="arch" type="xml">
-
             <form>
-
                 <sheet>
-
                     <group>
-
                         <field name="name"/>
                         <field name="margin_percentage"/>
                         <field name="active"/>
-
                     </group>
-
                 </sheet>
-
             </form>
-
         </field>
     </record>
 
     <!-- ===================================================== -->
-    <!-- LC TYPE ACTION -->
+    <!-- LC MARGIN ACTION -->
     <!-- ===================================================== -->
-    <record id="action_lc_type" model="ir.actions.act_window">
-        <field name="name">LC Types</field>
-        <field name="res_model">lc.type</field>
+    <record id="action_lc_margin" model="ir.actions.act_window">
+        <field name="name">LC Margin</field>
+        <field name="res_model">lc.margin</field>
         <field name="view_mode">list,form</field>
     </record>
 
     <!-- ===================================================== -->
     <!-- ROOT MENU -->
     <!-- ===================================================== -->
-    <menuitem id="menu_lc_root"
-              name="LC Management"/>
+    <menuitem id="menu_lc_root" name="LC Management"/>
 
     <!-- ===================================================== -->
     <!-- LC MENU -->
@@ -384,38 +569,35 @@
               action="action_lc"/>
 
     <!-- ===================================================== -->
+    <!-- LC SETTLEMENT REVIEW MENU -->
+    <!-- ===================================================== -->
+    <menuitem id="menu_lc_settlement_review"
+              name="All Settlements"
+              parent="menu_lc_root"
+              action="action_lc_settlement_line"/>
+
+    <!-- ===================================================== -->
     <!-- LC TYPE MENU -->
     <!-- ===================================================== -->
-    <menuitem id="menu_lc_type"
-              name="LC Types"
+    <menuitem id="menu_lc_margin"
+              name="LC Margin"
               parent="menu_lc_root"
-              action="action_lc_type"/>
+              action="action_lc_margin"/>
 
     <!-- ===================================================== -->
     <!-- PURCHASE ORDER INHERIT -->
     <!-- ===================================================== -->
     <record id="purchase_order_lc_inherit" model="ir.ui.view">
-
         <field name="name">purchase.order.lc</field>
-
         <field name="model">purchase.order</field>
-
-        <field name="inherit_id"
-               ref="purchase.purchase_order_form"/>
-
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
         <field name="arch" type="xml">
-
-            <xpath expr="//field[@name='partner_id']"
-                   position="after">
-
+            <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="lc_id"
                        options="{'no_create': True, 'no_create_edit': True}"
                        readonly="state in ('purchase','done')"/>
-
             </xpath>
-
         </field>
-
     </record>
 
 </odoo>

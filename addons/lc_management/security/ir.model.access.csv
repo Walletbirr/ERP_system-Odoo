@@ -1,4 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_lc_management,access_lc_management,model_lc_management,,1,1,1,1
-access_lc_type,access_lc_type,model_lc_type,,1,1,1,1
+access_lc_margin,access_lc_margin,model_lc_margin,,1,1,1,1
 access_lc_cancel_wizard,access_lc_cancel_wizard,model_lc_cancel_wizard,base.group_user,1,1,1,1
+access_lc_settlement_line,access_lc_settlement_line,model_lc_settlement_line,,1,1,1,1
+access_lc_open_confirm_wizard,access_lc_open_confirm_wizard,model_lc_open_confirm_wizard,base.group_user,1,1,1,1
+access_lc_settlement_confirm_wizard,access_lc_settlement_confirm_wizard,model_lc_settlement_confirm_wizard,base.group_user,1,1,1,1
+access_lc_settlement_split_wizard,access_lc_settlement_split_wizard,model_lc_settlement_split_wizard,base.group_user,1,1,1,1

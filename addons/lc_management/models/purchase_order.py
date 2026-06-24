@@ -8,17 +8,7 @@ class PurchaseOrder(models.Model):
     lc_id = fields.Many2one(
         'lc.management',
         string="Letter of Credit",
-        domain="[('partner_id', '=', partner_id), ('state', '=', 'open')]"
-    )
-
-    # rest of PO logic
-class PurchaseOrder(models.Model):
-    _inherit = 'purchase.order'
-
-    lc_id = fields.Many2one(
-        'lc.management',
-        string="Letter of Credit",
-        domain="[('partner_id', '=', partner_id), ('state', '=', 'open')]"
+        domain="[('partner_id', '=', partner_id), ('state', 'in', ('open', 'utilized'))]"
     )
 
     # -------------------------
@@ -29,17 +19,14 @@ class PurchaseOrder(models.Model):
         if self.lc_id:
             lc = self.lc_id
 
-            # ❌ Only OPEN LC allowed
-            if lc.state != 'open':
-                raise ValidationError("Only OPEN LC can be selected.")
+            if lc.state not in ('open', 'utilized'):
+                raise ValidationError("Only an Open or Utilized LC can be selected.")
 
-            # ❌ Prevent exceeding LC balance
             if self.amount_total and self.amount_total > lc.remaining_amount:
                 raise ValidationError(
                     f"Selected LC does not have enough balance.\nRemaining: {lc.remaining_amount}"
                 )
 
-            # ✅ Auto-fill supplier (BEST UX)
             self.partner_id = lc.partner_id
 
     # -------------------------
@@ -58,34 +45,27 @@ class PurchaseOrder(models.Model):
     # -------------------------
     def button_confirm(self):
         for po in self:
-
-            # ❌ LC is mandatory
             if not po.lc_id:
                 raise ValidationError("Please assign LC before confirming.")
 
             lc = po.lc_id
 
-            # ❌ LC must be active
-            if lc.state in ('draft', 'settled', 'closed'):
+            if lc.state not in ('open', 'utilized'):
                 raise ValidationError("LC is not active.")
 
-            # ❌ Supplier mismatch protection
             if po.partner_id != lc.partner_id:
                 raise ValidationError(
                     f"LC is issued for {lc.partner_id.name}, "
                     f"but this purchase is for {po.partner_id.name}"
                 )
 
-            # ❌ Balance check (REAL CONTROL)
             if po.amount_total > lc.remaining_amount:
                 raise ValidationError(
                     f"LC balance exceeded!\nRemaining: {lc.remaining_amount}"
                 )
 
-        # ✅ Confirm normally
         res = super().button_confirm()
 
-        # ✅ Recompute LC usage AFTER confirmation
         for po in self:
             lc = po.lc_id
             lc._compute_used_amount()
