@@ -38,7 +38,7 @@
                 <sheet>
                     <div class="oe_title">
                         <label for="container_number" string="Container"/>
-                        <h1><field name="container_number" placeholder="MSCU1234567"/></h1>
+                        <h1><field name="container_number" placeholder="CSQU3054383"/></h1>
                     </div>
                     <group>
                         <group string="Container Details">

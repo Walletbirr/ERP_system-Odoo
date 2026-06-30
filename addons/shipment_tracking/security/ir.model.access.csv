@@ -13,4 +13,6 @@ access_shipment_port_user,Shipment Port User,model_shipment_port,purchase.group_
 access_shipment_port_manager,Shipment Port Manager,model_shipment_port,purchase.group_purchase_manager,1,1,1,1
 access_shipment_cost_stage_user,Shipment Cost Stage User,model_shipment_cost_stage,purchase.group_purchase_user,1,1,1,0
 access_shipment_cost_stage_manager,Shipment Cost Stage Manager,model_shipment_cost_stage,purchase.group_purchase_manager,1,1,1,1
+access_shipment_carrier_user,Shipment Carrier User,model_shipment_carrier,purchase.group_purchase_user,1,1,1,0
+access_shipment_carrier_manager,Shipment Carrier Manager,model_shipment_carrier,purchase.group_purchase_manager,1,1,1,1
 

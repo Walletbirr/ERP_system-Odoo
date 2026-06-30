@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/data/shipment_carrier_data.xml -->
+<odoo>
+    <data noupdate="1">
+
+        <!--
+            Seed a few common shipping lines as editable master-data records.
+            Users can rename, reorder, archive, or add new carriers from
+            Shipments ▸ Configuration ▸ Carriers — these are just a
+            starting point and are NOT re-synced on module upgrade (noupdate="1").
+        -->
+        <record id="shipment_carrier_maersk" model="shipment.carrier">
+            <field name="name">Maersk</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="shipment_carrier_msc" model="shipment.carrier">
+            <field name="name">MSC</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <record id="shipment_carrier_cma_cgm" model="shipment.carrier">
+            <field name="name">CMA CGM</field>
+            <field name="sequence">30</field>
+        </record>
+
+        <record id="shipment_carrier_cosco" model="shipment.carrier">
+            <field name="name">COSCO Shipping</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <record id="shipment_carrier_hapag_lloyd" model="shipment.carrier">
+            <field name="name">Hapag-Lloyd</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <record id="shipment_carrier_one" model="shipment.carrier">
+            <field name="name">Ocean Network Express (ONE)</field>
+            <field name="sequence">60</field>
+        </record>
+
+        <record id="shipment_carrier_evergreen" model="shipment.carrier">
+            <field name="name">Evergreen Line</field>
+            <field name="sequence">70</field>
+        </record>
+
+    </data>
+</odoo>

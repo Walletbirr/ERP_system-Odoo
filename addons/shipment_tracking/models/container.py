@@ -29,7 +29,7 @@ class ShipmentContainer(models.Model):
     shipment_state = fields.Selection(
         related='shipment_id.state', string='Shipment Status', readonly=True, store=True,
     )
-    carrier = fields.Char(
+    carrier = fields.Many2one(
         related='shipment_id.carrier', string='Carrier', readonly=True, store=True,
     )
 
@@ -96,3 +96,20 @@ class ShipmentContainer(models.Model):
     def _onchange_container_number(self):
         if self.container_number:
             self.container_number = self.container_number.strip().upper()
+
+    def unlink(self):
+        for rec in self:
+            if rec.local_transport_state in ('in_transit', 'delivered'):
+                raise ValidationError(_(
+                    'Cannot delete container "%s" because its local transport '
+                    'status is already "%s".\n'
+                    'Only containers that are Not Assigned or Pending can be removed.'
+                ) % (rec.container_number, rec.local_transport_state))
+        return super().unlink()
+
+    def action_delete_container(self):
+        """Called by the trash-icon button in the list view (the built-in
+        delete icon is turned off via delete="0" so it can stay conditionally
+        invisible per row, which Odoo doesn't support for the native icon)."""
+        self.unlink()
+        return True

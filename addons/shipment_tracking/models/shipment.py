@@ -18,12 +18,24 @@ class ShipmentTracking(models.Model):
         string='Shipment Reference', required=True, copy=False,
         readonly=True, default=lambda self: _('New'), tracking=True,
     )
-    carrier = fields.Char(string='Carrier / Shipping Line', required=True, tracking=True)
+    carrier = fields.Many2one(
+        'shipment.carrier', string='Carrier / Shipping Line',
+        required=True, tracking=True,
+    )
     incoterm_id = fields.Many2one('account.incoterms', string='Incoterms', tracking=True)
     port_of_loading = fields.Char(string='Port of Loading', tracking=True)
     port_of_discharge = fields.Char(string='Final Destination', tracking=True)
-    etd = fields.Date(string='ETD (Est. Departure)', required=True, tracking=True)
+    etd = fields.Date(string='Departure Date', required=True, tracking=True)
     eta = fields.Date(string='ETA (Est. Arrival)', required=True, tracking=True)
+
+    @api.constrains('etd', 'eta')
+    def _check_etd_eta(self):
+        for shipment in self:
+            if shipment.etd and shipment.eta and shipment.eta < shipment.etd:
+                raise ValidationError(_(
+                    'ETA (Est. Arrival) cannot be earlier than Departure Date.\n'
+                    'ETD: %(etd)s — ETA: %(eta)s'
+                ) % {'etd': shipment.etd, 'eta': shipment.eta})
     actual_arrival_date = fields.Date(string='Actual Arrival Date', tracking=True)
 
     # ── Intermediate Ports ────────────────────────────────────────────────────

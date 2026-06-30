@@ -9,6 +9,31 @@ from odoo.tools.misc import file_open
 
 from odoo.addons.base.models.ir_qweb import render as qweb_render
 from odoo.addons.web.controllers.database import Database as DatabaseController
+from odoo.addons.web.controllers.home import Home as HomeController
+
+
+def _get_global_favicon_url():
+    return os.environ.get('WEB_GLOBAL_FAVICON_URL', False)
+
+
+def _get_brand_name():
+    return os.environ.get('WEB_DB_SELECTOR_BRAND_NAME', False)
+
+
+class Home(HomeController):
+
+    @http.route('/web/login', type='http', auth='none', readonly=False)
+    def web_login(self, redirect=None, **kw):
+        response = super().web_login(redirect=redirect, **kw)
+        if hasattr(response, 'qcontext'):
+            favicon_url = _get_global_favicon_url()
+            if favicon_url:
+                response.qcontext['global_favicon_url'] = favicon_url
+
+            brand_name = _get_brand_name()
+            if brand_name:
+                response.qcontext['title'] = brand_name
+        return response
 
 
 class Database(DatabaseController):
@@ -29,10 +54,11 @@ class Database(DatabaseController):
 
         # Branding, sourced from environment variables since this page is
         # shown before any database is selected (no config_parameter access).
-        d['brand_name'] = os.environ.get('WEB_DB_SELECTOR_BRAND_NAME', 'Odoo')
+        d['brand_name'] = _get_brand_name() or 'Odoo'
         d['brand_logo_url'] = os.environ.get(
             'WEB_DB_SELECTOR_BRAND_LOGO', '/web/static/img/logo2.png'
         )
+        d['global_favicon_url'] = _get_global_favicon_url() or '/web/static/img/favicon.ico'
 
         templates = {}
 

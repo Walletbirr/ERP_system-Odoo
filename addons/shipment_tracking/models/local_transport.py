@@ -55,6 +55,22 @@ class LocalTransportTrip(models.Model):
     departure_date = fields.Date(string='Planned Departure Date', required=True, tracking=True)
     expected_arrival_date = fields.Date(string='Expected Warehouse Arrival', tracking=True)
 
+    @api.onchange('shipment_id')
+    def _onchange_shipment_id(self):
+        if self.shipment_id:
+            self.origin_location = self.shipment_id.port_of_discharge
+
+    @api.constrains('departure_date', 'expected_arrival_date')
+    def _check_departure_before_arrival(self):
+        for rec in self:
+            if rec.departure_date and rec.expected_arrival_date \
+                    and rec.expected_arrival_date < rec.departure_date:
+                raise ValidationError(_(
+                    'Expected Warehouse Arrival cannot be earlier than the '
+                    'Planned Departure Date.\n'
+                    'Planned Departure: %(dep)s — Expected Arrival: %(arr)s'
+                ) % {'dep': rec.departure_date, 'arr': rec.expected_arrival_date})
+
     # ── Status ────────────────────────────────────────────────────────────────
     state = fields.Selection([
         ('draft',      'Draft'),
@@ -397,3 +413,19 @@ class LocalTransportAssignment(models.Model):
                 'state': 'delivered',
                 'actual_delivery_date': rec.actual_delivery_date or fields.Date.today(),
             })
+
+    def unlink(self):
+        for rec in self:
+            if rec.state != 'pending':
+                raise UserError(_(
+                    'Cannot delete truck "%s" because it is already %s.\n'
+                    'Only Pending truck assignments can be removed.'
+                ) % (rec.truck_plate, rec.state))
+        return super().unlink()
+
+    def action_delete_assignment(self):
+        """Called by the trash-icon button in the list view (the built-in
+        delete icon is turned off via delete="0" so it can stay conditionally
+        invisible per row, which Odoo doesn't support for the native icon)."""
+        self.unlink()
+        return True

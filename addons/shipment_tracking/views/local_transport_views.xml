@@ -11,12 +11,12 @@
         <field name="arch" type="xml">
             <form string="Truck Assignment">
                 <header>
-                    <!-- Deliver button — only shown when not yet delivered -->
+                    <!-- Deliver button — only shown once the truck is In Transit -->
                     <button name="action_mark_delivered"
                             string="Mark as Delivered"
                             type="object"
                             class="btn-success"
-                            invisible="state == 'delivered'"/>
+                            invisible="state != 'in_transit'"/>
                     <field name="state"
                            widget="statusbar"
                            statusbar_visible="pending,in_transit,delivered"/>
@@ -228,7 +228,8 @@
                                    context="{'default_trip_id': id}">
                                 <list decoration-success="state == 'delivered'"
                                       decoration-warning="state == 'in_transit'"
-                                      open_form_view="True">
+                                      open_form_view="True"
+                                      delete="0">
                                     <field name="capacity"/>
                                     <field name="container_number" string="Container 1" readonly="1"/>
                                     <field name="container2_number" string="Container 2" readonly="1"
@@ -245,8 +246,15 @@
                                             string="Deliver"
                                             type="object"
                                             class="btn-sm btn-success"
-                                            invisible="state == 'delivered'"
+                                            invisible="state != 'in_transit'"
                                             title="Mark this truck as delivered"/>
+                                    <button name="action_delete_assignment"
+                                            icon="fa-trash-o"
+                                            type="object"
+                                            class="btn-sm btn-link text-danger"
+                                            invisible="state != 'pending'"
+                                            confirm="Remove this truck assignment?"
+                                            title="Remove this truck"/>
                                 </list>
                             </field>
                         </page>

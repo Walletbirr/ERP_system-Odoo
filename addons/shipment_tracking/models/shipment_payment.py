@@ -225,6 +225,12 @@ class ShipmentCost(models.Model):
             if rec.state == 'paid':
                 continue
 
+            if not rec.amount or rec.amount <= 0:
+                raise UserError(_(
+                    'Cannot mark "%s" as Paid with a Fee Amount of %s.\n'
+                    'Please enter a Fee Amount greater than 0 before marking as paid.'
+                ) % (rec.display_name, rec.amount or 0.0))
+
             if not rec.fee_account_id:
                 raise UserError(_(
                     'Please set a Fee Account on "%s" before marking as paid.'

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Layer on top of the existing web_favicon module's override instead of
+         replacing it outright (both modules target the same <link> element
+         on web.layout; whichever applies last would otherwise silently
+         overwrite the other's t-att-href expression).
+
+         Order of preference once both are installed:
+           1. x_icon (set explicitly by some pages, e.g. scoped app install)
+           2. the company's own favicon, via web_favicon's existing logic
+           3. our WEB_GLOBAL_FAVICON_URL env var
+           4. Odoo's hardcoded default
+    -->
+    <template id="web_layout_global_favicon" inherit_id="web_favicon.favicon_icon">
+        <xpath expr="//head/link[@rel='shortcut icon']" position="attributes">
+            <attribute
+                name="t-att-href"
+            >x_icon or env['res.company'].sudo()._get_favicon() or global_favicon_url or '/web/static/img/favicon.ico'</attribute>
+        </xpath>
+    </template>
+
+</odoo>

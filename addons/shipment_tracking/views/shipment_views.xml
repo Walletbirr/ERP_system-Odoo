@@ -196,7 +196,7 @@
                     <!-- Shipment Details -->
                     <group>
                         <group string="Shipment Details">
-                            <field name="carrier" placeholder="e.g. Maersk, MSC, CMA CGM"/>
+                            <field name="carrier" placeholder="Select or type to create a new carrier..."/>
                             <field name="incoterm_id"/>
                             <field name="port_of_loading" placeholder="e.g. Shanghai, China"/>
                             <field name="port_of_discharge" placeholder="e.g. Mojo"/>
@@ -293,7 +293,7 @@
                         <!-- Containers Tab -->
                         <page string="Containers" name="containers">
                             <field name="container_ids" context="{'default_shipment_id': id}">
-                                <list editable="bottom">
+                                <list editable="bottom" delete="0">
                                     <field name="container_number" placeholder="MSCU1234567"/>
                                     <field name="size"/>
                                     <field name="seal_number"/>
@@ -304,6 +304,13 @@
                                            decoration-warning="local_transport_state == 'in_transit'"
                                            decoration-success="local_transport_state == 'delivered'"
                                            optional="show"/>
+                                    <button name="action_delete_container"
+                                            icon="fa-trash-o"
+                                            type="object"
+                                            class="btn-sm btn-link text-danger"
+                                            invisible="local_transport_state not in ('not_assigned', 'pending')"
+                                            confirm="Remove this container?"
+                                            title="Remove this container"/>
                                 </list>
                             </field>
                         </page>
