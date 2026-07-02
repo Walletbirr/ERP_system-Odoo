@@ -1,0 +1,25 @@
+// Hide the stock top NavBar (app grid + horizontal menu) entirely.
+// We are not deleting it from the DOM/core — just not showing it —
+// which keeps this override a pure CSS concern, safe across upgrades.
+.o_main_navbar {
+    display: none !important;
+}
+
+// The sidebar registers into main_components and renders fixed to the
+// left edge; push the actual app content over to make room for it.
+.o_theme_sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+}
+
+.o_action_manager {
+    margin-left: 240px;
+    transition: margin-left 0.15s ease;
+}
+
+// Mirror the collapsed state so content re-flows when the sidebar shrinks.
+body.o_theme_sidebar_is_collapsed .o_action_manager {
+    margin-left: 64px;
+}

@@ -1,0 +1,341 @@
+// Branding colors — flagged out as variables since they're the ones the
+// boss actually specified. Change these two lines, everything downstream
+// follows.
+$o-theme-sidebar-bg: #021200;
+$o-theme-submenu-bg: #0a2007; // subtly lighter — creates visible nesting
+$o-theme-gold-bright: #d6961d;
+
+@keyframes sidebarFlyoutIn {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.o_theme_sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  min-width: 240px;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  background: var(--o-theme-sidebar-bg, #{$o-theme-sidebar-bg});
+  color: var(--o-theme-sidebar-fg, #e8e8ea);
+  transition: background 0.25s ease-out;
+  // NOTE: no overflow-y here anymore — only .o_theme_sidebar_apps
+  // scrolls, so the header/footer stay pinned in place.
+
+  &.o_theme_sidebar_collapsed {
+    width: 64px;
+    min-width: 64px;
+
+    .o_theme_sidebar_app_label,
+    .o_theme_sidebar_brand,
+    .o_theme_sidebar_username,
+    .o_theme_sidebar_chevron,
+    .o_theme_sidebar_profile_caret,
+    .o_theme_sidebar_submenus {
+      display: none;
+    }
+    .o_theme_sidebar_profile_menu {
+      left: 100%;
+      right: auto;
+      bottom: 8px;
+      margin-left: 8px;
+      margin-bottom: 0;
+      width: 180px;
+    }
+  }
+
+  // ---- Sticky header ----
+  &_header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 2px solid $o-theme-gold-bright;
+    background: linear-gradient(180deg, rgba(115, 81, 13, 0.08), transparent);
+  }
+
+  &_brand {
+    font-weight: 600;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &_toggle {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+    flex: 0 0 auto;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  // ---- Scrollable app list (the ONLY part that scrolls) ----
+  &_apps {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 8px;
+    min-height: 0; // required so flex-child scroll works in a column flexparent
+    &::-webkit-scrollbar {
+      width: 5px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(214, 150, 29, 0.55);
+      border-radius: 10px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(214, 150, 29, 0.8);
+    }
+    scrollbar-width: thin;
+    scrollbar-color: rgba(214, 150, 29, 0.55) transparent;
+  }
+
+  &_app_group {
+    margin-bottom: 2px;
+  }
+
+  &_app {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: background 0.25s ease-out;
+
+    &:hover {
+      background: rgba(115, 81, 13, 0.14);
+    }
+    &:focus-visible {
+      outline: 2px solid $o-theme-gold-bright;
+      outline-offset: 2px;
+    }
+    &.active {
+      background: var(--o-theme-sidebar-active-bg, rgba(115, 81, 13, 0.4));
+      border-left: 3px solid $o-theme-gold-bright;
+      padding-left: 7px; // compensate for the 3px border so content doesn't jump
+      font-weight: 500;
+    }
+  }
+
+  &_app_icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    object-fit: contain;
+  }
+
+  &_app_label {
+    flex: 1 1 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  &_chevron {
+    flex: 0 0 auto;
+    font-size: 11px;
+    opacity: 0.6;
+    transition: transform 0.45s ease-out;
+
+    &_open {
+      transform: rotate(180deg);
+    }
+  }
+  &_app:hover &_app_label {
+    color: #ffffff; // bright on hover
+  }
+  &_submenus {
+    display: flex;
+    flex-direction: column;
+    margin: 4px 0 8px 12px;
+    padding: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    background: $o-theme-submenu-bg;
+  }
+
+  // ---- Sticky footer: profile / logout ----
+  &_footer {
+    flex: 0 0 auto;
+    position: relative;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 8px;
+  }
+
+  &_profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.45s ease-out;
+
+    &:hover {
+      background: rgba(214, 150, 29, 0.22);
+    }
+    &:focus-visible {
+      outline: 2px solid $o-theme-gold-bright;
+      outline-offset: 2px;
+    }
+  }
+
+  &_avatar,
+  &_avatar_fallback {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 28px;
+  }
+
+  &_avatar_fallback {
+    font-size: 26px;
+    line-height: 28px;
+    opacity: 0.8;
+  }
+
+  &_username {
+    flex: 1 1 auto;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.88);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &_profile_caret {
+    font-size: 11px;
+    opacity: 0.6;
+    transition: transform 0.45s ease-out;
+
+    &_open {
+      transform: rotate(180deg);
+    }
+  }
+
+  // Pops upward above the profile row, same visual language as the
+  // branded submenu flyouts.
+  &_profile_menu {
+    position: absolute;
+    bottom: 100%;
+    left: 8px;
+    right: 8px;
+    margin-bottom: 6px;
+    background: $o-theme-submenu-bg;
+    border: 1px solid rgba(115, 81, 13, 0.25);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    z-index: 2000;
+  }
+
+  &_profile_menu_item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+    font-size: 13px;
+    transition: background 0.45s ease-out;
+    &:hover {
+      background: rgba(115, 81, 13, 0.16);
+    }
+  }
+  &_app.active &_app_label {
+    color: #ffffff;
+    font-weight: 500;
+  }
+}
+
+// ---- Recursive submenu items ----
+// (the flyout PANEL itself is styled separately below, since it's
+// portalled outside .o_theme_sidebar by usePopover and can't rely on
+// this scope's inherited color/vars)
+.o_theme_sidebar_menu_item_wrapper {
+  &.has_children > .o_theme_sidebar_submenu_item {
+    justify-content: space-between;
+  }
+}
+
+.o_theme_sidebar_submenu_item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-weight: 450;
+  text-decoration: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.45s ease-out,
+    color 0.45s ease-out;
+
+  &:hover {
+    color: #ffffff;
+    background: rgba(214, 150, 29, 0.28);
+  }
+  &:focus-visible {
+    outline: 2px solid $o-theme-gold-bright;
+    outline-offset: 2px;
+  }
+}
+.o_theme_sidebar_profile_menu_item {
+  color: rgba(255, 255, 255, 0.62) !important;
+  &:hover {
+    color: #ffffff;
+  }
+}
+.o_theme_sidebar_flyout_caret {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+// The actual portalled flyout content. This is NOT a descendant of
+// .o_theme_sidebar anymore (usePopover mounts it elsewhere in the DOM),
+// so it needs its own background/color/shadow rather than inheriting
+// from the sidebar. Odoo's popover system handles the position:fixed-
+// style placement, auto-repositioning on scroll, outside-click close,
+// and stacking above normal page content — this class only handles the
+// visual appearance of the panel itself.
+.o_theme_sidebar_flyout_panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  background: $o-theme-submenu-bg;
+  color: rgba(255, 255, 255, 0.88);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(115, 81, 13, 0.25);
+  animation: sidebarFlyoutIn 0.45s ease-out;
+}
+
+.popover .popover-arrow::before,
+.popover .popover-arrow::after {
+  border-right-color: $o-theme-gold-bright !important;
+}
