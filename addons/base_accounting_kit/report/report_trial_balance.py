@@ -228,3 +228,60 @@ class ReportTrialBalance(models.AbstractModel):
             'total_debit': total_debit,
             'total_credit': total_credit,
         }
+class ReportTrialBalanceXlsx(models.AbstractModel):
+    _name = 'report.base_accounting_kit.report_trial_balance_xlsx'
+    _inherit = 'report.report_xlsx.abstract'
+    _description = 'Trial Balance Excel Report'
+
+    def generate_xlsx_report(self, workbook, data, objects):
+        form = data.get('form', {})
+
+        report_model = self.env['report.base_accounting_kit.report_trial_balance']
+
+        display_account = form.get('display_account', 'movement')
+
+        model = self.env.context.get('active_model')
+        docs = self.env[model].browse(self.env.context.get('active_ids', []))
+        accounts = docs if model == 'account.account' else self.env[
+            'account.account'].search([])
+
+        account_res = report_model.with_context(
+            form.get('used_context', {})
+        )._get_accounts(accounts, display_account)
+
+        total_debit = sum(line['debit'] for line in account_res)
+        total_credit = sum(line['credit'] for line in account_res)
+
+        sheet = workbook.add_worksheet('Trial Balance')
+        sheet.set_landscape()
+
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 14})
+        header_fmt = workbook.add_format({
+            'bold': True, 'bg_color': '#D9D9D9', 'border': 1,
+        })
+        money_fmt = workbook.add_format({'num_format': '#,##0.00'})
+        money_bold_fmt = workbook.add_format({
+            'num_format': '#,##0.00', 'bold': True,
+        })
+        normal_fmt = workbook.add_format({})
+        total_fmt = workbook.add_format({'bold': True})
+
+        sheet.write(0, 0, 'Trial Balance', title_fmt)
+        sheet.set_column(0, 3, 20)
+
+        row = 2
+        headers = ['Code', 'Account', 'Debit', 'Credit']
+        for c, header in enumerate(headers):
+            sheet.write(row, c, header, header_fmt)
+        row += 1
+
+        for line in account_res:
+            sheet.write(row, 0, line['code'] or '', normal_fmt)
+            sheet.write(row, 1, line['name'] or '', normal_fmt)
+            sheet.write(row, 2, line['debit'], money_fmt)
+            sheet.write(row, 3, line['credit'], money_fmt)
+            row += 1
+
+        sheet.write(row, 1, 'Total', total_fmt)
+        sheet.write(row, 2, total_debit, money_bold_fmt)
+        sheet.write(row, 3, total_credit, money_bold_fmt)

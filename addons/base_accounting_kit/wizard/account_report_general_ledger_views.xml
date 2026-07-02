@@ -86,25 +86,40 @@
         </xpath>
 
         <xpath expr="//footer" position="replace">
+    <footer>
+        <div class="btn-group" role="group">
+            <button name="print_menu_toggle"
+                    type="button"
+                    class="btn btn-primary dropdown-toggle"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
+                Print
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <button name="check_report"
+                            type="object"
+                            string="PDF"
+                            class="dropdown-item"/>
+                </li>
+                <li>
+                    <button name="print_xlsx"
+                            type="object"
+                            string="Excel"
+                            class="dropdown-item"/>
+                </li>
+            </ul>
+        </div>
 
-            <footer>
+        <button name="action_view_report"
+                string="View"
+                type="object"
+                class="btn-primary"/>
 
-                <button name="check_report"
-                        string="Print"
-                        type="object"
-                        class="oe_highlight"/>
-
-                <button name="action_view_report"
-                        string="View"
-                        type="object"
-                        class="btn-primary"/>
-
-                <button string="Cancel"
-                        special="cancel"/>
-
-            </footer>
-
-        </xpath>
+        <button string="Cancel"
+                special="cancel"/>
+    </footer>
+</xpath>
 
     </field>
 </record>

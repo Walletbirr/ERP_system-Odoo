@@ -303,3 +303,119 @@ class ReportGeneralLedger(models.AbstractModel):
             'print_journal': codes,
             'visible_info_columns': visible_info_columns,
         }
+    
+class ReportGeneralLedgerXlsx(models.AbstractModel):
+    _name = 'report.base_accounting_kit.report_general_ledger_xlsx'
+    _inherit = 'report.report_xlsx.abstract'
+    _description = 'General Ledger Excel Report'
+
+    def generate_xlsx_report(self, workbook, data, objects):
+        form = data.get('form', {})
+
+        report_model = self.env['report.base_accounting_kit.report_general_ledger']
+
+        init_balance = form.get('initial_balance', True)
+        sortby = form.get('sortby', 'sort_date')
+        display_account = form.get('display_account', 'movement')
+
+        selected_account_ids = form.get('account_ids', [])
+        if selected_account_ids:
+            accounts = self.env['account.account'].browse(selected_account_ids)
+        else:
+            accounts = self.env['account.account'].search([])
+
+        accounts_res = report_model.with_context(
+            form.get('used_context', {})
+        )._get_account_move_entry(accounts, init_balance, sortby, display_account)
+
+        show_journal = form.get('show_journal', True)
+        show_partner = form.get('show_partner', True)
+        show_ref = form.get('show_ref', True)
+        show_move = form.get('show_move', True)
+        show_entry_label = form.get('show_entry_label', True)
+
+        sheet = workbook.add_worksheet('General Ledger')
+        sheet.set_landscape()
+
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 14})
+        account_fmt = workbook.add_format({
+            'bold': True, 'bg_color': '#EEEEEE', 'border': 1,
+        })
+        header_fmt = workbook.add_format({
+            'bold': True, 'bg_color': '#D9D9D9', 'border': 1,
+        })
+        money_fmt = workbook.add_format({'num_format': '#,##0.00'})
+        money_bold_fmt = workbook.add_format({
+            'num_format': '#,##0.00', 'bold': True,
+        })
+        normal_fmt = workbook.add_format({})
+        total_fmt = workbook.add_format({'bold': True})
+
+        columns = ['Date']
+        if show_journal:
+            columns.append('Journal')
+        if show_partner:
+            columns.append('Partner')
+        if show_ref:
+            columns.append('Reference')
+        if show_move:
+            columns.append('Move')
+        if show_entry_label:
+            columns.append('Label')
+        columns += ['Debit', 'Credit', 'Balance']
+
+        last_col = len(columns) - 1
+
+        sheet.write(0, 0, 'General Ledger', title_fmt)
+        sheet.set_column(0, last_col, 16)
+
+        row = 2
+
+        for account in accounts_res:
+            sheet.merge_range(
+                row, 0, row, last_col,
+                '%s %s' % (account['code'], account['name']),
+                account_fmt
+            )
+            row += 1
+
+            for c, header in enumerate(columns):
+                sheet.write(row, c, header, header_fmt)
+            row += 1
+
+            sheet.write(row, 0, 'Initial Balance', normal_fmt)
+            sheet.write(row, last_col, account['initial_balance'], money_fmt)
+            row += 1
+
+            for line in account['move_lines']:
+                col = 0
+                date_val = line.get('ldate')
+                sheet.write(row, col, str(date_val) if date_val else '', normal_fmt)
+                col += 1
+                if show_journal:
+                    sheet.write(row, col, line.get('lcode') or '', normal_fmt)
+                    col += 1
+                if show_partner:
+                    sheet.write(row, col, line.get('partner_name') or '', normal_fmt)
+                    col += 1
+                if show_ref:
+                    sheet.write(row, col, line.get('lref') or '', normal_fmt)
+                    col += 1
+                if show_move:
+                    sheet.write(row, col, line.get('move_name') or '', normal_fmt)
+                    col += 1
+                if show_entry_label:
+                    sheet.write(row, col, line.get('lname') or '', normal_fmt)
+                    col += 1
+                sheet.write(row, col, line.get('debit', 0.0), money_fmt)
+                col += 1
+                sheet.write(row, col, line.get('credit', 0.0), money_fmt)
+                col += 1
+                sheet.write(row, col, line.get('balance', 0.0), money_fmt)
+                row += 1
+
+            sheet.write(row, 0, 'Total', total_fmt)
+            sheet.write(row, last_col - 2, account['debit'], money_bold_fmt)
+            sheet.write(row, last_col - 1, account['credit'], money_bold_fmt)
+            sheet.write(row, last_col, account['ending_balance'], money_bold_fmt)
+            row += 2

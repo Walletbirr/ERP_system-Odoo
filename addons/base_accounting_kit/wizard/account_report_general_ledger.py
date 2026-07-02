@@ -162,3 +162,95 @@ class AccountReportGeneralLedger(models.TransientModel):
         return self.env.ref(
             'base_accounting_kit.action_report_general_ledger').with_context(
             landscape=True).report_action(records, data=data)
+    def print_xlsx(self):
+        self.ensure_one()
+
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+
+        data['form'] = self.read([
+            'date_from',
+            'date_to',
+            'journal_ids',
+            'target_move',
+            'company_id',
+            'display_account',
+            'initial_balance',
+            'sortby',
+            'show_journal',
+            'show_partner',
+            'show_ref',
+            'show_move',
+            'show_entry_label',
+            'account_ids',
+        ])[0]
+
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = used_context
+
+        if data['form'].get('initial_balance') and not data['form'].get('date_from'):
+            raise UserError(_("You must define a Start Date"))
+
+        records = self.env[data['model']].browse(data.get('ids', []))
+
+        return self.env.ref(
+            'base_accounting_kit.action_report_general_ledger_xlsx'
+        ).report_action(records, data=data)
+    def _print_report(self, data):
+        data = self.pre_print_report(data)
+        data['form'].update(
+            self.read([
+                'initial_balance',
+                'sortby',
+                'show_journal',
+                'show_partner',
+                'show_ref',
+                'show_move',
+                'show_entry_label',
+                'account_ids',
+            ])[0]
+        )
+        if data['form'].get('initial_balance') and not data['form'].get(
+                'date_from'):
+            raise UserError(_("You must define a Start Date"))
+        records = self.env[data['model']].browse(data.get('ids', []))
+        return self.env.ref(
+            'base_accounting_kit.action_report_general_ledger').with_context(
+            landscape=True).report_action(records, data=data)
+
+    def print_xlsx(self):
+        self.ensure_one()
+
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+
+        data['form'] = self.read([
+            'date_from',
+            'date_to',
+            'journal_ids',
+            'target_move',
+            'company_id',
+            'display_account',
+            'initial_balance',
+            'sortby',
+            'show_journal',
+            'show_partner',
+            'show_ref',
+            'show_move',
+            'show_entry_label',
+            'account_ids',
+        ])[0]
+
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = used_context
+
+        if data['form'].get('initial_balance') and not data['form'].get('date_from'):
+            raise UserError(_("You must define a Start Date"))
+
+        records = self.env[data['model']].browse(data.get('ids', []))
+
+        return self.env.ref(
+            'base_accounting_kit.action_report_general_ledger_xlsx'
+        ).report_action(records, data=data)
