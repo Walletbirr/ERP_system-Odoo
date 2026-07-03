@@ -7,9 +7,16 @@
             <!-- Sticky header: does NOT live inside the scrollable area below -->
             <div class="o_theme_sidebar_header">
                 <span class="o_theme_sidebar_brand" t-esc="companyName"/>
-                <button class="o_theme_sidebar_toggle" t-on-click="toggleCollapsed">
-                    <i class="fa fa-bars"/>
-                </button>
+                <div class="o_theme_sidebar_header_actions">
+                    <button class="o_theme_sidebar_theme_toggle"
+                            t-on-click="toggleTheme"
+                            t-att-title="state.theme === 'green' ? 'Switch to gold theme' : 'Switch to green theme'">
+                        <i class="fa fa-adjust"/>
+                    </button>
+                    <button class="o_theme_sidebar_toggle" t-on-click="toggleCollapsed">
+                        <i class="fa fa-bars"/>
+                    </button>
+                </div>
             </div>
 
             <!-- Only this app list scrolls -->
@@ -60,30 +67,28 @@
     </t>
 
     <t t-name="theme_shell.SidebarMenuItem">
-    <div class="o_theme_sidebar_menu_item_wrapper"
-         t-att-class="{ 'has_children': hasChildren }"
-         t-ref="root">
-        <a href="#" class="o_theme_sidebar_submenu_item" t-on-click.prevent="onClick">
-            <span t-esc="props.item.name"/>
-            <i t-if="hasChildren" class="fa fa-chevron-right o_theme_sidebar_flyout_caret"/>
-        </a>
-    </div>
-</t>
+        <div class="o_theme_sidebar_menu_item_wrapper"
+             t-att-class="{ 'has_children': hasChildren }"
+             t-ref="root">
+            <a href="#" class="o_theme_sidebar_submenu_item" t-on-click.prevent="onClick">
+                <span t-esc="props.item.name"/>
+                <i t-if="hasChildren" class="fa fa-chevron-right o_theme_sidebar_flyout_caret"/>
+            </a>
+        </div>
+    </t>
 
     <!--
         This is what actually renders inside the popover, i.e. portalled
-        out of the sidebar's scrollable DOM entirely. Its own mouseenter/
-        mouseleave call back into the triggering row's cancelClose /
-        scheduleClose, so moving the cursor from the row into this panel
-        (a real DOM gap, since it's portalled elsewhere) doesn't flicker
-        the panel closed in between.
+        out of the sidebar's scrollable DOM entirely. Click-driven (see
+        SidebarMenuItem.onClick in sidebar.js) rather than hover-driven,
+        so there's no timer/mouseenter/mouseleave wiring needed here.
     -->
     <t t-name="theme_shell.SidebarFlyoutPanel">
-    <div class="o_theme_sidebar_flyout_panel">
-        <t t-foreach="props.items" t-as="item" t-key="item.id">
-            <SidebarMenuItem item="item" onLeafClick="props.onLeafClick"/>
-        </t>
-    </div>
-</t>
+        <div class="o_theme_sidebar_flyout_panel">
+            <t t-foreach="props.items" t-as="item" t-key="item.id">
+                <SidebarMenuItem item="item" onLeafClick="props.onLeafClick"/>
+            </t>
+        </div>
+    </t>
 
 </templates>

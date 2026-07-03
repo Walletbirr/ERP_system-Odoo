@@ -1,1 +1,2 @@
-# theme_shell: pure front-end module, no Python models needed
+# theme_shell: pure frontend-asset module (custom branded sidebar).
+# No Python models/controllers, so nothing to import here.
