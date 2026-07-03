@@ -60,17 +60,15 @@
     </t>
 
     <t t-name="theme_shell.SidebarMenuItem">
-        <div class="o_theme_sidebar_menu_item_wrapper"
-             t-att-class="{ 'has_children': hasChildren }"
-             t-ref="root"
-             t-on-mouseenter="onMouseEnter"
-             t-on-mouseleave="onMouseLeave">
-            <a href="#" class="o_theme_sidebar_submenu_item" t-on-click.prevent="onClick">
-                <span t-esc="props.item.name"/>
-                <i t-if="hasChildren" class="fa fa-chevron-right o_theme_sidebar_flyout_caret"/>
-            </a>
-        </div>
-    </t>
+    <div class="o_theme_sidebar_menu_item_wrapper"
+         t-att-class="{ 'has_children': hasChildren }"
+         t-ref="root">
+        <a href="#" class="o_theme_sidebar_submenu_item" t-on-click.prevent="onClick">
+            <span t-esc="props.item.name"/>
+            <i t-if="hasChildren" class="fa fa-chevron-right o_theme_sidebar_flyout_caret"/>
+        </a>
+    </div>
+</t>
 
     <!--
         This is what actually renders inside the popover, i.e. portalled
@@ -81,13 +79,9 @@
         the panel closed in between.
     -->
     <t t-name="theme_shell.SidebarFlyoutPanel">
-    <div class="o_theme_sidebar_flyout_panel"
-         t-on-mouseenter="() => props.cancelClose()"
-         t-on-mouseleave="() => props.scheduleClose()">
+    <div class="o_theme_sidebar_flyout_panel">
         <t t-foreach="props.items" t-as="item" t-key="item.id">
-            <SidebarMenuItem item="item" onLeafClick="props.onLeafClick"
-                              parentCancelClose="props.cancelClose"
-                              parentScheduleClose="props.scheduleClose"/>
+            <SidebarMenuItem item="item" onLeafClick="props.onLeafClick"/>
         </t>
     </div>
 </t>

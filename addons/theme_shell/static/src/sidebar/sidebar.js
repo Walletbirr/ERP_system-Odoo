@@ -33,8 +33,7 @@ export class SidebarFlyoutPanel extends Component {
   static props = {
     items: Array,
     onLeafClick: Function,
-    cancelClose: Function,
-    scheduleClose: Function,
+
     close: { type: Function, optional: true }, // injected by usePopover itself
   };
 }
@@ -55,8 +54,6 @@ export class SidebarMenuItem extends Component {
   static props = {
     item: Object,
     onLeafClick: Function,
-    parentCancelClose: { type: Function, optional: true },
-    parentScheduleClose: { type: Function, optional: true },
   };
   static components = { SidebarFlyoutPanel };
 
@@ -77,54 +74,23 @@ export class SidebarMenuItem extends Component {
   onClick() {
     if (!this.hasChildren) {
       this.props.onLeafClick(this.props.item);
+      return;
     }
-    // If it has children, clicking does nothing on purpose — opening
-    // is hover-driven (see onMouseEnter below). Say the word if this
-    // needs to be click-driven instead for touch/tablet use.
-  }
-
-  onMouseEnter() {
-    this.cancelClose();
-    this.props.parentCancelClose?.(); // hovering me also keeps my ancestors open
-
-    if (!this.hasChildren || !this.rootRef.el) {
+    // VERIFY: `this.popover.isOpen` is my best-confidence recollection of
+    // usePopover's exposed state for "is this popover currently shown".
+    // If clicking twice doesn't toggle closed, check your console for an
+    // error here — the property name may differ slightly on your version.
+    if (this.popover.isOpen) {
+      this.popover.close();
       return;
     }
     this.popover.open(this.rootRef.el, {
       items: this.props.item.childrenTree,
       onLeafClick: this.props.onLeafClick,
-      cancelClose: () => {
-        this.cancelClose();
-        this.props.parentCancelClose?.(); // hovering MY flyout keeps my own ancestors open too
-      },
-      scheduleClose: this.scheduleClose,
     });
   }
-
-  onMouseLeave() {
-    if (this.hasChildren) {
-      this.scheduleClose();
-    }
-  }
-
-  // Small delay before actually closing, so moving the mouse from the
-  // trigger row into the (portalled, physically separate) popover panel
-  // doesn't cause a flicker-close in between. The panel itself calls
-  // cancelClose()/scheduleClose() too via props, so hovering the panel
-  // keeps it open and leaving the panel closes it the same way.
-  cancelClose = () => {
-    if (this._closeTimer) {
-      clearTimeout(this._closeTimer);
-      this._closeTimer = null;
-    }
-  };
-
-  scheduleClose = () => {
-    this._closeTimer = setTimeout(() => this.popover.close(), 350);
-  };
 }
 SidebarFlyoutPanel.components = { SidebarMenuItem };
-
 /**
  * Persistent sidebar that replaces the top NavBar app-switcher (9-dot grid)
  * and the horizontal top menu. Everything lives in one always-visible column.
