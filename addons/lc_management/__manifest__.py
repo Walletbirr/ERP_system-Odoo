@@ -7,6 +7,7 @@
         'security/ir.model.access.csv',
         'views/lc_views.xml',
         'wizard/lc_cancel_wizard_view.xml',
+        'data/ir_cron.xml',
     ],
     'installable': True,
 }

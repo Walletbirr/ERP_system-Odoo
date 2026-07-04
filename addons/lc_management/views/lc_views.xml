@@ -21,8 +21,7 @@
                        decoration-muted="state == 'draft'"
                        decoration-info="state == 'open'"
                        decoration-warning="state == 'utilized'"
-                       decoration-success="state == 'settled'"
-                       decoration-danger="state == 'closed'"/>
+                       decoration-success="state == 'settled'"/>
                 <field name="expiry_date"/>
             </list>
         </field>
@@ -58,8 +57,7 @@
                                        decoration-muted="state == 'draft'"
                                        decoration-info="state == 'open'"
                                        decoration-warning="state == 'utilized'"
-                                       decoration-success="state == 'settled'"
-                                       decoration-danger="state == 'closed'"/>
+                                       decoration-success="state == 'settled'"/>
                                 <span class="badge text-bg-warning ms-1" invisible="not has_draft_settlement_lines">
                                     Awaiting Review
                                 </span>
@@ -89,21 +87,15 @@
                             class="btn-primary"
                             invisible="state != 'draft'"/>
 
-                    <button name="action_close"
-                            string="Close LC"
-                            type="object"
-                            class="btn-danger"
-                            invisible="state in ('draft','open','utilized','closed','cancelled') or not can_close"/>
-
                     <button name="action_open_cancel_wizard"
                             string="Cancel LC"
                             type="object"
                             class="btn-danger"
-                            invisible="state in ('closed','cancelled')"/>
+                            invisible="state in ('settled','cancelled')"/>
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="draft,open,utilized,settled,closed"/>
+                           statusbar_visible="draft,open,utilized,settled"/>
 
                     <div class="alert alert-warning mt-2" role="alert"
                          invisible="not has_draft_settlement_lines">
@@ -126,16 +118,16 @@
                     <group>
 
                         <group string="LC Information">
-                            <field name="name" readonly="state in ('open','utilized','settled','closed')"/>
-                            <field name="partner_id" readonly="state in ('open','utilized','settled','closed')"/>
-                            <field name="lc_type_id" readonly="state in ('open','utilized','settled','closed')"/>
-                            <field name="expiry_date" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="name" readonly="state in ('open','utilized','settled')"/>
+                            <field name="partner_id" readonly="state in ('open','utilized','settled')"/>
+                            <field name="lc_type_id" readonly="state in ('open','utilized','settled')"/>
+                            <field name="expiry_date" readonly="state in ('open','utilized','settled')"/>
                         </group>
 
                         <group string="Banking Information">
-                            <field name="bank_journal_id" readonly="state in ('open','utilized','settled','closed')"/>
-                            <field name="margin_account_id" readonly="state in ('open','utilized','settled','closed')"/>
-                            <field name="currency_id" readonly="state in ('open','utilized','settled','closed')"/>
+                            <field name="bank_journal_id" readonly="state in ('open','utilized','settled')"/>
+                            <field name="margin_account_id" readonly="state in ('open','utilized','settled')"/>
+                            <field name="currency_id" readonly="state in ('open','utilized','settled')"/>
                             <field name="exchange_rate" readonly="state != 'draft'"/>
                         </group>
 
@@ -150,7 +142,7 @@
                         <group string="LC Amount Details">
                             <field name="amount" widget="monetary"
                                    options="{'currency_field': 'currency_id'}"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled')"/>
                             <field name="company_currency_id" invisible="1"/>
                             <field name="margin_amount" widget="monetary"
                                    options="{'currency_field': 'currency_id'}" readonly="1"/>
@@ -180,16 +172,16 @@
                         <group string="LC Opening Charges">
                             <field name="opening_fee" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled')"/>
                             <field name="opening_fee_account_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled')"/>
                             <field name="opening_vat_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled')"/>
                             <field name="opening_vat_account_id"
-                                   readonly="state in ('open','utilized','settled','closed')"/>
+                                   readonly="state in ('open','utilized','settled')"/>
                             <field name="opening_date"
-                                   readonly="state in ('open','utilized','settled','closed')"
+                                   readonly="state in ('open','utilized','settled')"
                                    required="state != 'draft'"/>
                         </group>
 
@@ -272,7 +264,7 @@
         <field name="name">lc.settlement.line.list</field>
         <field name="model">lc.settlement.line</field>
         <field name="arch" type="xml">
-            <list decoration-info="state == 'draft'" decoration-success="po_is_fully_settled">
+            <list decoration-info="po_settlement_status == 'draft'" decoration-success="po_settlement_status == 'completed'">
                 <field name="lc_id"/>
                 <field name="purchase_order_id"/>
                 <field name="shipment_id"/>
@@ -281,12 +273,10 @@
                 <field name="po_total_settled" string="Settled So Far" options="{'currency_field': 'lc_currency_id'}"/>
                 <field name="po_remaining_to_settle" string="Remaining" options="{'currency_field': 'lc_currency_id'}"/>
                 <field name="po_tranche_count" string="Tranches"/>
-                <field name="po_is_fully_settled" widget="boolean_toggle" string="Fully Settled" readonly="1"/>
-                <field name="state" widget="badge"
-                       decoration-warning="state == 'draft'"
-                       decoration-success="state == 'confirmed'"
-                       decoration-muted="state == 'cancelled'"
-                       string="This Tranche"/>
+                <field name="po_settlement_status" widget="badge" string="Status"
+                       decoration-muted="po_settlement_status == 'draft'"
+                       decoration-warning="po_settlement_status == 'pending'"
+                       decoration-success="po_settlement_status == 'completed'"/>
             </list>
         </field>
     </record>
@@ -310,12 +300,19 @@
                             string="Confirm Settlement"
                             type="object"
                             class="btn-primary"
-                            invisible="state != 'draft'"/>
+                            invisible="state != 'draft' or (is_root_line and not amount_to_settle)"/>
                     <button name="action_open_split_wizard"
                             string="Split Into Partial Payment"
                             type="object"
                             class="btn-secondary"
-                            invisible="state != 'draft'"/>
+                            invisible="state != 'draft' or (is_root_line and not amount_to_settle)"/>
+                    <div class="float-end">
+                        <span class="text-muted me-1">PO Status:</span>
+                        <field name="po_settlement_status" widget="badge" nolabel="1"
+                               decoration-muted="po_settlement_status == 'draft'"
+                               decoration-warning="po_settlement_status == 'pending'"
+                               decoration-success="po_settlement_status == 'completed'"/>
+                    </div>
                     <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
                 </header>
 
@@ -326,72 +323,57 @@
                     <field name="is_root_line" invisible="1"/>
                     <field name="po_tranche_count" invisible="1"/>
 
-                    <!-- ============ PO SUMMARY HEADER (root lines only) ============ -->
-                    <div class="oe_title" invisible="not is_root_line">
-                        <h1>
-                            <field name="purchase_order_id" readonly="1" nolabel="1"/>
-                        </h1>
-                        <h3 class="text-muted">
-                            <field name="lc_id" readonly="1" nolabel="1"/> &#8226;
-                            <field name="shipment_id" readonly="1" nolabel="1"/>
-                        </h3>
-                    </div>
-
-                    <group invisible="not is_root_line">
-                        <group string="Settlement Progress">
-                            <field name="po_total_amount" string="PO Total" widget="monetary"
-                                   options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
-                            <field name="po_total_settled" string="Settled So Far" widget="monetary"
-                                   options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
-                            <field name="po_remaining_to_settle" string="Remaining" widget="monetary"
-                                   options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
-                        </group>
-                        <group string="Overview">
-                            <field name="po_tranche_count" string="Number of Tranches" readonly="1"/>
-                            <field name="po_is_fully_settled" string="Fully Settled" readonly="1"/>
-                        </group>
-                    </group>
-
-                    <div class="alert alert-success" role="alert"
-                         invisible="not is_root_line or not po_is_fully_settled">
-                        This Purchase Order is fully settled.
-                    </div>
-
-                    <!-- ============ SIMPLE CASE: one tranche, no splits ============ -->
+                    <!-- ===================================================== -->
+                    <!-- CASE A: UNDIVIDED ROOT (po_tranche_count == 1) -->
+                    <!-- Settled in one shot, no splits. No breakdown table since -->
+                    <!-- there is nothing to break down - this IS the only tranche. -->
+                    <!-- ===================================================== -->
                     <div invisible="not is_root_line or po_tranche_count != 1">
 
-                        <div class="alert alert-info" role="alert" invisible="state != 'draft'">
-                            Enter the settlement fee, VAT, and exchange rate exactly as charged
-                            by the bank for this draw, then click <strong>Confirm Settlement</strong>
-                            to post the accounting entries and release the matching share of LC margin.
-                            If you're only paying part of this amount now, click
-                            <strong>Split Into Partial Payment</strong> first.
+                        <div class="oe_title">
+                            <h1>
+                                <field name="purchase_order_id" readonly="1" nolabel="1"/>
+                            </h1>
+                            <h3 class="text-muted">
+                                <field name="lc_id" readonly="1" nolabel="1"/> &#8226;
+                                <field name="shipment_id" readonly="1" nolabel="1"/>
+                            </h3>
+                        </div>
+
+                        <!-- This root's OWN remaining balance, if it's still draft AND unsplit -->
+                        <div class="alert alert-info" role="alert" invisible="state != 'draft' or not amount_to_settle">
+                            If the amount below is correct, fill in the bank's fee, VAT, and rate
+                            and click <strong>Confirm Settlement</strong>. If you only want to settle
+                            part of it right now, click <strong>Split Into Partial Payment</strong> instead.
                         </div>
 
                         <group>
                             <group string="Amount to Settle">
                                 <field name="amount_to_settle" widget="monetary"
                                        options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
-                                <field name="settlement_date" readonly="state != 'draft'"/>
-                                <field name="settlement_rate" readonly="state != 'draft'"/>
+                                <field name="settlement_date"/>
+                                <field name="settlement_rate"/>
                             </group>
                             <group string="Bank Charges (enter as billed by the bank)">
                                 <field name="settlement_fee" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}"
-                                       readonly="state != 'draft'"/>
-                                <field name="settlement_fee_account_id" readonly="state != 'draft'"/>
+                                       options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_fee_account_id"/>
                                 <field name="settlement_vat_amount" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}"
-                                       readonly="state != 'draft'"/>
-                                <field name="settlement_vat_account_id" readonly="state != 'draft'"/>
+                                       options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_vat_account_id"/>
                             </group>
                         </group>
 
+                        <div class="alert alert-success" role="alert"
+                             invisible="po_settlement_status != 'completed'">
+                            This Purchase Order is fully settled.
+                        </div>
+
                         <group invisible="state == 'draft'">
                             <group string="Result">
-                                <field name="margin_released_this_line" widget="monetary"
+                                <field name="margin_released_this_line" string="Margin Released" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="fx_gain_loss_this_line" widget="monetary"
+                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             </group>
                             <group string="Posted Entries">
@@ -402,37 +384,121 @@
 
                     </div>
 
-                    <!-- ============ DETAILED CASE: multiple tranches ============ -->
+                    <!-- ===================================================== -->
+                    <!-- CASE B: ROOT THAT HAS BEEN SPLIT (po_tranche_count > 1) -->
+                    <!-- The main "how was this PO paid, in full" page: PO-wide -->
+                    <!-- progress, the root's own remaining balance (editable if -->
+                    <!-- still draft), and ALWAYS the full breakdown table of -->
+                    <!-- every partial tranche. -->
+                    <!-- ===================================================== -->
                     <div invisible="not is_root_line or po_tranche_count &lt;= 1">
-                        <separator string="Tranche-by-Tranche Breakdown"/>
-                        <field name="all_tranche_ids">
-                            <list decoration-muted="state == 'cancelled'"
-                                  decoration-success="state == 'confirmed'"
-                                  decoration-warning="state == 'draft'">
-                                <field name="lc_currency_id" column_invisible="1"/>
-                                <field name="company_currency_id" column_invisible="1"/>
-                                <field name="amount_to_settle" string="Amount" options="{'currency_field': 'lc_currency_id'}"/>
-                                <field name="settlement_date"/>
-                                <field name="settlement_rate"/>
-                                <field name="settlement_fee" options="{'currency_field': 'company_currency_id'}"/>
-                                <field name="settlement_vat_amount" options="{'currency_field': 'company_currency_id'}"/>
-                                <field name="margin_released_this_line" string="Margin Released" options="{'currency_field': 'company_currency_id'}"/>
-                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" options="{'currency_field': 'company_currency_id'}"/>
-                                <field name="state" widget="badge"
-                                       decoration-warning="state == 'draft'"
-                                       decoration-success="state == 'confirmed'"
-                                       decoration-muted="state == 'cancelled'"/>
-                            </list>
-                        </field>
+
+                        <div class="oe_title">
+                            <h1>
+                                <field name="purchase_order_id" readonly="1" nolabel="1"/>
+                            </h1>
+                            <h3 class="text-muted">
+                                <field name="lc_id" readonly="1" nolabel="1"/> &#8226;
+                                <field name="shipment_id" readonly="1" nolabel="1"/>
+                            </h3>
+                        </div>
+
+                        <group>
+                            <group string="Settlement Progress">
+                                <field name="po_total_amount" string="PO Total" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="po_total_settled" string="Settled So Far" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="po_remaining_to_settle" string="Remaining" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                            </group>
+                            <group string="Overview">
+                                <field name="po_tranche_count" string="Number of Tranches" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <div class="alert alert-success" role="alert"
+                             invisible="po_settlement_status != 'completed'">
+                            This Purchase Order is fully settled.
+                        </div>
+
+                        <!-- This root's OWN remaining balance, if it's still draft -->
+                        <div class="alert alert-info" role="alert" invisible="state != 'draft' or not amount_to_settle">
+                            This PO still has an unsettled balance of
+                            <field name="amount_to_settle" widget="monetary"
+                                   options="{'currency_field': 'lc_currency_id'}" nolabel="1"/>.
+                            Fill in the bank's fee, VAT, and rate below and click
+                            <strong>Confirm Settlement</strong>, or click
+                            <strong>Split Into Partial Payment</strong> to settle only part of it now.
+                        </div>
+
+                        <group invisible="state != 'draft' or not amount_to_settle">
+                            <group string="Bank Charges (enter as billed by the bank)">
+                                <field name="settlement_fee" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_fee_account_id"/>
+                                <field name="settlement_vat_amount" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_vat_account_id"/>
+                            </group>
+                        </group>
+
+                        <separator string="Tranche-by-Tranche Breakdown (this PO)"/>
+                                    <div class="o_tranche_table">
+                                        <field name="all_tranche_ids" options="{'no_open': True}">
+                                            <list decoration-muted="state == 'cancelled'"
+                                                decoration-success="state == 'confirmed'"
+                                                decoration-warning="state == 'draft'">
+                                                <field name="lc_currency_id" column_invisible="1"/>
+                                                <field name="company_currency_id" column_invisible="1"/>
+                                                <field name="amount_to_settle" string="Amount" options="{'currency_field': 'lc_currency_id'}"/>
+                                                <field name="settlement_date"/>
+                                                <field name="settlement_rate"/>
+                                                <field name="settlement_fee" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="settlement_vat_amount" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="margin_released_this_line" string="Margin Released" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="state" widget="badge"
+                                                    decoration-warning="state == 'draft'"
+                                                    decoration-success="state == 'confirmed'"
+                                                    decoration-muted="state == 'cancelled'"/>
+                                                <button name="action_open_self" type="object"
+                                                        icon="fa-arrow-right" string="" class="btn-link" title="Open this tranche"/>
+                                            </list>
+                                        </field>
+                                    </div>
+                                    <style>
+                                        .o_tranche_table .o_data_row .o_data_cell {
+                                            pointer-events: none;
+                                        }
+                                        .o_tranche_table .o_data_row .o_list_button {
+                                            pointer-events: auto;
+                                        }
+                                    </style>
+
                     </div>
 
-                    <!-- ============ NON-ROOT LINE: viewed directly (e.g. from the embedded LC tab) ============ -->
+                    <!-- ===================================================== -->
+                    <!-- CASE C: A NON-ROOT TRANCHE (a split child), opened on its -->
+                    <!-- own (e.g. from the embedded LC tab). Shows ONLY this -->
+                    <!-- specific tranche's own data - no PO totals, no breakdown -->
+                    <!-- table. -->
+                    <!-- ===================================================== -->
                     <div invisible="is_root_line">
 
-                        <div class="alert alert-info" role="alert" invisible="state != 'draft'">
-                            Enter the settlement fee, VAT, and exchange rate exactly as charged
-                            by the bank for this draw, then click <strong>Confirm Settlement</strong>
-                            to post the accounting entries and release the matching share of LC margin.
+                        <div class="oe_title">
+                            <h2>
+                                <field name="purchase_order_id" readonly="1" nolabel="1"/>
+                                <span invisible="state != 'draft'"> &#8226; Partial Payment</span>
+                                <span invisible="state != 'confirmed'"> &#8226; Settled Tranche</span>
+                                <span invisible="state != 'cancelled'"> &#8226; Cancelled Tranche</span>
+                            </h2>
+                        </div>
+
+                        <div class="alert alert-info" role="alert" invisible="state != 'draft' or not amount_to_settle">
+                            If the amount below is correct, fill in the bank's fee, VAT, and rate
+                            and click <strong>Confirm Settlement</strong>. If you only want to settle
+                            part of it right now, click <strong>Split Into Partial Payment</strong> instead.
                         </div>
 
                         <group>
@@ -440,43 +506,62 @@
                                 <field name="lc_id" readonly="1"/>
                                 <field name="purchase_order_id" readonly="1"/>
                                 <field name="shipment_id" readonly="1"/>
-                                <field name="parent_settlement_line_id" readonly="1"/>
+                                <field name="parent_settlement_line_id" readonly="1" invisible="not parent_settlement_line_id"/>
                             </group>
                         </group>
 
-                        <group>
+                        <!-- DRAFT: editable amount + bank charges -->
+                        <group invisible="state != 'draft' or not amount_to_settle">
                             <group string="Amount to Settle (this tranche)">
                                 <field name="amount_to_settle" widget="monetary"
                                        options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
-                                <field name="settlement_date" readonly="state != 'draft'"/>
-                                <field name="settlement_rate" readonly="state != 'draft'"/>
+                                <field name="settlement_date"/>
+                                <field name="settlement_rate"/>
                             </group>
                             <group string="Bank Charges (enter as billed by the bank)">
                                 <field name="settlement_fee" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}"
-                                       readonly="state != 'draft'"/>
-                                <field name="settlement_fee_account_id" readonly="state != 'draft'"/>
+                                       options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_fee_account_id"/>
                                 <field name="settlement_vat_amount" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}"
-                                       readonly="state != 'draft'"/>
-                                <field name="settlement_vat_account_id" readonly="state != 'draft'"/>
+                                       options="{'currency_field': 'company_currency_id'}"/>
+                                <field name="settlement_vat_account_id"/>
+                            </group>
+                        </group>
+
+                        <!-- CONFIRMED: this tranche's own paid amount and charges only - -->
+                        <!-- no PO-level totals, no breakdown table. -->
+                        <group invisible="state != 'confirmed'">
+                            <group string="Amount Paid (this tranche)">
+                                <field name="amount_to_settle" string="Amount Paid" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="settlement_date" readonly="1"/>
+                                <field name="settlement_rate" readonly="1"/>
+                            </group>
+                            <group string="Bank Charges (this tranche)">
+                                <field name="settlement_fee" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="settlement_fee_account_id" readonly="1"/>
+                                <field name="settlement_vat_amount" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="settlement_vat_account_id" readonly="1"/>
                             </group>
                         </group>
 
                         <group invisible="state == 'draft'">
-                            <group string="Result">
-                                <field name="margin_released_this_line" widget="monetary"
+                            <group string="Result (this tranche)">
+                                <field name="margin_released_this_line" string="Margin Released" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="fx_gain_loss_this_line" widget="monetary"
+                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             </group>
-                            <group string="Posted Entries">
+                            <group string="Posted Entries (this tranche)">
                                 <field name="settlement_move_id" readonly="1"/>
                                 <field name="release_move_id" readonly="1"/>
                             </group>
                         </group>
 
                     </div>
+
 
                 </sheet>
             </form>
@@ -494,8 +579,9 @@
                 <field name="lc_id"/>
                 <field name="purchase_order_id"/>
                 <field name="shipment_id"/>
-                <filter string="Fully Settled" name="fully_settled" domain="[('po_is_fully_settled', '=', True)]"/>
-                <filter string="Still Settling" name="still_settling" domain="[('po_is_fully_settled', '=', False)]"/>
+                <filter string="Draft" name="status_draft" domain="[('po_settlement_status', '=', 'draft')]"/>
+                <filter string="Pending" name="status_pending" domain="[('po_settlement_status', '=', 'pending')]"/>
+                <filter string="Completed" name="status_completed" domain="[('po_settlement_status', '=', 'completed')]"/>
                 <group expand="0" string="Group By">
                     <filter string="Letter of Credit" name="group_lc" context="{'group_by': 'lc_id'}"/>
                 </group>
@@ -508,7 +594,7 @@
         <field name="res_model">lc.settlement.line</field>
         <field name="view_mode">list,form</field>
         <field name="domain">[('is_root_line', '=', True)]</field>
-        <field name="context">{}</field>
+        <field name="context">{'create': False}</field>
         <field name="search_view_id" ref="view_lc_settlement_line_search"/>
     </record>
 

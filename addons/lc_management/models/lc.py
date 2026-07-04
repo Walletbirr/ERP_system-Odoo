@@ -171,10 +171,7 @@ class LCManagement(models.Model):
         default=lambda self: self.env.company.currency_id.id,
         readonly=True
     )
-    can_close = fields.Boolean(
-        compute="_compute_can_close",
-        store=False
-    )
+    
 
     expiry_date = fields.Date(required=True)
 
@@ -207,7 +204,6 @@ class LCManagement(models.Model):
         ('open', 'Open'),
         ('utilized', 'Utilized'),
         ('settled', 'Settled'),
-        ('closed', 'Closed'),
         ('cancelled', 'Cancelled'),
     ], default='draft')
 
@@ -350,15 +346,7 @@ class LCManagement(models.Model):
                 'opening_move_id': move.id,
             })
 
-    def action_close(self):
-        for rec in self:
-            if not rec.can_close:
-                raise ValidationError(
-                    "LC cannot be closed yet. Ensure full utilization, all settlement "
-                    "lines are confirmed, all bills are posted and paid, and the LC is fully settled."
-                )
-
-            rec.write({'state': 'closed'})
+   
 
     # -------------------------
     # USAGE CALCULATION
@@ -381,7 +369,7 @@ class LCManagement(models.Model):
                     )
             rec.used_amount = total_used
 
-            if rec.state in ('draft', 'settled', 'closed'):
+            if rec.state in ('draft', 'settled'):
                 continue
 
             if float_is_zero(total_used, precision_rounding=rec.currency_id.rounding):
@@ -455,13 +443,15 @@ class LCManagement(models.Model):
         for rec in self:
             rec.margin_amount_company_currency = rec.margin_amount * rec.exchange_rate
 
-    @api.depends('settlement_line_ids.state')
+    @api.depends('settlement_line_ids.state', 'settlement_line_ids.amount_to_settle')
     def _compute_has_draft_settlement_lines(self):
         for rec in self:
             rec.has_draft_settlement_lines = bool(
-                rec.settlement_line_ids.filtered(lambda l: l.state == 'draft')
+                rec.settlement_line_ids.filtered(
+                    lambda l: l.state == 'draft'
+                    and not float_is_zero(l.amount_to_settle, precision_rounding=rec.currency_id.rounding)
+                )
             )
-
     # ====================== BILLED AMOUNT ======================
     @api.depends('purchase_ids.invoice_ids',
                  'purchase_ids.invoice_ids.state',
@@ -500,11 +490,64 @@ class LCManagement(models.Model):
             rec.vendor_bill_ids = bills
             rec.bill_count = len(bills)
 
+    # @api.depends(
+    # 'purchase_ids.invoice_ids.amount_total',
+    # 'purchase_ids.invoice_ids.amount_residual',
+    # 'purchase_ids.invoice_ids.state',
+    # 'purchase_ids.invoice_ids.currency_id'
+    # )
+    # def _compute_paid_amount(self):
+    #     for rec in self:
+    #         total_paid = 0.0
+    #         for po in rec.purchase_ids:
+    #             for bill in po.invoice_ids.filtered(lambda b: b.state == 'posted'):
+    #                 paid = bill.amount_total - bill.amount_residual
+    #                 if bill.currency_id == rec.currency_id:
+    #                     total_paid += paid
+    #                 else:
+    #                     total_paid += bill.currency_id._convert(
+    #                         paid,
+    #                         rec.currency_id,
+    #                         rec.env.company,
+    #                         fields.Date.context_today(rec)
+    #                     )
+    #         rec.paid_amount = total_paid
+
+    #     # A vendor bill can get reconciled as paid well after every settlement
+    #     # line was already confirmed - that's the only other moment the LC can
+    #     # newly become fully paid, so it needs the same check that
+    #     # lc.settlement.line.action_confirm runs. Reading rec.remaining_amount
+    #     # inside _refresh_settlement_state below will correctly pick up the
+    #     # paid_amount just written above, since it's a stored field Odoo
+    #     # recomputes on next access.
+    #     self._refresh_settlement_state()
+    # @api.depends(
+    # 'purchase_ids.invoice_ids.amount_total',
+    # 'purchase_ids.invoice_ids.amount_residual',
+    # 'purchase_ids.invoice_ids.state',
+    # 'purchase_ids.invoice_ids.currency_id'
+    # )
+    # def _compute_paid_amount(self):
+    #     for rec in self:
+    #         total_paid = 0.0
+    #         for po in rec.purchase_ids:
+    #             for bill in po.invoice_ids.filtered(lambda b: b.state == 'posted'):
+    #                 paid = bill.amount_total - bill.amount_residual
+    #                 if bill.currency_id == rec.currency_id:
+    #                     total_paid += paid
+    #                 else:
+    #                     total_paid += bill.currency_id._convert(
+    #                         paid,
+    #                         rec.currency_id,
+    #                         rec.env.company,
+    #                         fields.Date.context_today(rec)
+    #                     )
+    #         rec.paid_amount = total_paid
     @api.depends(
-        'purchase_ids.invoice_ids.amount_total',
-        'purchase_ids.invoice_ids.amount_residual',
-        'purchase_ids.invoice_ids.state',
-        'purchase_ids.invoice_ids.currency_id'
+    'purchase_ids.invoice_ids.amount_total',
+    'purchase_ids.invoice_ids.amount_residual',
+    'purchase_ids.invoice_ids.state',
+    'purchase_ids.invoice_ids.currency_id'
     )
     def _compute_paid_amount(self):
         for rec in self:
@@ -523,6 +566,24 @@ class LCManagement(models.Model):
                         )
             rec.paid_amount = total_paid
 
+        # remaining_amount depends on paid_amount, but Odoo only recomputes it
+        # lazily after this method returns - reading it immediately below would
+        # see a stale value. Force it fresh right now, exactly like the manual
+        # Recheck button does, before checking whether the LC is now settled.
+        self._compute_remaining_amount()
+        self._refresh_settlement_state()
+    @api.model
+    def _cron_refresh_settlement_states(self):
+        """Scheduled fallback: periodically re-checks every Utilized LC in
+        case a vendor bill payment reconciled since the last check. Doing
+        this here, as an explicit scheduled action, avoids the unreliable
+        pattern of writing lc.state as a side effect inside a computed field.
+        """
+        lcs = self.search([('state', '=', 'utilized')])
+        for lc in lcs:
+            lc._compute_paid_amount()
+            lc._compute_remaining_amount()
+            lc._refresh_settlement_state()
     # ====================== CAN CLOSE ======================
     @api.depends(
         'state',
@@ -531,21 +592,6 @@ class LCManagement(models.Model):
         'vendor_bill_ids.payment_state',
         'settlement_line_ids.state',
     )
-    def _compute_can_close(self):
-        for rec in self:
-            no_draft_lines = not rec.settlement_line_ids.filtered(lambda l: l.state == 'draft')
-            rec.can_close = (
-                rec.state == 'settled'
-                and no_draft_lines
-                and float_is_zero(rec.remaining_amount, precision_rounding=rec.currency_id.rounding)
-                and bool(rec.vendor_bill_ids)
-                and all(
-                    bill.payment_state == 'paid'
-                    for bill in rec.vendor_bill_ids
-                    if bill.state == 'posted'
-                )
-            )
-
     # =========================================================
     # SETTLEMENT STATE PROGRESSION
     # Called explicitly after a settlement line is confirmed
@@ -557,20 +603,20 @@ class LCManagement(models.Model):
         for rec in self:
             if rec.state not in ('open', 'utilized'):
                 continue
-            no_draft_lines = not rec.settlement_line_ids.filtered(lambda l: l.state == 'draft')
+            no_draft_lines = not rec.settlement_line_ids.filtered(
+                lambda l: l.state == 'draft'
+                and not float_is_zero(l.amount_to_settle, precision_rounding=rec.currency_id.rounding)
+            )
             fully_paid = float_is_zero(rec.remaining_amount, precision_rounding=rec.currency_id.rounding)
             has_confirmed_line = bool(rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed'))
 
             if fully_paid and no_draft_lines and has_confirmed_line:
                 rec.state = 'settled'
 
-
     def action_cancel_lc(self):
         for rec in self:
             if rec.state == 'cancelled':
                 raise ValidationError("This LC is already cancelled.")
-            if rec.state == 'closed':
-                raise ValidationError("Closed LC cannot be cancelled.")
 
             active_pos = rec.purchase_ids.filtered(lambda po: po.state != 'cancel')
             if active_pos:
@@ -635,8 +681,6 @@ class LCManagement(models.Model):
         for rec in self:
             if rec.state == 'cancelled':
                 raise ValidationError("This LC is already cancelled.")
-            if rec.state == 'closed':
-                raise ValidationError("Closed LC cannot be cancelled.")
 
             active_pos = rec.purchase_ids.filtered(lambda po: po.state != 'cancel')
             if active_pos:
@@ -682,9 +726,6 @@ class LCManagement(models.Model):
         self.ensure_one()
         lc = self
 
-        if lc.state == 'closed':
-            return False
-
         # Avoid duplicate draft/confirmed lines for the same PO/shipment
         existing = lc.settlement_line_ids.filtered(
             lambda l: l.purchase_order_id.id == purchase_order.id and l.state != 'cancelled'
@@ -721,3 +762,11 @@ class LCManagement(models.Model):
             'state': 'draft',
         })
         return line
+    def action_recheck_settlement_status(self):
+        """Manually re-runs the settled-state check. Useful for diagnosing
+        whether _refresh_settlement_state is wired up correctly, and as a
+        safety valve if a recompute chain ever gets missed."""
+        for rec in self:
+            rec._compute_paid_amount()
+            rec._compute_remaining_amount()
+            rec._refresh_settlement_state()

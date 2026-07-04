@@ -98,6 +98,18 @@ class LCSettlementLine(models.Model):
         compute='_compute_po_rollup',
         store=True,
     )
+    po_settlement_status = fields.Selection([
+        ('draft', 'Draft'),
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+    ], string="Settlement Status",
+        compute='_compute_po_rollup',
+        store=True,
+        help="Draft: nothing settled yet for this PO. Pending: at least one "
+             "partial payment has been confirmed but the PO isn't fully paid "
+             "off yet. Completed: every tranche for this PO has been confirmed "
+             "and there is nothing left to settle."
+    )
     all_tranche_ids = fields.Many2many(
         'lc.settlement.line',
         compute='_compute_po_rollup',
@@ -276,12 +288,60 @@ class LCSettlementLine(models.Model):
         'amount_to_settle',
         'state',
     )
+    # def _compute_po_rollup(self):
+    #     for line in self:
+    #         root = line._get_root_line()
+
+    #         # Gather every tranche for this PO: the root plus all its
+    #         # splits, recursively (in case a split was itself split again).
+    #         all_tranches = root
+    #         frontier = root.split_line_ids
+    #         seen_ids = {root.id}
+    #         while frontier:
+    #             new_frontier = self.env['lc.settlement.line']
+    #             for t in frontier:
+    #                 if t.id not in seen_ids:
+    #                     all_tranches |= t
+    #                     seen_ids.add(t.id)
+    #                     new_frontier |= t.split_line_ids
+    #             frontier = new_frontier
+
+    #         confirmed = all_tranches.filtered(lambda t: t.state == 'confirmed')
+    #         cancelled_excluded = all_tranches.filtered(lambda t: t.state != 'cancelled')
+
+    #         line.all_tranche_ids = all_tranches
+    #         line.po_total_settled = sum(confirmed.mapped('amount_to_settle'))
+    #         line.po_total_amount = sum(cancelled_excluded.mapped('amount_to_settle'))
+    #         line.po_remaining_to_settle = max(line.po_total_amount - line.po_total_settled, 0.0)
+    #         line.po_tranche_count = len(all_tranches.filtered(lambda t: t.state != 'cancelled'))
+
+    #         lc_currency = line.lc_id.currency_id
+    #         line.po_is_fully_settled = bool(cancelled_excluded) and float_is_zero(
+    #             line.po_remaining_to_settle,
+    #             precision_rounding=lc_currency.rounding if lc_currency else 0.01
+    #         )
+
+    #         # ---- Settlement status: draft / pending / completed ----
+    #         if line.po_is_fully_settled:
+    #             line.po_settlement_status = 'completed'
+    #         elif confirmed:
+    #             # At least one tranche confirmed, but not all of it settled yet.
+    #             line.po_settlement_status = 'pending'
+    #         else:
+    #             line.po_settlement_status = 'draft'
+    @api.depends(
+    'parent_settlement_line_id',
+    'parent_settlement_line_id.split_line_ids.amount_to_settle',
+    'parent_settlement_line_id.split_line_ids.state',
+    'split_line_ids.amount_to_settle',
+    'split_line_ids.state',
+    'split_line_ids.split_line_ids',
+    'amount_to_settle',
+    'state',
+    )
     def _compute_po_rollup(self):
         for line in self:
             root = line._get_root_line()
-
-            # Gather every tranche for this PO: the root plus all its
-            # splits, recursively (in case a split was itself split again).
             all_tranches = root
             frontier = root.split_line_ids
             seen_ids = {root.id}
@@ -294,14 +354,30 @@ class LCSettlementLine(models.Model):
                         new_frontier |= t.split_line_ids
                 frontier = new_frontier
 
-            confirmed = all_tranches.filtered(lambda t: t.state == 'confirmed')
-            cancelled_excluded = all_tranches.filtered(lambda t: t.state != 'cancelled')
+            # Once the root has been split, it's a permanent zero-balance
+            # anchor - every real tranche now lives on a non-root descendant.
+            # Drop it from the rollups/table entirely. If it was never split,
+            # it's still the one and only real tranche, so keep it.
+            if root.split_line_ids:
+                real_tranches = all_tranches - root
+            else:
+                real_tranches = all_tranches
 
-            line.all_tranche_ids = all_tranches
+            confirmed = real_tranches.filtered(lambda t: t.state == 'confirmed')
+            cancelled_excluded = real_tranches.filtered(lambda t: t.state != 'cancelled')
+
+            # Drafts first (they're what needs your attention), then confirmed,
+            # then cancelled - each group still oldest-first internally.
+            STATE_ORDER = {'draft': 0, 'confirmed': 1, 'cancelled': 2}
+            sorted_tranches = real_tranches.sorted(
+                key=lambda t: (STATE_ORDER.get(t.state, 9), t.create_date or fields.Datetime.now())
+            )
+            line.all_tranche_ids = sorted_tranches
+
             line.po_total_settled = sum(confirmed.mapped('amount_to_settle'))
             line.po_total_amount = sum(cancelled_excluded.mapped('amount_to_settle'))
             line.po_remaining_to_settle = max(line.po_total_amount - line.po_total_settled, 0.0)
-            line.po_tranche_count = len(all_tranches.filtered(lambda t: t.state != 'cancelled'))
+            line.po_tranche_count = len(real_tranches.filtered(lambda t: t.state != 'cancelled'))
 
             lc_currency = line.lc_id.currency_id
             line.po_is_fully_settled = bool(cancelled_excluded) and float_is_zero(
@@ -309,6 +385,12 @@ class LCSettlementLine(models.Model):
                 precision_rounding=lc_currency.rounding if lc_currency else 0.01
             )
 
+            if line.po_is_fully_settled:
+                line.po_settlement_status = 'completed'
+            elif confirmed:
+                line.po_settlement_status = 'pending'
+            else:
+                line.po_settlement_status = 'draft'
     def action_confirm_with_preview(self):
         """Validates this line exactly as action_confirm would, builds a
         plain-text preview of the moves about to post (settlement fee/VAT
@@ -330,8 +412,9 @@ class LCSettlementLine(models.Model):
             raise ValidationError(
                 f"Shipment {line.shipment_id.reference} is no longer marked as Arrived."
             )
-        if float_is_zero(line.amount_to_settle, precision_rounding=lc.currency_id.rounding):
-            raise ValidationError("Amount to settle must be greater than zero.")
+        if float_is_zero(line.settlement_fee, precision_digits=2):
+            raise ValidationError("Settlement Fee must be greater than zero.")
+
         if not line.settlement_fee_account_id:
             raise ValidationError("Please select a settlement fee account.")
         if not line.settlement_vat_account_id and not float_is_zero(
@@ -340,6 +423,9 @@ class LCSettlementLine(models.Model):
             raise ValidationError("Please select a settlement VAT account.")
         if not line.settlement_date:
             raise ValidationError("Please enter a settlement date.")
+
+        if float_is_zero(line.settlement_vat_amount, precision_digits=2):
+            raise ValidationError("Settlement VAT Amount must be greater than zero.")
 
         settlement_rate = line.settlement_rate
         if float_is_zero(settlement_rate, precision_digits=6):
@@ -554,6 +640,14 @@ class LCSettlementLine(models.Model):
             lc._compute_paid_amount()
             lc._compute_remaining_amount()
             lc._refresh_settlement_state()
+            # This tranche is now confirmed - check whether the whole PO
+            # (root + every split) is now fully settled. If so, the root
+            # (which has nothing of its own left to confirm) can finally
+            # be marked confirmed too - not before, since it shouldn't
+            # claim "done" while any sibling tranche still owes money.
+            root = line._get_root_line()
+            if root != line and root.state == 'draft' and root.po_is_fully_settled:
+                root.state = 'confirmed'
 
         if len(self) == 1 and not float_is_zero(self.margin_released_this_line, precision_digits=2):
             return {
@@ -610,11 +704,60 @@ class LCSettlementLine(models.Model):
             'res_id': wizard.id,
         }
 
+    # def _split_off_amount(self, split_amount):
+    #     """Shrinks this line's amount_to_settle by split_amount and creates
+    #     a new draft line for that split-off portion, linked back via
+    #     parent_settlement_line_id. Both lines remain independently
+    #     confirmable, each with its own fee/VAT/rate."""
+    #     self.ensure_one()
+    #     lc = self.lc_id
+
+    #     if self.state != 'draft':
+    #         raise ValidationError("Only a draft settlement line can be split.")
+
+    #     if float_compare(split_amount, 0.0, precision_rounding=lc.currency_id.rounding) <= 0:
+    #         raise ValidationError("The amount to split off must be greater than zero.")
+
+    #     if float_compare(split_amount, self.amount_to_settle, precision_rounding=lc.currency_id.rounding) >= 0:
+    #         raise ValidationError(
+    #             "The amount to split off must be less than this line's current amount - "
+    #             "otherwise there is nothing left to split."
+    #         )
+
+    #     remaining_amount = self.amount_to_settle - split_amount
+
+    #     new_line = self.env['lc.settlement.line'].create({
+    #         'lc_id': lc.id,
+    #         'purchase_order_id': self.purchase_order_id.id,
+    #         'shipment_id': self.shipment_id.id,
+    #         'vendor_bill_id': self.vendor_bill_id.id,
+    #         'parent_settlement_line_id': self.id,
+    #         'amount_to_settle': split_amount,
+    #         'settlement_rate': self.settlement_rate,
+    #         'settlement_date': fields.Date.today(),
+    #         'settlement_fee_account_id': self.settlement_fee_account_id.id,
+    #         'settlement_vat_account_id': self.settlement_vat_account_id.id,
+    #         'state': 'draft',
+    #     })
+
+    #     self.amount_to_settle = remaining_amount
+
+    #     return new_line
+
     def _split_off_amount(self, split_amount):
-        """Shrinks this line's amount_to_settle by split_amount and creates
-        a new draft line for that split-off portion, linked back via
-        parent_settlement_line_id. Both lines remain independently
-        confirmable, each with its own fee/VAT/rate."""
+        """Splits this line's current amount into two new tranches.
+
+        If this is the ROOT line (the anchor record for the PO), the root's
+        entire amount is handed off to two brand-new child records - the
+        split-off piece and the remainder - and the root itself is zeroed
+        out permanently. This keeps the root as a pure anchor/summary record
+        that never itself represents a payable tranche, so it never shows up
+        in the breakdown table and never gets opened "as if" it were a real
+        tranche.
+
+        If this is already a non-root tranche, splitting shrinks it in place
+        and creates one new child for the split-off piece, same as before.
+        """
         self.ensure_one()
         lc = self.lc_id
 
@@ -632,21 +775,53 @@ class LCSettlementLine(models.Model):
 
         remaining_amount = self.amount_to_settle - split_amount
 
-        new_line = self.env['lc.settlement.line'].create({
+        common_vals = {
             'lc_id': lc.id,
             'purchase_order_id': self.purchase_order_id.id,
             'shipment_id': self.shipment_id.id,
             'vendor_bill_id': self.vendor_bill_id.id,
             'parent_settlement_line_id': self.id,
-            'amount_to_settle': split_amount,
             'settlement_rate': self.settlement_rate,
             'settlement_date': fields.Date.today(),
             'settlement_fee_account_id': self.settlement_fee_account_id.id,
             'settlement_vat_account_id': self.settlement_vat_account_id.id,
             'state': 'draft',
+        }
+
+        if self.is_root_line:
+            split_line = self.env['lc.settlement.line'].create({
+                **common_vals,
+                'amount_to_settle': split_amount,
+            })
+            self.env['lc.settlement.line'].create({
+                **common_vals,
+                'amount_to_settle': remaining_amount,
+            })
+            # Root becomes a permanent zero-balance anchor - every dollar now
+            # lives on one of the two new child records above.
+            self.amount_to_settle = 0.0
+            return split_line
+
+        new_line = self.env['lc.settlement.line'].create({
+            **common_vals,
+            'amount_to_settle': split_amount,
         })
-
         self.amount_to_settle = remaining_amount
-
         return new_line
+    def action_open_self(self):
+        """Opens this exact tranche as a normal, fully editable page.
 
+        Clicking a row directly on all_tranche_ids (a Many2many field) opens
+        Odoo's default read-only relation-preview dialog instead of a real
+        editable form - this bypasses that by navigating via a genuine
+        act_window instead.
+        """
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': self.purchase_order_id.name or 'Settlement Tranche',
+            'res_model': 'lc.settlement.line',
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'new',
+        }
