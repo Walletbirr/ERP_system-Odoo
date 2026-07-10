@@ -10,8 +10,8 @@
                 <div class="o_theme_sidebar_header_actions">
                     <button class="o_theme_sidebar_theme_toggle"
                             t-on-click="toggleTheme"
-                            t-att-title="state.theme === 'green' ? 'Switch to gold theme' : 'Switch to green theme'">
-                        <i class="fa fa-adjust"/>
+                            t-att-title="state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'">
+                        <i t-att-class="state.theme === 'light' ? 'fa fa-moon-o' : 'fa fa-sun-o'"/>
                     </button>
                     <button class="o_theme_sidebar_toggle" t-on-click="toggleCollapsed">
                         <i class="fa fa-bars"/>
@@ -19,29 +19,64 @@
                 </div>
             </div>
 
-            <!-- Only this app list scrolls -->
-            <div class="o_theme_sidebar_apps">
-                <t t-foreach="state.apps" t-as="app" t-key="app.id">
-                    <div class="o_theme_sidebar_app_group">
-                        <a href="#"
-                           class="o_theme_sidebar_app"
-                           t-att-class="{ 'active': app.id === state.currentAppId }"
-                           t-att-title="state.collapsed ? app.name : ''"
-                           t-on-click.prevent="() => this.onClickApp(app)">
-                            <img t-if="app.webIconData" t-att-src="app.webIconData" class="o_theme_sidebar_app_icon"/>
-                            <i t-else="" class="fa fa-th-large o_theme_sidebar_app_icon"/>
-                            <span class="o_theme_sidebar_app_label" t-esc="app.name"/>
-                            <i class="fa fa-chevron-down o_theme_sidebar_chevron"
-                               t-att-class="{ 'o_theme_sidebar_chevron_open': app.id === state.expandedAppId }"/>
-                        </a>
+            <!-- Search: not shown when collapsed (no room for it at 68px) -->
+            <div class="o_theme_sidebar_search">
+                <i class="fa fa-search o_theme_sidebar_search_icon"/>
+                <input type="text"
+                       t-ref="searchInput"
+                       class="o_theme_sidebar_search_input"
+                       placeholder="Search..."
+                       t-att-value="state.searchQuery"
+                       t-on-input="onSearchInput"
+                       t-on-keydown="onSearchKeydown"/>
+                <i t-if="state.searchQuery"
+                   class="fa fa-times-circle o_theme_sidebar_search_clear"
+                   t-on-click="() => { state.searchQuery = ''; state.highlightedIndex = -1; }"/>
+            </div>
 
-                        <div t-if="app.id === state.expandedAppId and state.currentAppSubmenus.length"
-                             class="o_theme_sidebar_submenus">
-                            <t t-foreach="state.currentAppSubmenus" t-as="item" t-key="item.id">
-                                <SidebarMenuItem item="item" onLeafClick="onLeafClick"/>
-                            </t>
-                        </div>
+            <!-- Only this scrolls: either the normal app list, or search results -->
+            <div class="o_theme_sidebar_apps">
+
+                <t t-if="state.searchQuery.trim().length">
+                    <div t-if="!searchResults.length" class="o_theme_sidebar_search_empty">
+                        No matches for "<t t-esc="state.searchQuery"/>"
                     </div>
+                    <t t-foreach="searchResults" t-as="result" t-key="result.id">
+                        <a href="#"
+                           class="o_theme_sidebar_search_result"
+                           t-att-class="{ 'highlighted': result_index === state.highlightedIndex }"
+                           t-on-click.prevent="() => this.onSearchResultClick(result)">
+                            <span class="o_theme_sidebar_search_result_name" t-esc="result.name"/>
+                            <span t-if="!result.isApp" class="o_theme_sidebar_search_result_path" t-esc="result.path"/>
+                        </a>
+                    </t>
+                </t>
+
+                <t t-else="">
+                    <t t-foreach="state.apps" t-as="app" t-key="app.id">
+                        <div class="o_theme_sidebar_app_group">
+                            <a href="#"
+                               class="o_theme_sidebar_app"
+                               t-att-class="{ 'active': app.id === state.currentAppId }"
+                               t-att-title="state.collapsed ? app.name : ''"
+                               t-on-click.prevent="() => this.onClickApp(app)">
+                                <span class="o_theme_sidebar_app_icon_wrap">
+                                    <img t-if="app.webIconData" t-att-src="app.webIconData" class="o_theme_sidebar_app_icon"/>
+                                    <i t-else="" class="fa fa-th-large o_theme_sidebar_app_icon"/>
+                                </span>
+                                <span class="o_theme_sidebar_app_label" t-esc="app.name"/>
+                                <i class="fa fa-chevron-down o_theme_sidebar_chevron"
+                                   t-att-class="{ 'o_theme_sidebar_chevron_open': app.id === state.expandedAppId }"/>
+                            </a>
+
+                            <div t-if="app.id === state.expandedAppId and state.currentAppSubmenus.length"
+                                 class="o_theme_sidebar_submenus">
+                                <t t-foreach="state.currentAppSubmenus" t-as="item" t-key="item.id">
+                                    <SidebarMenuItem item="item" onLeafClick="onLeafClick"/>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
                 </t>
             </div>
 

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Restricts the native "Create Invoice" button on the Sales Order
+        form so Salespeople / Sales Administrators can no longer see or
+        click it. Only users holding the dedicated custom group
+        "Can Create Invoice from Sales Order" (accounting_so_invoice_bridge.
+        group_sale_invoice_creator), or Settings Administrators, will have
+        this button.
+
+        IMPORTANT - this is intentionally NOT gated on Odoo's native
+        account.group_account_invoice / account.group_account_user groups
+        anymore. Those come from the "Invoicing" field on the Users form,
+        which (a) can't always be left blank for a Sales user on every
+        instance, and (b) grants the whole Accounting app if it's set to
+        anything - a much bigger hole than this one button. Using a
+        dedicated, decoupled group means a user's native Invoicing field
+        can say anything at all; it has zero effect on this button. Only
+        an explicit assignment of the custom group turns it on.
+
+        This is on top of, not instead of, real ORM-level enforcement:
+        even if a Sales user somehow triggered this action another way,
+        they still lack create rights on account.move (invoices) unless
+        they also hold a native Accounting group, so the action would be
+        blocked server-side regardless. This view change just keeps the
+        button from appearing where it shouldn't.
+    -->
+    <record id="view_order_form_restrict_create_invoice" model="ir.ui.view">
+        <field name="name">sale.order.form.restrict.create.invoice</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!--
+                Confirmed from the actual sale.order form arch: both
+                "Create Invoice" buttons carry their own id attribute -
+                "create_invoice" (regular) and "create_invoice_percentage"
+                (down payment variant). Targeting by id is the most stable
+                selector available, immune to future action-id or naming
+                changes.
+
+                Two independent layers of restriction are applied, BOTH
+                now driven by the same dedicated custom group:
+                  1) "groups" - removes the button from the view entirely
+                     for anyone not in group_sale_invoice_creator or
+                     base.group_system.
+                  2) "invisible" - additionally requires the computed field
+                     can_create_invoice (server-side check of that same
+                     group) to be true, on top of each button's own
+                     original condition.
+                Both must agree for the button to show. Since neither
+                layer looks at the native Invoicing field anymore, a
+                user's Invoicing/Billing setting on their Users form is
+                irrelevant - only explicit assignment of the custom group
+                (or being a Settings Administrator) turns the button on.
+            -->
+            <xpath expr="//button[@id='create_invoice']" position="before">
+                <field name="can_create_invoice" invisible="1"/>
+            </xpath>
+            <xpath expr="//button[@id='create_invoice']" position="attributes">
+                <attribute name="groups">accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system</attribute>
+                <attribute name="invisible">invoice_status != 'to invoice' or not can_create_invoice</attribute>
+            </xpath>
+            <xpath expr="//button[@id='create_invoice_percentage']" position="attributes">
+                <attribute name="groups">accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system</attribute>
+                <attribute name="invisible">invoice_status != 'no' or state != 'sale' or not can_create_invoice</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

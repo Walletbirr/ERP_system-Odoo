@@ -9,70 +9,100 @@
 //      colors, since custom properties cascade from :root/body globally,
 //      unlike SCSS variables which only exist at compile time.
 //
-// Default palette: dark green base, gold accent (active states, hover,
-// scrollbar, connector arrows, focus rings).
+// Default palette: clean, warm off-white base with gold as the sole
+// accent color. Chosen over a dark base because light sidebars read as
+// more spacious for something people look at all day, and it's the
+// direction most modern premium dashboards (Linear, Notion, Stripe) have
+// converged on. Gold does more visual work here since it's the only
+// color against a neutral background.
 :root {
-  --sb-bg: #021200;
-  --sb-submenu-bg: #0a2007;
-  --sb-accent: #d6961d;
-  --sb-accent-14: rgba(214, 150, 29, 0.14);
-  --sb-accent-16: rgba(214, 150, 29, 0.16);
-  --sb-accent-22: rgba(214, 150, 29, 0.22);
-  --sb-accent-28: rgba(214, 150, 29, 0.28);
-  --sb-accent-40: rgba(214, 150, 29, 0.4);
-  --sb-accent-55: rgba(214, 150, 29, 0.55);
-  --sb-accent-80: rgba(214, 150, 29, 0.8);
-  --sb-accent-border: rgba(214, 150, 29, 0.25);
-  --sb-text-dim: rgba(255, 255, 255, 0.62);
-  --sb-text-bright: #ffffff;
-  --sb-username: rgba(255, 255, 255, 0.88);
+  --sb-bg: #ffffff;
+  --sb-submenu-bg: #f4f2ec;
+  --sb-border-soft: rgba(20, 20, 15, 0.09);
+  --sb-accent: #ba7517;
+  --sb-accent-08: rgba(186, 117, 23, 0.08);
+  --sb-accent-12: rgba(186, 117, 23, 0.12);
+  --sb-accent-18: rgba(186, 117, 23, 0.18);
+  --sb-accent-30: rgba(186, 117, 23, 0.3);
+  --sb-accent-45: rgba(186, 117, 23, 0.45);
+  --sb-accent-70: rgba(186, 117, 23, 0.7);
+  --sb-accent-border: rgba(186, 117, 23, 0.35);
+  --sb-text: #16181b;
+  --sb-text-dim: #3a3e43;
+  --sb-text-bright: #16181b;
+  --sb-username: #2a2d31;
+  --sb-icon-chip-bg: rgba(31, 35, 40, 0.06);
+  --sb-icon-chip-bg-active: rgba(186, 117, 23, 0.18);
 }
 
-// Inverted palette: gold becomes the base/background, green becomes the
-// accent (active states, hover, scrollbar, connector arrows, focus rings).
-// Toggled by adding "o_theme_sidebar_gold" to <body> — see
-// Sidebar.toggleTheme() in sidebar.js.
-body.o_theme_sidebar_gold {
-  --sb-bg: #4a3208;
-  --sb-submenu-bg: #5c400f;
-  --sb-accent: #43a047;
-  --sb-accent-14: rgba(67, 160, 71, 0.14);
-  --sb-accent-16: rgba(67, 160, 71, 0.16);
-  --sb-accent-22: rgba(67, 160, 71, 0.22);
-  --sb-accent-28: rgba(67, 160, 71, 0.28);
-  --sb-accent-40: rgba(67, 160, 71, 0.4);
-  --sb-accent-55: rgba(67, 160, 71, 0.55);
-  --sb-accent-80: rgba(67, 160, 71, 0.8);
-  --sb-accent-border: rgba(67, 160, 71, 0.3);
+// Refined dark mode — toggled by adding "o_theme_sidebar_dark" to
+// <body> (see Sidebar.toggleTheme() in sidebar.js). This replaces the
+// earlier green/gold-inversion concept: light<->dark is the standard,
+// expected toggle pattern rather than swapping which brand color is
+// "base" vs "accent".
+body.o_theme_sidebar_dark {
+  --sb-bg: #0b1f08;
+  --sb-submenu-bg: #142d10;
+  --sb-border-soft: rgba(255, 255, 255, 0.07);
+  --sb-accent: #d6961d;
+  --sb-accent-08: rgba(214, 150, 29, 0.08);
+  --sb-accent-12: rgba(214, 150, 29, 0.12);
+  --sb-accent-18: rgba(214, 150, 29, 0.18);
+  --sb-accent-30: rgba(214, 150, 29, 0.3);
+  --sb-accent-45: rgba(214, 150, 29, 0.45);
+  --sb-accent-70: rgba(214, 150, 29, 0.7);
+  --sb-accent-border: rgba(214, 150, 29, 0.3);
+  --sb-text: #ffffff;
+  --sb-text-dim: rgba(255, 255, 255, 0.75);
+  --sb-text-bright: #ffffff;
+  --sb-username: rgba(255, 255, 255, 0.85);
+  --sb-icon-chip-bg: rgba(255, 255, 255, 0.06);
+  --sb-icon-chip-bg-active: rgba(214, 150, 29, 0.2);
 }
 
 @keyframes sidebarFlyoutIn {
   from {
     opacity: 0;
-    transform: translateX(-6px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes sidebarSubmenuIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
   }
 }
 
 .o_theme_sidebar {
   display: flex;
   flex-direction: column;
-  width: 240px;
-  min-width: 240px;
+  width: 248px;
+  min-width: 248px;
   height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   background: var(--sb-bg);
   color: var(--sb-username);
-  transition: background 0.25s ease-out;
-  // NOTE: no overflow-y here anymore — only .o_theme_sidebar_apps
-  // scrolls, so the header/footer stay pinned in place.
+  // A soft shadow instead of a flat border reads as genuine depth
+  // rather than a hard divider line — the sidebar feels like it's
+  // sitting slightly above/in-front-of the page content next to it.
+  box-shadow: 1px 0 0 var(--sb-border-soft), 6px 0 24px -8px rgba(0, 0, 0, 0.18);
+  transition: background 0.25s ease-out, box-shadow 0.25s ease-out, width 0.2s ease-out;
+  // NOTE: no overflow-y here — only .o_theme_sidebar_apps scrolls, so
+  // the header/footer stay pinned in place.
 
   &.o_theme_sidebar_collapsed {
-    width: 64px;
-    min-width: 64px;
+    width: 68px;
+    min-width: 68px;
 
     .o_theme_sidebar_app_label,
     .o_theme_sidebar_brand,
@@ -88,7 +118,22 @@ body.o_theme_sidebar_gold {
       bottom: 8px;
       margin-left: 8px;
       margin-bottom: 0;
-      width: 180px;
+      width: 190px;
+    }
+    // With the logo gone, only the two action buttons remain — stack
+    // them vertically and center the whole header, rather than leaving
+    // them squeezed into a horizontal row that doesn't fit 68px cleanly.
+    .o_theme_sidebar_header {
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 8px;
+    }
+    .o_theme_sidebar_header_actions {
+      flex-direction: column;
+    }
+    .o_theme_sidebar_search {
+      display: none;
     }
   }
 
@@ -98,9 +143,106 @@ body.o_theme_sidebar_gold {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 2px solid var(--sb-accent);
-    background: linear-gradient(180deg, var(--sb-accent-14), transparent);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--sb-border-soft);
+    background: linear-gradient(180deg, var(--sb-accent-08), transparent 75%);
+  }
+
+  &_brand {
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: 0.2px;
+    color: var(--sb-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ---- Search ----
+  &_search {
+    flex: 0 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 10px 12px;
+  }
+
+  &_search_icon {
+    position: absolute;
+    left: 10px;
+    font-size: 12px;
+    color: var(--sb-text-dim);
+    pointer-events: none;
+  }
+
+  &_search_input {
+    width: 100%;
+    background: var(--sb-submenu-bg);
+    border: 1px solid var(--sb-border-soft);
+    border-radius: 8px;
+    padding: 7px 30px 7px 30px;
+    font-size: 13px;
+    color: var(--sb-text);
+    outline: none;
+    transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+
+    &::placeholder {
+      color: var(--sb-text-dim);
+    }
+
+    &:focus {
+      border-color: var(--sb-accent);
+      box-shadow: 0 0 0 3px var(--sb-accent-12);
+    }
+  }
+
+  &_search_clear {
+    position: absolute;
+    right: 10px;
+    font-size: 13px;
+    color: var(--sb-text-dim);
+    cursor: pointer;
+    transition: color 0.2s ease-out;
+
+    &:hover {
+      color: var(--sb-accent);
+    }
+  }
+
+  &_search_empty {
+    padding: 16px 12px;
+    font-size: 12.5px;
+    color: var(--sb-text-dim);
+    text-align: center;
+  }
+
+  &_search_result {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.2s ease-out, transform 0.2s ease-out;
+
+    &:hover,
+    &.highlighted {
+      background: var(--sb-accent-08);
+      transform: translateX(2px);
+    }
+  }
+
+  &_search_result_name {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--sb-text-bright);
+  }
+
+  &_search_result_path {
+    font-size: 11.5px;
+    color: var(--sb-text-dim);
   }
 
   &_header_actions {
@@ -110,31 +252,25 @@ body.o_theme_sidebar_gold {
     flex: 0 0 auto;
   }
 
-  &_brand {
-    font-weight: 600;
-    font-size: 15px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   &_toggle,
   &_theme_toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
-    color: inherit;
+    color: var(--sb-text-dim);
     cursor: pointer;
-    opacity: 0.7;
-    flex: 0 0 auto;
-    font-size: 14px;
-    padding: 4px;
-    transition:
-      opacity 0.2s ease-out,
-      color 0.2s ease-out;
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+    transition: background 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
 
     &:hover {
-      opacity: 1;
+      background: var(--sb-accent-12);
       color: var(--sb-accent);
+      transform: scale(1.08);
     }
   }
 
@@ -142,7 +278,7 @@ body.o_theme_sidebar_gold {
   &_apps {
     flex: 1 1 auto;
     overflow-y: auto;
-    padding: 8px;
+    padding: 10px 8px;
     min-height: 0; // required so flex-child scroll works in a column flex parent
     &::-webkit-scrollbar {
       width: 5px;
@@ -151,14 +287,14 @@ body.o_theme_sidebar_gold {
       background: transparent;
     }
     &::-webkit-scrollbar-thumb {
-      background: var(--sb-accent-55);
+      background: var(--sb-accent-30);
       border-radius: 10px;
     }
     &::-webkit-scrollbar-thumb:hover {
-      background: var(--sb-accent-80);
+      background: var(--sb-accent-70);
     }
     scrollbar-width: thin;
-    scrollbar-color: var(--sb-accent-55) transparent;
+    scrollbar-color: var(--sb-accent-30) transparent;
   }
 
   &_app_group {
@@ -169,33 +305,56 @@ body.o_theme_sidebar_gold {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
+    padding: 7px 10px;
     border-radius: 8px;
     color: inherit;
     text-decoration: none;
     font-size: 13.5px;
     cursor: pointer;
-    transition: background 0.25s ease-out;
+    transition: background 0.2s ease-out, transform 0.2s ease-out;
 
     &:hover {
-      background: var(--sb-accent-14);
+      background: var(--sb-accent-08);
+      transform: translateX(2px);
     }
     &:focus-visible {
       outline: 2px solid var(--sb-accent);
       outline-offset: 2px;
     }
     &.active {
-      background: var(--sb-accent-40);
+      background: var(--sb-accent-18);
       border-left: 3px solid var(--sb-accent);
       padding-left: 7px; // compensate for the 3px border so content doesn't jump
-      font-weight: 500;
+      font-weight: 600;
+    }
+    &.active:hover {
+      transform: none; // don't slide the already-active row, would look odd next to its own border
     }
   }
 
+  // Icon "chip" — a soft rounded square behind each app icon, filling
+  // with the accent tint on hover/active. Adds visual texture instead
+  // of flat icon-then-text rows.
+  &_app_icon_wrap {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sb-icon-chip-bg);
+    transition: background 0.2s ease-out;
+  }
+
+  &_app:hover &_app_icon_wrap,
+  &_app.active &_app_icon_wrap {
+    background: var(--sb-icon-chip-bg-active);
+  }
+
   &_app_icon {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 20px;
+    width: 18px;
+    height: 18px;
     object-fit: contain;
   }
 
@@ -205,6 +364,7 @@ body.o_theme_sidebar_gold {
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--sb-text-dim);
+    font-weight: 500;
   }
 
   &_app:hover &_app_label {
@@ -212,18 +372,15 @@ body.o_theme_sidebar_gold {
   }
   &_app.active &_app_label {
     color: var(--sb-text-bright);
-    font-weight: 500;
+    font-weight: 600;
   }
 
   &_chevron {
     flex: 0 0 auto;
     font-size: 11px;
-    opacity: 0.6;
+    opacity: 0.5;
     color: var(--sb-text-dim);
-    transition:
-      transform 0.45s ease-out,
-      opacity 0.25s ease-out,
-      color 0.25s ease-out;
+    transition: transform 0.35s ease-out, opacity 0.2s ease-out, color 0.2s ease-out;
 
     &_open {
       transform: rotate(180deg);
@@ -237,23 +394,29 @@ body.o_theme_sidebar_gold {
 
   &_app.active &_chevron {
     color: var(--sb-text-bright);
+    opacity: 0.85;
   }
 
   &_submenus {
     display: flex;
     flex-direction: column;
-    margin: 4px 0 8px 12px;
-    padding: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    background: var(--sb-submenu-bg);
+    margin: 4px 0 8px 14px;
+    padding: 5px;
+    border-left: 2px solid var(--sb-border-soft);
+    background: transparent;
+    // Owl fully mounts/unmounts this block on t-if, so a plain CSS
+    // animation (rather than a transition, which needs both a start and
+    // end state to already exist in the DOM) plays cleanly every time
+    // it expands.
+    animation: sidebarSubmenuIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top;
   }
 
   // ---- Sticky footer: profile / logout ----
   &_footer {
     flex: 0 0 auto;
     position: relative;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--sb-border-soft);
     padding: 8px;
   }
 
@@ -261,13 +424,13 @@ body.o_theme_sidebar_gold {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px;
+    padding: 7px 8px;
     border-radius: 8px;
     cursor: pointer;
-    transition: background 0.45s ease-out;
+    transition: background 0.2s ease-out;
 
     &:hover {
-      background: var(--sb-accent-22);
+      background: var(--sb-accent-08);
     }
     &:focus-visible {
       outline: 2px solid var(--sb-accent);
@@ -288,11 +451,13 @@ body.o_theme_sidebar_gold {
     font-size: 26px;
     line-height: 28px;
     opacity: 0.8;
+    color: var(--sb-accent);
   }
 
   &_username {
     flex: 1 1 auto;
     font-size: 13px;
+    font-weight: 500;
     color: var(--sb-username);
     white-space: nowrap;
     overflow: hidden;
@@ -301,8 +466,9 @@ body.o_theme_sidebar_gold {
 
   &_profile_caret {
     font-size: 11px;
-    opacity: 0.6;
-    transition: transform 0.45s ease-out;
+    opacity: 0.5;
+    color: var(--sb-text-dim);
+    transition: transform 0.35s ease-out;
 
     &_open {
       transform: rotate(180deg);
@@ -317,11 +483,11 @@ body.o_theme_sidebar_gold {
     left: 8px;
     right: 8px;
     margin-bottom: 6px;
-    background: var(--sb-submenu-bg);
+    background: var(--sb-bg);
     border: 1px solid var(--sb-accent-border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
     z-index: 2000;
   }
 
@@ -334,9 +500,9 @@ body.o_theme_sidebar_gold {
     color: inherit;
     text-decoration: none;
     font-size: 13px;
-    transition: background 0.45s ease-out;
+    transition: background 0.2s ease-out;
     &:hover {
-      background: var(--sb-accent-16);
+      background: var(--sb-accent-12);
     }
   }
 }
@@ -356,25 +522,23 @@ body.o_theme_sidebar_gold {
 // attribute selector) outranks a plain class selector, so a bare
 // `.o_theme_sidebar_submenu_item { color: ... }` loses the cascade even
 // though this file loads later. Matching element+class+attribute here
-// wins legitimately without needing !important. (Found via devtools —
-// see conversation history for the trace.)
+// wins legitimately without needing !important.
 a.o_theme_sidebar_submenu_item[href] {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 7px 8px;
   font-size: 12.5px;
   color: var(--sb-text-dim);
-  font-weight: 450;
+  font-weight: 500;
   text-decoration: none;
   border-radius: 6px;
   cursor: pointer;
-  transition:
-    background 0.45s ease-out,
-    color 0.45s ease-out;
+  transition: background 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
 
   &:hover {
     color: var(--sb-text-bright);
-    background: var(--sb-accent-28);
+    background: var(--sb-accent-12);
+    transform: translateX(2px);
   }
   &:focus-visible {
     outline: 2px solid var(--sb-accent);
@@ -392,8 +556,8 @@ a.o_theme_sidebar_profile_menu_item[href] {
 
 .o_theme_sidebar_flyout_caret {
   font-size: 10px;
-  opacity: 0.6;
-  transition: opacity 0.25s ease-out;
+  opacity: 0.5;
+  transition: opacity 0.2s ease-out;
 }
 
 a.o_theme_sidebar_submenu_item[href]:hover .o_theme_sidebar_flyout_caret {
@@ -409,17 +573,33 @@ a.o_theme_sidebar_submenu_item[href]:hover .o_theme_sidebar_flyout_caret {
 .o_theme_sidebar_flyout_panel {
   display: flex;
   flex-direction: column;
-  min-width: 200px;
-  background: var(--sb-submenu-bg);
+  min-width: 210px;
+  background: var(--sb-bg);
   color: var(--sb-username);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
   border: 1px solid var(--sb-accent-border);
-  animation: sidebarFlyoutIn 0.45s ease-out;
+  animation: sidebarFlyoutIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.popover .popover-arrow::before,
-.popover .popover-arrow::after {
-  border-right-color: var(--sb-accent) !important;
+// The flyout goes through Odoo's usePopover, which wraps our
+// .o_theme_sidebar_flyout_panel inside Bootstrap's own .popover
+// container. That outer wrapper still carries Bootstrap's default
+// white background/border/padding — which is the white edge visible
+// around the flyout. The profile menu doesn't have this problem because
+// it's plain markup we render ourselves with no Bootstrap wrapper in
+// between. Neutralizing the wrapper here makes only our own styled
+// panel visible, matching the profile menu exactly.
+.popover {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  --bs-popover-bg: transparent;
+  --bs-popover-border-color: transparent;
+}
+
+.popover .popover-arrow {
+  display: none !important;
 }
