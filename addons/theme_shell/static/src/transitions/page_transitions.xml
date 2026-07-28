@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="theme_shell.PageTransitions">
+        <div class="o_theme_loader_overlay o_theme_loader_hidden" t-ref="overlay">
+            <div class="o_theme_loader_spinner">
+                <span/><span/><span/><span/><span/><span/>
+                <span/><span/><span/><span/><span/><span/>
+            </div>
+        </div>
+    </t>
+
+</templates>

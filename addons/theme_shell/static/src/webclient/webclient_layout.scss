@@ -15,11 +15,11 @@
 }
 
 .o_action_manager {
-    margin-left: 240px;
+    margin-left: 244px;
     transition: margin-left 0.15s ease;
 }
 
 // Mirror the collapsed state so content re-flows when the sidebar shrinks.
 body.o_theme_sidebar_is_collapsed .o_action_manager {
-    margin-left: 64px;
+    margin-left: 68px;
 }

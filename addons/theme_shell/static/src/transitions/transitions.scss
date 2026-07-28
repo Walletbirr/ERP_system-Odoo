@@ -1,0 +1,135 @@
+// ============================================================
+// PAGE / TAB TRANSITIONS
+// ============================================================
+// Two small, deliberately subtle motion effects, driven from
+// page_transitions.js:
+//   1. A centered 12-dot "fading circle" spinner (the classic
+//      Shutterstock/YouTube-style loader) shown for page-to-page
+//      navigation, plus a content fade once the new page lands.
+//   2. A quick fade for tab-to-tab switches inside a form's notebook.
+//
+// Reuses the same --erp-accent variable global_theme.scss already
+// defines, so the spinner automatically matches the theme's accent
+// color without its own separate color declaration.
+
+// ---- Loader overlay ----
+// Deliberately pointer-events:none on the wrapper — this is a purely
+// visual cue, not a blocking modal. It never traps clicks on whatever
+// is still on screen underneath it while the next page loads.
+//
+// Positioned to cover only the content area, not the sidebar — the
+// sidebar isn't what's reloading, so keeping it sharp/interactive
+// while the content blurs behind the spinner reads as more
+// intentional than blurring the whole viewport indiscriminately.
+// Mirrors the exact same left-offset values webclient_layout.scss
+// already uses for .o_action_manager, so this stays in sync with the
+// sidebar's collapsed/expanded state automatically.
+.o_theme_loader_overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 244px;
+  z-index: 2000; // above the sidebar's own z-index:1000, below native browser UI
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.15s ease-out, left 0.15s ease;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+body.o_theme_sidebar_is_collapsed .o_theme_loader_overlay {
+  left: 68px;
+}
+
+.o_theme_loader_overlay.o_theme_loader_hidden {
+  opacity: 0;
+}
+
+// ---- 12-dot spinner ----
+.o_theme_loader_spinner {
+  position: relative;
+  width: 46px;
+  height: 46px;
+}
+
+.o_theme_loader_spinner span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+  border-radius: 50%;
+  background: var(--erp-accent, #ba7517);
+  animation: themeShellDotFade 1.2s linear infinite;
+}
+
+// Each dot sits at a different angle around the circle (rotate first,
+// then translate along one axis — rotating the dot's own coordinate
+// system is what makes a plain "move up" translate land it at a
+// different point around the ring for each one) and starts its fade
+// slightly later than the previous dot, which is what reads as motion
+// travelling around the circle rather than 12 dots blinking in sync.
+// Written out explicitly (rather than an @for loop) to match the rest
+// of this module's plain-SCSS style, with no dependency on which
+// Sass feature set Odoo's asset pipeline happens to support.
+.o_theme_loader_spinner span:nth-child(1)  { transform: rotate(0deg)   translate(0, -18px); animation-delay: 0s; }
+.o_theme_loader_spinner span:nth-child(2)  { transform: rotate(30deg)  translate(0, -18px); animation-delay: -0.1s; }
+.o_theme_loader_spinner span:nth-child(3)  { transform: rotate(60deg)  translate(0, -18px); animation-delay: -0.2s; }
+.o_theme_loader_spinner span:nth-child(4)  { transform: rotate(90deg)  translate(0, -18px); animation-delay: -0.3s; }
+.o_theme_loader_spinner span:nth-child(5)  { transform: rotate(120deg) translate(0, -18px); animation-delay: -0.4s; }
+.o_theme_loader_spinner span:nth-child(6)  { transform: rotate(150deg) translate(0, -18px); animation-delay: -0.5s; }
+.o_theme_loader_spinner span:nth-child(7)  { transform: rotate(180deg) translate(0, -18px); animation-delay: -0.6s; }
+.o_theme_loader_spinner span:nth-child(8)  { transform: rotate(210deg) translate(0, -18px); animation-delay: -0.7s; }
+.o_theme_loader_spinner span:nth-child(9)  { transform: rotate(240deg) translate(0, -18px); animation-delay: -0.8s; }
+.o_theme_loader_spinner span:nth-child(10) { transform: rotate(270deg) translate(0, -18px); animation-delay: -0.9s; }
+.o_theme_loader_spinner span:nth-child(11) { transform: rotate(300deg) translate(0, -18px); animation-delay: -1.0s; }
+.o_theme_loader_spinner span:nth-child(12) { transform: rotate(330deg) translate(0, -18px); animation-delay: -1.1s; }
+
+@keyframes themeShellDotFade {
+  0%, 39%, 100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+// ---- Content / tab fade ----
+@keyframes themeShellFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.o_action_manager.o_theme_page_fade {
+  animation: themeShellFadeIn 0.22s ease-out;
+}
+
+.o_theme_tab_fade {
+  animation: themeShellFadeIn 0.18s ease-out;
+}
+
+// Respect OS-level "reduce motion" accessibility setting — disables
+// the new motion without touching the overlay's show/hide (opacity)
+// logic, which isn't decorative.
+@media (prefers-reduced-motion: reduce) {
+  .o_action_manager.o_theme_page_fade,
+  .o_theme_tab_fade,
+  .o_theme_loader_spinner span {
+    animation: none !important;
+  }
+  .o_theme_loader_overlay {
+    transition: none !important;
+  }
+}

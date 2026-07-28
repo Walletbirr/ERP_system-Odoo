@@ -40,7 +40,30 @@
 // earlier green/gold-inversion concept: light<->dark is the standard,
 // expected toggle pattern rather than swapping which brand color is
 // "base" vs "accent".
-body.o_theme_sidebar_dark {
+//
+// SCOPING FIX: these --sb-* custom properties used to be redeclared
+// directly on `body.o_theme_sidebar_dark`. CSS custom properties
+// cascade down to EVERY descendant of wherever they're set, and since
+// .o_theme_sidebar is just one child of <body> among many (the actual
+// page content, the dashboard, etc. are its siblings, not its
+// children), redeclaring them on body was silently recoloring/
+// re-texting anything ELSE on the page that happened to also read a
+// --sb-* variable (e.g. a module widget copying these var names) —
+// which is what made toggling the sidebar theme visually break text
+// outside the sidebar itself.
+//
+// The fix: redeclare these variables only on `.o_theme_sidebar` itself
+// (so only the sidebar and everything nested inside it picks up the
+// dark values) plus the one legitimate exception — the flyout submenu
+// panel, which usePopover portals OUT of .o_theme_sidebar to elsewhere
+// under <body> (see the big comment on SidebarFlyoutPanel in
+// sidebar.js). That panel still needs the dark palette while the
+// sidebar is dark, so it gets its own scoped selector too. Nothing
+// else on the page reads these variables anymore as a result — the
+// dashboard and every other view keep their own fixed --erp-* palette
+// (see global_theme.scss) regardless of which sidebar theme is active.
+body.o_theme_sidebar_dark .o_theme_sidebar,
+body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
   --sb-bg: #0b1f08;
   --sb-submenu-bg: #142d10;
   --sb-border-soft: rgba(255, 255, 255, 0.07);
@@ -53,9 +76,9 @@ body.o_theme_sidebar_dark {
   --sb-accent-70: rgba(214, 150, 29, 0.7);
   --sb-accent-border: rgba(214, 150, 29, 0.3);
   --sb-text: #ffffff;
-  --sb-text-dim: rgba(255, 255, 255, 0.75);
+  --sb-text-dim: #c7cdc5;
   --sb-text-bright: #ffffff;
-  --sb-username: rgba(255, 255, 255, 0.85);
+  --sb-username: #dfe3dd;
   --sb-icon-chip-bg: rgba(255, 255, 255, 0.06);
   --sb-icon-chip-bg-active: rgba(214, 150, 29, 0.2);
 }
@@ -85,8 +108,8 @@ body.o_theme_sidebar_dark {
 .o_theme_sidebar {
   display: flex;
   flex-direction: column;
-  width: 248px;
-  min-width: 248px;
+  width: 244px;
+  min-width: 244px;
   height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -543,6 +566,16 @@ a.o_theme_sidebar_submenu_item[href] {
   &:focus-visible {
     outline: 2px solid var(--sb-accent);
     outline-offset: 2px;
+  }
+  // Which specific submenu item is currently open — same visual
+  // language (gold tint + left accent bar) as the top-level app's own
+  // active state, so the two read as one consistent system.
+  &.active {
+    color: var(--sb-text-bright) !important;
+    background: var(--sb-accent-18) !important;
+    border-left: 2px solid var(--sb-accent);
+    padding-left: 6px; // compensate for the 2px border so text doesn't jump
+    font-weight: 600;
   }
 }
 

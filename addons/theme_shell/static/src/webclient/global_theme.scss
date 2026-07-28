@@ -1,0 +1,536 @@
+// ============================================================
+// GLOBAL ODOO THEME OVERRIDES
+// ============================================================
+// Reuses the exact same CSS custom properties sidebar.scss already
+// defines on :root / body.o_theme_sidebar_dark (--sb-accent, --sb-bg,
+// --sb-text, etc.) — this file doesn't need its own color system, it
+// automatically follows whichever theme (light/dark) is currently
+// active, since those variables are global, not scoped to the sidebar.
+//
+// IMPORTANT CONSTRAINT — read before extending this file further:
+// Only the sidebar's own background is ever made dark. The rest of
+// Odoo's pages (form labels, table text, input text, tab labels, etc.)
+// use Odoo's own built-in dark-text-on-light-background styling
+// throughout — that's not something this file controls or overrides.
+// If o_content's background were forced dark for the "dark" theme, all
+// of that built-in dark text would become unreadable against it. A
+// true whole-app dark mode would mean re-theming every one of Odoo's
+// own widgets individually, which is a much larger project than
+// reskinning chrome colors — so the main content area intentionally
+// stays light regardless of which sidebar theme is active. Flagging
+// this explicitly so it's a deliberate choice, not a bug to "fix" later.
+//
+// SCOPE: this targets structural chrome present across nearly every
+// backend view — control panel, buttons, breadcrumb, statusbar stepper,
+// notebook tabs, search bar, list rows, dropdown menus, form focus
+// rings, scrollbars. It deliberately does NOT attempt to reskin
+// module-specific widgets (dashboard stat tiles, kanban card internals,
+// gantt/calendar/pivot internals) — those vary a lot per module and
+// blindly overriding them risks breaking a layout I can't render/verify
+// live. If something module-specific still looks "very Odoo" after
+// installing this, screenshot it and we'll target that one thing
+// directly — same iterative approach as the sidebar itself.
+//
+// Deliberately NOT touched: status badges (Sales Order / Quotation /
+// Cancelled pills) — those carry semantic meaning, so recoloring them
+// all to gold would remove information rather than just decorate it.
+// Also not touched: Bootstrap tooltips (kept default dark-on-light,
+// standard regardless of app theme) and a global `* { transition }`
+// (would hurt scroll/render performance on large lists — transitions
+// below are targeted per-selector instead).
+//
+// VERIFY: statusbar stepper, o_cp_switch_buttons, and
+// o_searchview_facet_label class names are my best-confidence
+// recollection of Odoo 17/18's actual markup, not a guarantee.
+// o_control_panel, o_breadcrumb, o_searchview, o_list_view, o_notebook,
+// btn-primary/btn-secondary, dropdown-menu, and form-check-input are
+// long-stable Bootstrap/Odoo classes I'm confident in. If a rule below
+// doesn't visibly do anything, open devtools on that element and send
+// me the real class name — same fix pattern we used throughout the
+// sidebar work.
+
+// ---- Fixed content-area palette ----
+// IMPORTANT: these are deliberately SEPARATE from --sb-bg / --sb-accent
+// / etc. Those sidebar variables get swapped by body.o_theme_sidebar_dark
+// when the theme toggle is used, and because CSS custom properties
+// cascade globally (not just inside .o_theme_sidebar), every rule below
+// that used var(--erp-*) directly was quietly recoloring the ENTIRE page
+// every time the sidebar switched dark/light, not just the sidebar
+// itself. These --erp-* variables are a fixed copy of the light
+// palette's values that never change, so the main content area (forms,
+// lists, buttons, the dashboard) always looks the same regardless of
+// what the sidebar is currently doing.
+:root {
+  --erp-bg: #ffffff;
+  --erp-submenu-bg: #f4f2ec;
+  --erp-border-soft: rgba(20, 20, 15, 0.09);
+  --erp-accent: #ba7517;
+  --erp-accent-08: rgba(186, 117, 23, 0.08);
+  --erp-accent-12: rgba(186, 117, 23, 0.12);
+  --erp-accent-18: rgba(186, 117, 23, 0.18);
+  --erp-accent-30: rgba(186, 117, 23, 0.3);
+  --erp-accent-45: rgba(186, 117, 23, 0.45);
+  --erp-accent-70: rgba(186, 117, 23, 0.7);
+  --erp-accent-border: rgba(186, 117, 23, 0.35);
+  --erp-text: #16181b;
+  --erp-text-dim: #3a3e43;
+}
+
+// ---- Whole-app typography ----
+// This is the ONE place that sets the font for the entire main content
+// area — forms, lists, buttons, tabs, everything except the sidebar
+// itself (which has its own separate declaration in sidebar.scss,
+// intentionally kept identical to this one so the whole ERP reads as
+// one consistent typeface rather than "sidebar font" + "Odoo's default
+// font" sitting side by side, which was the actual gap before this).
+// .o_web_client is the wrapper Odoo puts around the entire backend UI,
+// so this single rule covers every page without needing to be repeated
+// per view type.
+.o_web_client {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+// ---- Popovers/dropdowns that belong to OUR sidebar flyouts ----
+// Scoped with :has() so this ONLY affects the popover instance that
+// wraps our own .o_theme_sidebar_flyout_panel — every other popover or
+// dropdown in Odoo (like the "⋯" action menu with Print/Duplicate/
+// Delete) is left completely untouched by this rule, unlike the
+// earlier version of this file which mistakenly targeted ALL popovers
+// and made unrelated menus transparent/broken.
+.popover:has(.o_theme_sidebar_flyout_panel) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  --bs-popover-bg: transparent;
+  --bs-popover-border-color: transparent;
+}
+
+.popover:has(.o_theme_sidebar_flyout_panel) .popover-arrow {
+  display: none !important;
+}
+
+// ---- Odoo's OWN native dropdown component (separate from Bootstrap's
+// .dropdown-menu above) — used for chrome like the per-page gear/
+// settings icon and the search view's Filters/Group By dropdown.
+// VERIFY: ".o-dropdown--menu" is my best-confidence guess at the real
+// class name for Odoo 17/18's native OWL dropdown, not a guarantee —
+// this is a different underlying component than Bootstrap's dropdown,
+// which is why the .dropdown-menu rule above doesn't reach it. Only
+// background-color is set here deliberately: unlike padding/margin,
+// background-color can never shift another element's position, so
+// even if this selector guess is wrong, it's a zero-risk no-op rather
+// than a repeat of the earlier padding regression.
+.o-dropdown--menu {
+  background-color: #ffffff !important;
+}
+
+// ---- Bootstrap's own .dropdown-menu (action menus, "New" split
+// buttons, etc.) — only non-layout-affecting properties touched here
+// (border-radius, box-shadow, background-on-hover), deliberately NOT
+// padding/margin/border-width, since those shift a container's
+// internal coordinate frame. Odoo's action menu has a nested "Print"
+// submenu positioned absolute relative to this same menu, and an
+// earlier version of this rule added padding here, which broke that
+// submenu's positioning. Lesson learned — kept conservative now.
+.dropdown-menu {
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  .dropdown-item {
+    border-radius: 6px;
+    transition: background 0.15s ease-out;
+
+    &:hover,
+    &:focus {
+      background: var(--erp-accent-08) !important;
+      color: var(--erp-text) !important;
+    }
+  }
+}
+
+// ---- Control panel / breadcrumb bar ----
+.o_control_panel {
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--erp-border-soft);
+}
+
+.o_control_panel .o_breadcrumb,
+.o_control_panel .breadcrumb {
+  color: var(--erp-text);
+}
+
+.o_control_panel .breadcrumb-item a,
+.o_control_panel .o_breadcrumb a {
+  color: var(--erp-text-dim);
+  transition: color 0.15s ease-out;
+
+  &:hover {
+    color: var(--erp-accent);
+  }
+}
+
+// ---- Status/pipeline stepper (e.g. Quotation -> Quotation Sent ->
+// Sales Order) — current step gets the accent color, earlier/inactive
+// steps stay muted rather than Odoo's default blue/purple highlight.
+.o_statusbar_status .o_arrow_button.o_arrow_button_current,
+.o_statusbar_status .o_arrow_button.disabled.o_arrow_button_current {
+  background-color: var(--erp-accent) !important;
+  color: #ffffff !important;
+}
+
+.o_statusbar_status .o_arrow_button:not(.o_arrow_button_current) {
+  color: var(--erp-text-dim);
+}
+
+// ---- Primary buttons (New, Save, Confirm, etc.) ----
+.btn-primary {
+  background-color: var(--erp-accent) !important;
+  border-color: var(--erp-accent) !important;
+  color: #ffffff !important;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: filter 0.15s ease-out, transform 0.15s ease-out, box-shadow 0.15s ease-out;
+
+  &:hover {
+    filter: brightness(0.92);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px var(--erp-accent-30);
+  }
+  &:active {
+    transform: translateY(0);
+  }
+  &:disabled,
+  &.disabled {
+    filter: grayscale(0.4) brightness(1.1);
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+// ---- Secondary / outline buttons (Discard, Upload, etc.) ----
+.btn-secondary,
+.btn-outline-secondary {
+  border-radius: 6px;
+  transition: border-color 0.15s ease-out, color 0.15s ease-out;
+
+  &:hover {
+    border-color: var(--erp-accent);
+    color: var(--erp-accent);
+  }
+}
+
+// ---- View switcher icon group (list/kanban/calendar/etc.) ----
+.o_cp_switch_buttons .btn.active,
+.o_control_panel .o_switch_view.active {
+  background: var(--erp-accent) !important;
+  color: #ffffff !important;
+  border-color: var(--erp-accent) !important;
+}
+
+// ---- Search bar ----
+.o_searchview {
+  transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out;
+
+  &:focus-within {
+    box-shadow: 0 0 0 3px var(--erp-accent-12);
+  }
+}
+
+.o_searchview_facet .o_searchview_facet_label {
+  background: var(--erp-accent) !important;
+}
+
+// ---- Notebook tabs (e.g. "Order Lines" / "Other Info") ----
+.o_notebook .nav-link {
+  color: var(--erp-text-dim);
+  transition: color 0.15s ease-out, border-color 0.15s ease-out;
+
+  &.active {
+    color: var(--erp-text) !important;
+    border-bottom-color: var(--erp-accent) !important;
+    font-weight: 500;
+  }
+  &:hover:not(.active) {
+    color: var(--erp-accent);
+  }
+}
+
+// ---- List view ----
+.o_list_view thead {
+  background: var(--erp-submenu-bg);
+}
+
+.o_list_view tbody tr {
+  transition: background 0.12s ease-out;
+
+  &:hover {
+    background: var(--erp-accent-08) !important;
+  }
+}
+
+// ---- Form input focus rings ----
+.o_field_widget .o_input:focus,
+.o_field_widget input:focus,
+.form-control:focus {
+  border-color: var(--erp-accent) !important;
+  box-shadow: 0 0 0 3px var(--erp-accent-12) !important;
+}
+
+// ---- Form checks / checkboxes / radios ----
+.form-check-input:checked {
+  background-color: var(--erp-accent) !important;
+  border-color: var(--erp-accent) !important;
+}
+
+.form-check-input:focus {
+  box-shadow: 0 0 0 3px var(--erp-accent-12) !important;
+  border-color: var(--erp-accent) !important;
+}
+
+// ---- Generic links (excludes our own sidebar links, already themed) ----
+a:not(.btn):not(.dropdown-item):not(.o_theme_sidebar_app):not(.o_theme_sidebar_submenu_item):not(.o_theme_sidebar_profile_menu_item) {
+  color: var(--erp-accent);
+}
+
+// ---- Loading indicator / spinners ----
+.o_loading_indicator,
+.o_spinner,
+.fa-spin {
+  color: white !important;
+}
+
+// ---- Plain kanban cards (safe, additive touch only — module-specific
+// dashboard tiles with their own inline colors are deliberately left
+// alone, see scope note at the top of this file) ----
+.oe_kanban_global_click {
+  transition: box-shadow 0.15s ease-out, transform 0.15s ease-out;
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+}
+
+// ---- Main content area scrollbar, matching the sidebar's own ----
+.o_content,
+.o_action_manager {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--erp-accent-30);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--erp-accent-70);
+  }
+  scrollbar-width: thin;
+  scrollbar-color: var(--erp-accent-30) transparent;
+}
+
+// ---- Base font size ----
+// A modest reduction so the main content area reads at a size
+// proportionate to the sidebar, rather than noticeably larger. Only
+// font-size/line-height, no padding or width touched, so this can't
+// disturb any positioning math the way the earlier dropdown bug did.
+//
+// IMPORTANT: setting font-size only on the ancestor containers (as the
+// previous version of this rule did) relies on inheritance — but
+// Bootstrap's own input/.form-control/table-cell rules almost certainly
+// declare their OWN explicit font-size (often in rem, tied to the root
+// font size). An element's own explicit rule always wins over an
+// inherited value from a parent, no matter the specificity — the exact
+// same mechanism behind the chevron-color bug earlier in this project.
+// That's why the previous version barely changed anything. Targeting
+// the actual leaf elements directly here fixes the real cause.
+.o_content,
+.o_form_view,
+.o_list_view,
+.o_kanban_view,
+.o_content input,
+.o_content textarea,
+.o_content select,
+.o_content .form-control,
+.o_content .o_field_widget,
+.o_content table,
+.o_content td,
+.o_content th,
+.o_content .btn,
+.o_content label {
+  font-size: 12.5px !important;
+}
+
+// The record title (e.g. the big "New" / quotation number heading at
+// the top of a form) tends to render quite large by Odoo's own
+// default — sized down to feel intentional rather than oversized
+// relative to everything else on the page. Using a fixed px value
+// instead of rem, so it can't drift if root font-size ever changes.
+// VERIFY: ".oe_title" is my best-confidence guess for the wrapper Odoo
+// uses around a form's main title field — if this doesn't visibly
+// shrink that heading, inspect it in devtools and send me the real
+// class/selector.
+//
+// IMPORTANT: only the h1 itself is targeted here, not "* " (every
+// descendant). Some forms — the Users form is one — group more than
+// one field inside the same .oe_title container (Name AND Email both
+// sat inside it), so the earlier wildcard version was inflating both
+// together. Scoping to just the h1 leaves any secondary field in that
+// same container at its normal size.
+.o_form_sheet .oe_title h1,
+.o_form_sheet .oe_title > h1 {
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+}
+
+// ---- "Load more" pagination control (e.g. bottom of a kanban card
+// grid) — was rendering with low opacity/low contrast text. Only
+// opacity/color touched here, zero layout risk.
+// VERIFY: ".o_kanban_load_more" is my best-confidence guess at the
+// real class; if this doesn't visibly brighten it, inspect the element
+// in devtools and send me the actual class name.
+.o_kanban_load_more,
+.o_kanban_load_more .btn,
+.o_pager_area .o_pager_next {
+  opacity: 1 !important;
+  color: var(--erp-text) !important;
+}
+
+// ---- Permanent field affordance ----
+// Odoo's default style keeps most fields borderless/invisible until you
+// hover or click into them — which makes it unclear at a glance where
+// data actually goes. This gives editable fields a permanent, subtle
+// underline + shadow so they read as "enter data here" all the time,
+// not just on interaction. Border-bottom only (not a full border), and
+// box-sizing:border-box (standard in Bootstrap's reboot) means this
+// can't shift layout width/height the way the earlier padding bug did.
+.o_content .o_field_widget input:not([type="checkbox"]):not([type="radio"]),
+.o_content .o_field_widget textarea,
+.o_content .o_input:not(.o_form_label) {
+  border-bottom: 1px solid var(--erp-border-soft) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+
+  &:hover {
+    border-bottom-color: var(--erp-accent-45) !important;
+  }
+
+  &:focus {
+    border-bottom-color: var(--erp-accent) !important;
+    box-shadow: 0 2px 6px var(--erp-accent-18);
+  }
+}
+
+// ============================================================
+// FORMS & MOTION
+// ============================================================
+// Same conservative principle as the dropdown-menu fix above: every
+// rule here only touches color, border-radius, box-shadow, or
+// transform/opacity-based animation. None of these can shift another
+// element's positioning math the way padding/margin/width changes can
+// — transform and opacity are explicitly "compositor-only" properties
+// that don't trigger layout reflow at all, which is exactly why
+// they're the safe choice for broad animation passes like this one.
+
+@keyframes viewMountIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Odoo's OWL framework re-mounts these container elements fresh on
+// most navigation, so a mount animation replays on view switches.
+// VERIFY: if it only plays once per page load instead of on every
+// navigation, that means Odoo is patching this element's contents
+// in-place rather than remounting the whole node on your version —
+// tell me and we'll key the animation off a different, more specific
+// class instead.
+.o_form_view,
+.o_list_view,
+.o_kanban_view {
+  animation: viewMountIn 0.25s ease-out;
+}
+
+// ---- Form "sheet" (the white card the form fields sit inside) ----
+// Card elevation via border-radius + box-shadow only — no padding/
+// margin touched, so the sheet's own internal field spacing is
+// completely untouched.
+.o_form_sheet {
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.05);
+}
+
+// A subtle neutral backdrop behind the sheet makes the white card
+// visually "float" instead of blending into the page — background
+// color doesn't affect layout, safe to apply broadly.
+.o_form_renderer {
+  background: #f7f6f3;
+}
+
+// ---- Field labels: refined, quieter, more "premium SaaS form"
+// (Stripe/Linear/Notion all use small uppercase muted labels above
+// fields rather than Odoo's default plain-weight inline labels) ----
+.o_form_label {
+  color: var(--erp-text-dim);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+}
+
+// ---- Stat buttons (the little boxes in the top-right of a form,
+// e.g. "Sold", "Invoiced") — hover lift, transform-only so it can't
+// disturb sibling positioning ----
+.o_button_box .btn {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  }
+}
+
+// ---- Notebook tab content: fade in on tab switch ----
+.o_notebook_content > .tab-pane.active {
+  animation: viewMountIn 0.2s ease-out;
+}
+
+// ---- Chatter (messages/activity panel) scrollbar, matching the rest ----
+.o-mail-Thread,
+.o-mail-Chatter {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--erp-accent-30);
+    border-radius: 10px;
+  }
+  scrollbar-width: thin;
+  scrollbar-color: var(--erp-accent-30) transparent;
+}
+
+// Respect OS-level "reduce motion" accessibility setting — disables
+// every animation/transition this file adds, without touching color
+// or static layout at all.
+@media (prefers-reduced-motion: reduce) {
+  .o_form_view,
+  .o_list_view,
+  .o_kanban_view,
+  .o_notebook_content > .tab-pane.active,
+  .o_button_box .btn,
+  .oe_kanban_global_click,
+  .btn-primary,
+  .dropdown-item {
+    animation: none !important;
+    transition: none !important;
+  }
+}

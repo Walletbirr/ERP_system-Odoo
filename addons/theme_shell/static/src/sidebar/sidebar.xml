@@ -72,7 +72,7 @@
                             <div t-if="app.id === state.expandedAppId and state.currentAppSubmenus.length"
                                  class="o_theme_sidebar_submenus">
                                 <t t-foreach="state.currentAppSubmenus" t-as="item" t-key="item.id">
-                                    <SidebarMenuItem item="item" onLeafClick="onLeafClick"/>
+                                    <SidebarMenuItem item="item" onLeafClick="onLeafClick" sidebarState="state"/>
                                 </t>
                             </div>
                         </div>
@@ -83,7 +83,7 @@
             <!-- Sticky footer: profile / logout -->
             <div class="o_theme_sidebar_footer" t-ref="profileContainer">
                 <div t-if="state.profileOpen" class="o_theme_sidebar_profile_menu">
-                    <a t-attf-href="/odoo/settings/users/{{userService.userId}}" class="o_theme_sidebar_profile_menu_item">
+                    <a href="#" class="o_theme_sidebar_profile_menu_item" t-on-click.prevent="openProfile">
                         <i class="fa fa-user"/> <span>Profile</span>
                     </a>
                     <a href="#" class="o_theme_sidebar_profile_menu_item" t-on-click.prevent="logout">
@@ -105,7 +105,7 @@
         <div class="o_theme_sidebar_menu_item_wrapper"
              t-att-class="{ 'has_children': hasChildren }"
              t-ref="root">
-            <a href="#" class="o_theme_sidebar_submenu_item" t-on-click.prevent="onClick">
+            <a t-att-href="href" class="o_theme_sidebar_submenu_item" t-att-class="{ 'active': isActive }" t-on-click.prevent="onClick">
                 <span t-esc="props.item.name"/>
                 <i t-if="hasChildren" class="fa fa-chevron-right o_theme_sidebar_flyout_caret"/>
             </a>
@@ -121,7 +121,7 @@
     <t t-name="theme_shell.SidebarFlyoutPanel">
         <div class="o_theme_sidebar_flyout_panel">
             <t t-foreach="props.items" t-as="item" t-key="item.id">
-                <SidebarMenuItem item="item" onLeafClick="props.onLeafClick"/>
+                <SidebarMenuItem item="item" onLeafClick="props.onLeafClick" sidebarState="props.sidebarState"/>
             </t>
         </div>
     </t>
