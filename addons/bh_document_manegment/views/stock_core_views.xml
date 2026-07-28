@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        These three inherit real, verified core views (confirmed via
+        Developer Mode > Edit View by the user directly) rather than
+        guessed IDs. Each xpath anchors to an element confirmed present
+        in the actual current architecture.
+    -->
+
+    <!-- 1. Lots/Serial Numbers LIST view -->
+    <record id="view_production_lot_tree_serial_number" model="ir.ui.view">
+        <field name="name">stock.lot.tree.serial.number</field>
+        <field name="model">stock.lot</field>
+        <field name="inherit_id" ref="stock.view_production_lot_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_id']" position="after">
+                <field name="x_secondary_number" optional="show"/>
+                <field name="shipment_reference" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- 2. Lots/Serial Numbers FORM view -->
+    <record id="view_production_lot_form_serial_number" model="ir.ui.view">
+        <field name="name">stock.lot.form.serial.number</field>
+        <field name="model">stock.lot</field>
+        <field name="inherit_id" ref="stock.view_production_lot_form"/>
+        <field name="arch" type="xml">
+            <!--
+                Anchored to the button_box div (confirmed present) rather
+                than near the "name"/VIN field, since that field lives
+                inside a large-font title block in this form - inserting
+                there caused an oversized-text bug in a different screen
+                earlier in this build. This anchor avoids that.
+            -->
+            <xpath expr="//div[@name='button_box']" position="after">
+                <group string="Vehicle Identification">
+                    <field name="x_secondary_number"/>
+                    <field name="shipment_reference"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- 3. On Hand / Update Quantity (Quants) LIST view -->
+    <record id="view_stock_quant_tree_editable_serial_number" model="ir.ui.view">
+        <field name="name">stock.quant.list.editable.serial.number</field>
+        <field name="model">stock.quant</field>
+        <field name="inherit_id" ref="stock.view_stock_quant_tree_editable"/>
+        <field name="arch" type="xml">
+            <!-- Label only - same field (lot_id), same behavior. -->
+            <xpath expr="//field[@name='lot_id']" position="attributes">
+                <attribute name="string">VIN</attribute>
+            </xpath>
+            <xpath expr="//field[@name='lot_id']" position="after">
+                <field name="x_lot_secondary_number" optional="show"
+                       groups="stock.group_production_lot"/>
+                <field name="x_lot_shipment_reference" string="Shipment" optional="show"
+                       groups="stock.group_production_lot"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

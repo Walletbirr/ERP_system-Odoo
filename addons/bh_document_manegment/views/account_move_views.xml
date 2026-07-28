@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        RISK NOTE (read before installing): this inherits the core
+        account.move form view and reaches inside the embedded
+        invoice_line_ids list to add columns. Unlike the product.category
+        view above (a stable, standalone view), this targets a nested
+        structure inside a large core view that changes more often between
+        Odoo point releases. If this specific record fails to install with
+        a ParseError mentioning invoice_line_ids or view_move_form, it is
+        safe to simply remove this file from the manifest's data list and
+        reinstall - the standalone "Vehicle Document Tracking" report
+        (vehicle_document_tracking_views.xml) does not depend on this and
+        will work regardless.
+    -->
+    <record id="view_move_form_document_tracking" model="ir.ui.view">
+        <field name="name">account.move.form.document.tracking</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='invoice_line_ids']//list" position="inside">
+                <field name="x_is_vehicle_line" column_invisible="1"/>
+                <field name="x_has_unassigned_units" column_invisible="1"/>
+                <button name="action_generate_units_button"
+                        type="object" string="Generate Units" icon="fa-magic"
+                        invisible="not x_is_vehicle_line or unit_ids"
+                        help="Only needed for invoices posted before this tracking was set up - new invoices generate units automatically."/>
+                <button name="action_sync_units_button"
+                        type="object" string="Sync VINs" icon="fa-refresh"
+                        invisible="not x_has_unassigned_units"
+                        help="Match this line's units to VINs from the sale order's validated delivery. Needed when the invoice was posted before the delivery was validated."/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

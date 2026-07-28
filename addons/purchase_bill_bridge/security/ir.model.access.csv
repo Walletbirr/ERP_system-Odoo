@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_purchase_order_billing_readonly,purchase.order.billing.readonly,purchase.model_purchase_order,account.group_account_invoice,1,0,0,0
+access_purchase_order_accountant_readonly,purchase.order.accountant.readonly,purchase.model_purchase_order,account.group_account_user,1,0,0,0
+access_purchase_order_line_billing_readonly,purchase.order.line.billing.readonly,purchase.model_purchase_order_line,account.group_account_invoice,1,0,0,0
+access_purchase_order_line_accountant_readonly,purchase.order.line.accountant.readonly,purchase.model_purchase_order_line,account.group_account_user,1,0,0,0

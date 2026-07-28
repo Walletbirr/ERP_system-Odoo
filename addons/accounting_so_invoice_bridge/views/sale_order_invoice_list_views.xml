@@ -11,6 +11,7 @@
                 <field name="partner_id" string="Customer"/>
                 <field name="user_id" string="Salesperson"/>
                 <field name="amount_total" string="Total" sum=""/>
+                <field name="currency_id"/>
                 <field name="invoice_status" widget="badge"
                        decoration-success="invoice_status == 'to invoice'"/>
             </list>

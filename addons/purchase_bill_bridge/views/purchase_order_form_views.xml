@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_purchase_order_form_restrict_create_bill" model="ir.ui.view">
+        <field name="name">purchase.order.form.restrict.create.bill</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <!--
+                CONFIRMED via odoo shell against the live merged form view:
+                there are TWO buttons named "action_create_invoice" on the
+                Purchase Order form (mirrors sale.order's create_invoice +
+                create_invoice_percentage pair). An xpath without an index
+                only patches the first match, silently leaving the second
+                fully exposed - that was the original bug. Both are now
+                targeted explicitly by position.
+            -->
+            <xpath expr="//button[@name='action_create_invoice'][1]" position="before">
+                <field name="can_create_bill" invisible="1"/>
+            </xpath>
+            <xpath expr="//button[@name='action_create_invoice'][1]" position="attributes">
+                <attribute name="groups">purchase_bill_bridge.group_purchase_bill_creator,base.group_system</attribute>
+                <attribute name="invisible">state != 'purchase' or not can_create_bill</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_create_invoice'][2]" position="attributes">
+                <attribute name="groups">purchase_bill_bridge.group_purchase_bill_creator,base.group_system</attribute>
+                <attribute name="invisible">state not in ('purchase', 'done') or invoice_status not in ('no', 'invoiced') or not order_line or not can_create_bill</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

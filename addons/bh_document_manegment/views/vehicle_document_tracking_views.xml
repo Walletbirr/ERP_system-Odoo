@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_vehicle_document_tracking_list" model="ir.ui.view">
+        <field name="name">vehicle.document.unit.list</field>
+        <field name="model">vehicle.document.unit</field>
+        <field name="arch" type="xml">
+            <list string="Vehicle Document Tracking" create="false" delete="false">
+                <field name="x_can_manage_documents" invisible="1"/>
+                <field name="sequence" string="Unit #"/>
+                <field name="move_id" string="Invoice"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="product_id" string="Vehicle"/>
+                <field name="lot_id" string="VIN"
+                       readonly="lot_id != False or not x_can_manage_documents"
+                       options="{'no_create': True, 'no_open': True}"/>
+                <field name="x_lot_secondary_number" optional="hide"/>
+                <field name="shipment_reference" string="Shipment" optional="hide"/>
+                <field name="unit_price" string="Unit Value" sum="Total"/>
+                <field name="x_document_status" widget="badge"
+                       decoration-danger="x_document_status == 'locked'"
+                       decoration-warning="x_document_status == 'ready'"
+                       decoration-success="x_document_status == 'collected'"/>
+                <field name="x_document_collected_by" optional="hide"/>
+                <button name="action_open_collection_wizard"
+                        type="object" string="Mark Collected" icon="fa-check"
+                        invisible="x_document_status != 'ready'"
+                        groups="bh_document_manegment.group_document_collector"/>
+                <button name="action_view_collector_details"
+                        type="object" string="View Details" icon="fa-eye"
+                        invisible="x_document_status != 'collected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_vehicle_document_tracking_form" model="ir.ui.view">
+        <field name="name">vehicle.document.unit.form</field>
+        <field name="model">vehicle.document.unit</field>
+        <field name="arch" type="xml">
+            <form string="Vehicle Document Unit" create="false" delete="false">
+                <field name="x_can_manage_documents" invisible="1"/>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="move_id" readonly="1"/>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="product_id" readonly="1"/>
+                            <field name="sequence" readonly="1" string="Unit #"/>
+                            <field name="unit_price" readonly="1"/>
+                            <field name="lot_id"
+                                   readonly="lot_id != False or not x_can_manage_documents"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <field name="x_lot_secondary_number" readonly="1"/>
+                            <field name="shipment_reference" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="x_document_status" widget="badge" readonly="1"/>
+                            <field name="x_move_date_fully_paid" readonly="1"/>
+                            <field name="x_document_collected_date" readonly="1"/>
+                            <field name="x_document_collected_by" readonly="1"/>
+                            <field name="x_document_notes" readonly="not x_can_manage_documents"/>
+                        </group>
+                    </group>
+                    <group string="Collector Details" invisible="x_document_status != 'collected'">
+                        <group>
+                            <field name="x_collector_dealer_id" readonly="1"/>
+                            <field name="x_collector_name" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="x_collected_number" readonly="1"/>
+                            <field name="x_collector_phone" readonly="1"/>
+                            <field name="x_id_document_type" readonly="1"/>
+                            <field name="x_id_document" filename="x_id_document_filename" readonly="1"/>
+                            <field name="x_id_document_filename" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_open_collection_wizard" type="object"
+                            string="Mark as Collected" class="btn-primary"
+                            invisible="x_document_status != 'ready'"
+                            groups="bh_document_manegment.group_document_collector"/>
+                    <button name="action_undo_document_collected" type="object"
+                            string="Undo Collection"
+                            invisible="x_document_status != 'collected'"
+                            groups="bh_document_manegment.group_document_collector"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_vehicle_document_tracking_search" model="ir.ui.view">
+        <field name="name">vehicle.document.unit.search</field>
+        <field name="model">vehicle.document.unit</field>
+        <field name="arch" type="xml">
+            <search string="Vehicle Document Tracking">
+                <field name="move_id"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="lot_id"/>
+                <filter string="Ready for Collection" name="ready"
+                        domain="[('x_document_status', '=', 'ready')]"/>
+                <filter string="Locked - Payment Pending" name="locked"
+                        domain="[('x_document_status', '=', 'locked')]"/>
+                <filter string="Collected" name="collected"
+                        domain="[('x_document_status', '=', 'collected')]"/>
+                <separator/>
+                <filter string="Fully Paid Invoice, Waiting 30+ Days" name="waiting_30"
+                        domain="[('x_move_date_fully_paid', '&lt;=', (context_today() - relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status"
+                            context="{'group_by': 'x_document_status'}"/>
+                    <filter string="Customer" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Invoice" name="group_invoice"
+                            context="{'group_by': 'move_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_vehicle_document_tracking" model="ir.actions.act_window">
+        <field name="name">Vehicle Document Tracking</field>
+        <field name="res_model">vehicle.document.unit</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_vehicle_document_tracking_search"/>
+        <field name="domain">[('x_document_status', '!=', 'na')]</field>
+        <field name="context">{'search_default_ready': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_vehicle_document_tracking_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_vehicle_document_tracking_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No vehicle units waiting on tracking right now.
+            </p>
+            <p>
+                One row per physical vehicle (VIN). A unit becomes "Ready
+                for Collection" as soon as enough of the invoice has been
+                paid to cover its individual value - even on a partially
+                paid invoice, whichever units are covered by the amount
+                paid so far unlock automatically.
+            </p>
+        </field>
+    </record>
+
+    <!-- NOTE: the menu entry for this flat report was intentionally
+         removed to avoid a redundant second menu - access it via the
+         "Document Tracking" menu (by-invoice view) instead, or from the
+         "View Units" drill-down button on an invoice line. The action and
+         views above are kept because action_view_units() in
+         account_move.py still references view_vehicle_document_tracking_list
+         and view_vehicle_document_tracking_form directly. -->
+
+</odoo>

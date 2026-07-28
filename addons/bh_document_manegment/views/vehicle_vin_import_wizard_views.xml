@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_vehicle_vin_import_wizard_form" model="ir.ui.view">
+        <field name="name">vehicle.vin.import.wizard.form</field>
+        <field name="model">vehicle.vin.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Import VIN / Serial Numbers">
+                <div class="alert alert-info d-flex mb-3" role="alert">
+                    <i class="fa fa-info-circle mt-1 me-2" title="Info"/>
+                    <div>
+                        <strong>Upload a spreadsheet with these columns:</strong>
+                        <div class="mt-2 mb-2">
+                            <span class="badge text-bg-secondary me-1">Product</span>
+                            <span class="badge text-bg-secondary me-1">VIN</span>
+                            <span class="badge text-bg-secondary me-1">Serial Number</span>
+                            <span class="badge text-bg-secondary">Quantity</span>
+                        </div>
+                        <span class="text-muted" style="font-size: 0.9em;">
+                            Existing blank Lot/Serial lines on this receipt are
+                            filled in first (no duplicates); a new line is only
+                            added if none is left and doing so would not exceed
+                            the ordered quantity.
+                        </span>
+                    </div>
+                </div>
+                <group>
+                    <field name="picking_id" invisible="1"/>
+                    <field name="import_file" filename="import_filename" string="VIN / Serial Excel File"/>
+                    <field name="import_filename" invisible="1"/>
+                </group>
+                <field name="x_validation_state" invisible="1"/>
+                <div class="d-flex align-items-center mt-2 mb-2" invisible="not import_file">
+                    <button name="action_validate_file" type="object"
+                            string="Test File Columns" class="btn-secondary"
+                            icon="fa-check-square-o"/>
+                    <span class="text-muted ms-2" style="font-size: 0.9em;"
+                          invisible="x_validation_state != 'none'">
+                        Run this to check the file's columns before importing.
+                    </span>
+                </div>
+                <div class="alert alert-success d-flex mb-2" role="alert"
+                     invisible="x_validation_state != 'valid'">
+                    <i class="fa fa-check-circle mt-1 me-2" title="Valid"/>
+                    <field name="x_validation_message" readonly="1" nolabel="1"/>
+                </div>
+                <div class="alert alert-danger d-flex mb-2" role="alert"
+                     invisible="x_validation_state != 'invalid'">
+                    <i class="fa fa-exclamation-triangle mt-1 me-2" title="Invalid"/>
+                    <field name="x_validation_message" readonly="1" nolabel="1"/>
+                </div>
+                <footer>
+                    <button name="action_import" type="object" string="Import"
+                            class="btn-primary" icon="fa-upload" data-hotkey="q"
+                            invisible="x_validation_state != 'valid'"/>
+                    <button string="Cancel" special="cancel" data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_vehicle_vin_import_wizard" model="ir.actions.act_window">
+        <field name="name">Import VIN / Serial Numbers</field>
+        <field name="res_model">vehicle.vin.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_vehicle_vin_import_wizard_form"/>
+    </record>
+
+    <!--
+        Button on the Receipt (stock.picking) form, anchored to the
+        unique "Mark as Todo" button (confirmed present, single
+        occurrence, unlike button_validate which appears twice). Only
+        shown for incoming receipts not yet done/cancelled.
+    -->
+    <record id="view_picking_form_vin_import_button" model="ir.ui.view">
+        <field name="name">stock.picking.form.vin.import.button</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_confirm']" position="before">
+                <button name="%(action_vehicle_vin_import_wizard)d"
+                        type="action" string="Import VIN / Serial Numbers"
+                        groups="stock.group_stock_user"
+                        invisible="picking_type_code != 'incoming' or state in ('done', 'cancel')"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

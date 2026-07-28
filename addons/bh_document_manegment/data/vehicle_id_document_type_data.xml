@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Same four options that used to be hardcoded on the Selection
+         field, recreated here as editable records so upgrading doesn't
+         change what a user sees. Feel free to rename/reorder/archive
+         these, or add more, from Document Tracking > Configuration >
+         ID Document Types. -->
+    <record id="vehicle_id_document_type_kebele" model="vehicle.id.document.type">
+        <field name="name">Kebele ID</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="vehicle_id_document_type_national" model="vehicle.id.document.type">
+        <field name="name">National ID</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="vehicle_id_document_type_license" model="vehicle.id.document.type">
+        <field name="name">Driving License</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="vehicle_id_document_type_other" model="vehicle.id.document.type">
+        <field name="name">Other</field>
+        <field name="sequence">40</field>
+    </record>
+
+</odoo>

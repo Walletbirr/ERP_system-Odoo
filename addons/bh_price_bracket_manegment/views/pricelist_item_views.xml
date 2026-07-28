@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Existing bracket-mode hint banner - unchanged.
+    -->
+    <record id="view_product_pricelist_item_form_bracket_hint" model="ir.ui.view">
+        <field name="name">product.pricelist.item.form.bracket.hint</field>
+        <field name="model">product.pricelist.item</field>
+        <field name="inherit_id" ref="product.product_pricelist_item_form_view"/>
+        <field name="arch" type="xml">
+            <field name="compute_price" position="after">
+                <div class="alert alert-info" role="alert"
+                     invisible="compute_price != 'bracket'">
+                    The discount is looked up automatically from
+                    <b>Settings &gt; Sales &gt; Price Brackets</b> based on
+                    each product's own Sales Price. No manual discount
+                    value is needed here.
+                </div>
+            </field>
+        </field>
+    </record>
+
+    <!--
+        Tax-Included Fixed Price helper.
+
+        v2.2.2: dropped the 'company_id' reference from the Tax
+        field's client-side domain - referencing it there caused the
+        many2one widget to render blank/invisible instead of showing
+        as a normal dropdown. Company scoping for the auto-fill
+        default is still handled correctly in Python
+        (_onchange_autofill_target_tax); the field itself now just
+        filters to sale-type percentage taxes, same as Target Price's
+        normal visible input.
+
+        v2.2.3: the "Tax" dropdown is hidden from the form per user
+        request - staff shouldn't need to see/pick a tax record. The
+        field is kept in the view (invisible="1") rather than removed
+        outright, so it still participates in the form's onchange
+        cycle: _onchange_autofill_target_tax still auto-fills it in
+        the background, and it's still what
+        _apply_target_price_server_side reads to back-calculate the
+        tax-excluded Fixed Price on save. No Python logic changed -
+        this is a display-only change. The dynamic "required" flag
+        was dropped along with visibility: a hidden field can't be
+        fixed by the user if auto-fill ever fails to match a tax, so
+        forcing it as required would block saving with no way out.
+    -->
+    <record id="view_product_pricelist_item_form_tax_included_target" model="ir.ui.view">
+        <field name="name">product.pricelist.item.form.tax.included.target</field>
+        <field name="model">product.pricelist.item</field>
+        <field name="inherit_id" ref="product.product_pricelist_item_form_view"/>
+        <field name="arch" type="xml">
+            <field name="compute_price" position="after">
+                <group string="Tax-Included Price Helper"
+                       invisible="compute_price != 'fixed'"
+                       col="2">
+                    <field name="target_price_tax_included"/>
+                    <field name="target_total_price"
+                           invisible="not target_price_tax_included"
+                           required="target_price_tax_included"/>
+                    <field name="target_tax_id" invisible="1"/>
+                </group>
+            </field>
+        </field>
+    </record>
+
+</odoo>

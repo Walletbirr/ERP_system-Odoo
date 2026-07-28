@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_vehicle_document_collection_wizard_form" model="ir.ui.view">
+        <field name="name">vehicle.document.collection.wizard.form</field>
+        <field name="model">vehicle.document.collection.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Document Collection">
+                <field name="unit_id" invisible="1"/>
+                <field name="x_lot_prematched" invisible="1"/>
+                <div class="alert alert-warning mb-2" role="alert"
+                     invisible="x_lot_prematched">
+                    This unit doesn't have a VIN auto-matched from the
+                    delivery yet - please select the correct one below.
+                </div>
+                <group>
+                    <group string="Vehicle">
+                        <field name="product_id" string="Vehicle Model"/>
+                        <field name="product_model"/>
+                        <field name="lot_id" readonly="x_lot_prematched"
+                               options="{'no_create': True, 'no_open': True}"/>
+                        <field name="x_secondary_number_display"/>
+                        <field name="shipment_reference"/>
+                        <field name="unit_value"/>
+                        <field name="collection_date"/>
+                        <field name="dealer_id" readonly="1"/>
+                    </group>
+                    <group string="Collector Identity">
+                        <field name="x_is_dealer_collector"/>
+                        <field name="collector_name" readonly="x_is_dealer_collector" force_save="1"/>
+                        <field name="x_collected_number"/>
+                        <field name="collector_phone" readonly="x_is_dealer_collector" force_save="1"/>
+                    </group>
+                </group>
+                <group string="Identity Document">
+                    <field name="id_document_type"/>
+                    <field name="id_document" filename="id_document_filename"
+                           string="ID Document (Image or PDF)"
+                           invisible="not id_document_type"/>
+                    <field name="id_document_filename" invisible="1"/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object"
+                            string="Confirm Collection" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

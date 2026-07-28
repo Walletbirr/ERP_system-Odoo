@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_price_bracket_rule_sale_manager,price.bracket.rule.sale.manager,model_price_bracket_rule,sales_team.group_sale_manager,1,1,1,1
+access_price_bracket_rule_sale_user,price.bracket.rule.sale.user,model_price_bracket_rule,sales_team.group_sale_salesman,1,0,0,0

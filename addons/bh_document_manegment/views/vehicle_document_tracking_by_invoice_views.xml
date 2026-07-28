@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        This is a brand-new, standalone list/form for account.move (not an
+        inherit of the core invoice view), built specifically for the
+        "responsible person" doing document handovers. Because it does not
+        inherit any core view, there is no xpath-matching risk here -
+        unlike account_move_views.xml, this cannot break due to a core
+        view structure change.
+    -->
+
+    <record id="view_move_document_tracking_by_invoice_list" model="ir.ui.view">
+        <field name="name">account.move.document.tracking.by.invoice.list</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <list string="Vehicle Document Tracking - By Invoice" create="false" delete="false">
+                <field name="name" string="Invoice"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="amount_total" string="Total"/>
+                 <field name="currency_id" string="Currency"/>
+                <field name="payment_state" widget="badge"/>
+                <field name="x_date_fully_paid" string="Fully Paid On"/>
+                <field name="x_units_summary_move" string="Document Status"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_move_document_tracking_by_invoice_form" model="ir.ui.view">
+        <field name="name">account.move.document.tracking.by.invoice.form</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <form string="Vehicle Document Tracking" create="false" delete="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" string="Invoice" readonly="1"/>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="amount_total" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="payment_state" widget="badge" readonly="1"/>
+                            <field name="x_date_fully_paid" readonly="1"/>
+                            <field name="x_units_summary_move" readonly="1" string="Overall Status"/>
+                        </group>
+                    </group>
+                    <separator string="Vehicle Units"/>
+                    <button name="action_open_multi_collection_wizard" type="object"
+                            string="Collect Multiple Documents"
+                            class="btn-secondary mb-2" 
+                            groups="bh_document_manegment.group_document_collector"/>
+                    <field name="unit_ids" nolabel="1">
+                        <list editable="bottom" create="false" delete="false">
+                             <field name="x_can_manage_documents" column_invisible="1"/>
+                            <field name="x_row_number" string="No."/>
+                            <field name="product_id" readonly="1"/>
+                            <field name="lot_id" string="VIN"
+                                   readonly="not x_can_manage_documents"/>
+                            <field name="x_lot_secondary_number" optional="hide"/>
+                            <field name="shipment_reference" string="Shipment" optional="hide"/>
+                            <field name="unit_price" readonly="1" string="Unit Value"/>
+                            <field name="x_document_status" widget="badge" readonly="1"
+                                   decoration-danger="x_document_status == 'locked'"
+                                   decoration-warning="x_document_status == 'ready'"
+                                   decoration-success="x_document_status == 'collected'"/>
+                            <field name="x_document_collected_date" optional="hide"/>
+                            <field name="x_document_collected_by" optional="hide"/>
+                            <field name="x_collector_name" optional="hide"/>
+                            <field name="x_collector_phone" optional="hide"/>
+                            <field name="x_document_notes" readonly="not x_can_manage_documents"/>
+                            <button name="action_open_collection_wizard"
+                                    type="object" string="Mark Collected" icon="fa-check"
+                                    invisible="x_document_status != 'ready'"
+                                    groups="bh_document_manegment.group_document_collector"/>
+                            <button name="action_view_collector_details"
+                                    type="object" string="View Details" icon="fa-eye"
+                                    invisible="x_document_status != 'collected'"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_move_document_tracking_by_invoice_search" model="ir.ui.view">
+        <field name="name">account.move.document.tracking.by.invoice.search</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <search string="Vehicle Document Tracking - By Invoice">
+                <field name="name" string="Invoice"/>
+                <field name="partner_id"/>
+                <filter string="Has Locked Units" name="has_locked"
+                        domain="[('unit_ids.x_document_status', '=', 'locked')]"/>
+                <filter string="Has Ready Units" name="has_ready"
+                        domain="[('unit_ids.x_document_status', '=', 'ready')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Customer" name="group_partner"
+                            context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_vehicle_document_tracking_by_invoice" model="ir.actions.act_window">
+        <field name="name">Document Tracking</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_move_document_tracking_by_invoice_search"/>
+        <field name="domain">[('x_has_vehicle_units', '=', True)]</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_move_document_tracking_by_invoice_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_move_document_tracking_by_invoice_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No invoices with vehicle documents yet.
+            </p>
+            <p>
+                One row per invoice, not per vehicle - click an invoice to
+                see and manage all of its vehicle units together on one
+                page: assign VINs and release documents inline.
+            </p>
+        </field>
+    </record>
+
+    <!-- Standalone top-level app menu, mirroring how "Shipment Tracking"
+         is set up: its own icon/entry in the apps grid rather than living
+         tucked inside Sales > Reporting. -->
+    <menuitem id="menu_document_tracking_root" name="Document Tracking" sequence="56"
+              web_icon="bh_document_manegment,static/description/icon.png"/>
+
+    <!-- Placed right after the existing flat per-unit report -->
+    <menuitem id="menu_vehicle_document_tracking_by_invoice"
+              name="Document Tracking"
+              parent="menu_document_tracking_root"
+              action="action_vehicle_document_tracking_by_invoice"
+              sequence="10"/>
+
+</odoo>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_price_bracket_rule_list" model="ir.ui.view">
+        <field name="name">price.bracket.rule.list</field>
+        <field name="model">price.bracket.rule</field>
+        <field name="arch" type="xml">
+            <list string="Price Brackets" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="min_price"/>
+                <field name="max_price" column_invisible="False" readonly="no_max"/>
+                <field name="no_max" string="No upper limit"/>
+                <field name="discount_percent"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active" invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_price_bracket_rule_form" model="ir.ui.view">
+        <field name="name">price.bracket.rule.form</field>
+        <field name="model">price.bracket.rule</field>
+        <field name="arch" type="xml">
+            <form string="Price Bracket">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="min_price"/>
+                            <field name="max_price" readonly="no_max"/>
+                            <field name="no_max"/>
+                        </group>
+                        <group>
+                            <field name="discount_percent"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_price_bracket_rule" model="ir.actions.act_window">
+        <field name="name">Price Brackets</field>
+        <field name="res_model">price.bracket.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smart_create">
+                Define a new price bracket
+            </p>
+            <p>
+                Each bracket says: "if a product's Sales Price falls in
+                this range, apply this discount %". Any pricelist item
+                set to Price Type = <b>Price Bracket</b> will use this
+                table automatically.
+            </p>
+        </field>
+    </record>
+
+    <!-- Sales > Configuration menu entry -->
+    <menuitem id="menu_price_bracket_rule"
+              name="Price Brackets"
+              parent="sale.menu_sale_config"
+              action="action_price_bracket_rule"
+              sequence="60"/>
+
+</odoo>

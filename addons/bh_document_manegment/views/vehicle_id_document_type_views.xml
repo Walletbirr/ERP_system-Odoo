@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_vehicle_id_document_type_list" model="ir.ui.view">
+        <field name="name">vehicle.id.document.type.list</field>
+        <field name="model">vehicle.id.document.type</field>
+        <field name="arch" type="xml">
+            <list string="ID Document Types" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_vehicle_id_document_type_form" model="ir.ui.view">
+        <field name="name">vehicle.id.document.type.form</field>
+        <field name="model">vehicle.id.document.type</field>
+        <field name="arch" type="xml">
+            <form string="ID Document Type">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_vehicle_id_document_type_search" model="ir.ui.view">
+        <field name="name">vehicle.id.document.type.search</field>
+        <field name="model">vehicle.id.document.type</field>
+        <field name="arch" type="xml">
+            <search string="ID Document Types">
+                <field name="name"/>
+                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_vehicle_id_document_type" model="ir.actions.act_window">
+        <field name="name">ID Document Types</field>
+        <field name="res_model">vehicle.id.document.type</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_vehicle_id_document_type_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add an ID document type
+            </p>
+            <p>
+                These are the options offered under "ID Document Type" when
+                confirming a document collection (e.g. Kebele ID, National
+                ID, Driving License).
+            </p>
+        </field>
+    </record>
+
+    <!-- Configuration menu, parented under the module's root app menu
+         (defined in vehicle_document_tracking_by_invoice_views.xml) -->
+    <menuitem id="menu_document_tracking_configuration"
+              name="Configuration"
+              parent="menu_document_tracking_root"
+              sequence="90"/>
+
+    <menuitem id="menu_vehicle_id_document_type"
+              name="ID Document Types"
+              parent="menu_document_tracking_configuration"
+              action="action_vehicle_id_document_type"
+              sequence="10"/>
+
+</odoo>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="access_error_friendly_message.AccessDeniedDialog">
+        <Dialog title="title" size="'md'">
+            <div class="o_access_denied_dialog">
+                <p t-esc="props.message"/>
+            </div>
+            <t t-set-slot="footer">
+                <button class="btn btn-primary" t-on-click="onClose">Close</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

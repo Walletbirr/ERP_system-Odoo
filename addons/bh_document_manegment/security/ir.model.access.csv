@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_vehicle_id_document_type_user,vehicle.id.document.type.user,model_vehicle_id_document_type,base.group_user,1,1,1,1
+access_vehicle_document_unit_user,vehicle.document.unit.user,model_vehicle_document_unit,base.group_user,1,0,0,0
+access_vehicle_document_unit_collector,vehicle.document.unit.collector,model_vehicle_document_unit,bh_document_manegment.group_document_collector,1,1,0,0
+access_vehicle_document_collection_wizard_collector,vehicle.document.collection.wizard.collector,model_vehicle_document_collection_wizard,bh_document_manegment.group_document_collector,1,1,1,1
+access_vehicle_document_multi_collection_wizard_collector,vehicle.document.multi.collection.wizard.collector,model_vehicle_document_multi_collection_wizard,bh_document_manegment.group_document_collector,1,1,1,1
+access_vehicle_vin_import_wizard_user,vehicle.vin.import.wizard.user,model_vehicle_vin_import_wizard,stock.group_stock_user,1,1,1,1

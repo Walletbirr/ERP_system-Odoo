@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_account_po_bill_wizard_form" model="ir.ui.view">
+        <field name="name">account.po.bill.wizard.form</field>
+        <field name="model">account.po.bill.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Vendor Bill from Purchase Order">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="purchase_order_id" options="{'no_create': True}"/>
+                            <field name="partner_id"/>
+                            <field name="invoice_status"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount_total"/>
+                        </group>
+                    </group>
+                    <field name="preview_line_ids" readonly="1">
+                        <list string="Lines to be billed">
+                            <field name="product_id"/>
+                            <field name="name"/>
+                            <field name="product_qty" string="Ordered Qty"/>
+                            <field name="qty_invoiced" string="Already Billed"/>
+                            <field name="price_total" string="Line Total"/>
+                        </list>
+                    </field>
+                    <p class="text-muted" invisible="not purchase_order_id">
+                        Selecting "Create Bill" below creates a draft Vendor
+                        Bill with the Purchase Order's lines pulled in
+                        automatically. Review, set the due date/payment
+                        terms, and post as usual.
+                    </p>
+                </sheet>
+                <footer>
+                    <button name="action_create_bill" type="object"
+                            string="Create Bill" class="btn-primary"
+                            invisible="not purchase_order_id"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_account_po_bill_wizard" model="ir.actions.act_window">
+        <field name="name">Create Vendor Bill from Purchase Order</field>
+        <field name="res_model">account.po.bill.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!--
+        Menu placed inside Invoicing/Accounting > Vendors, right next to the
+        normal Bills menu, so Billing/Accountant users never need to leave
+        the Accounting app to do this.
+    -->
+    <menuitem id="menu_account_po_bill_wizard"
+              name="Create Bill from Purchase Order"
+              parent="account.menu_finance_payables"
+              action="action_account_po_bill_wizard"
+              groups="account.group_account_invoice,account.group_account_user"
+              sequence="15"/>
+
+</odoo>
