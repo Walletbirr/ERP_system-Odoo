@@ -1,0 +1,403 @@
+// ============================================================
+// LOGIN PAGE REDESIGN — v4: floating-label fields, light card
+// ============================================================
+// Scoped entirely under ".o_custom_login_bg" / ".o_custom_login_stage"
+// (added at runtime by login.js) — has ZERO effect anywhere else, even
+// though it loads in the shared "web.assets_frontend" bundle used by
+// portal/website/reset-password/signup pages too.
+
+$ink: #1c1912;
+$ink-soft: #8a8171;
+$ink-faint: #a39a89;
+$field-bg: #faf8f4;
+$field-border: #eae4d8;
+$accent: #ba7517;
+$accent-light: #d99a3c;
+
+// Removes the default browser body margin so the background truly
+// fills the viewport edge-to-edge with no scroll-inducing sliver.
+// Scoped with :has() so it can never affect any other page even
+// though this file loads in the shared frontend bundle; browsers
+// without :has() support simply skip this rule (safe no-op).
+body:has(#wrapwrap.o_custom_login_bg) {
+  margin: 0;
+}
+
+// ---- Soft warm background, form stays the star of the page ----
+#wrapwrap.o_custom_login_bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  background: radial-gradient(circle at 15% 20%, rgba(186, 117, 23, 0.08), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(186, 117, 23, 0.05), transparent 42%),
+    linear-gradient(180deg, #fbf9f6 0%, #f3efe6 100%);
+}
+
+// ---- The card: whatever wrapper node really holds the login form,
+// whatever its own Bootstrap classes are (see login.js) ----
+.o_custom_login_stage {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 36px 36px 32px;
+  box-shadow: 0 1px 2px rgba(20, 18, 15, 0.04), 0 8px 24px rgba(20, 18, 15, 0.06),
+    0 30px 60px rgba(20, 18, 15, 0.1), 0 0 0 1px rgba(20, 18, 15, 0.03);
+  animation: customLoginCardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  max-height: 92vh;
+  overflow-y: auto; // safety fallback only — normal sizing shouldn't ever need this
+}
+
+// Consolidates all vertical spacing to our own margin-bottom system
+// below, instead of whatever spacer/utility classes (mt-3, mb-4, etc.)
+// Odoo's own template may have put on the form's direct children —
+// that stray spacing is what was showing as an oversized gap between
+// the tagline and the email field.
+.o_custom_login_stage form > * {
+  margin-top: 0;
+}
+
+// A slim shimmering accent bar across the top.
+.o_custom_login_stage::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, $accent, $accent-light, $accent);
+  background-size: 200% 100%;
+  animation: customLoginShimmer 3s linear infinite;
+}
+
+@keyframes customLoginCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes customLoginShimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// ---- Brand header: logo above, name + tagline below, centered ----
+.o_custom_login_brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+  animation: customLoginFadeDown 0.5s ease-out 0.1s both;
+}
+
+@keyframes customLoginFadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.o_custom_login_logo img {
+  display: block;
+  max-width: 52px;
+  max-height: 52px;
+  width: auto;
+  height: auto;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 3px 8px rgba(20, 18, 15, 0.15));
+}
+
+.o_custom_login_heading {
+  font-size: 20px;
+  font-weight: 800;
+  color: $ink;
+  letter-spacing: 0.1px;
+}
+
+.o_custom_login_tagline {
+  font-size: 12.5px;
+  color: $ink-soft;
+  margin-top: 4px;
+}
+
+// ---- Floating-label fields ----
+// The field wrapper holds, in DOM order: input -> icon -> label. Label
+// comes AFTER input on purpose (see login.js) so a plain sibling
+// selector can animate it on focus/fill, with zero JS state tracking.
+.o_custom_login_field {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.o_custom_login_field input {
+  width: 100%;
+  // Important because this specific padding (room for the icon on the
+  // left, room for the label to float into on top, extra bottom for
+  // the value line) has to win over the more generic input rule below
+  // regardless of stylesheet ordering — an earlier version of this
+  // file had both rules at equal-ish specificity and the generic one
+  // silently won, which is exactly why the icon was overlapping the
+  // typed text before that fix, and part of why the floated label sat
+  // too close to the value below it.
+  padding: 26px 16px 10px 44px !important;
+  border-radius: 12px;
+  border: 1.5px solid $field-border;
+  background: $field-bg;
+  font-size: 14.5px;
+  color: $ink;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.o_custom_login_has_toggle input {
+  padding-right: 44px !important; // room for the show/hide button
+}
+
+.o_custom_login_field input::placeholder {
+  color: transparent; // the floating label communicates the field, not a placeholder
+}
+
+.o_custom_login_field input:focus {
+  border-color: $accent;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(186, 117, 23, 0.12), 0 4px 14px rgba(186, 117, 23, 0.1);
+  outline: none;
+}
+
+.o_custom_login_field_icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #b8ae9b;
+  font-size: 13px;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.o_custom_login_field input:focus ~ .o_custom_login_field_icon {
+  color: $accent;
+}
+
+// fa-envelope and fa-lock aren't drawn at the same visual weight even at
+// an identical font-size, so nudge the envelope up slightly to balance.
+.o_custom_login_field_icon.fa-envelope {
+  font-size: 14px;
+}
+.o_custom_login_field_icon.fa-lock {
+  font-size: 20px;
+}
+
+.o_custom_login_floating_label {
+  position: absolute;
+  left: 44px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: $ink-faint;
+  text-transform: none;
+  letter-spacing: normal;
+  pointer-events: none;
+  transition: all 0.18s ease;
+  background: transparent;
+}
+
+.o_custom_login_field input:focus ~ .o_custom_login_floating_label,
+.o_custom_login_field input:not(:placeholder-shown) ~ .o_custom_login_floating_label {
+  top: 12px;
+  transform: translateY(0);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: $accent;
+}
+
+// ---- Password show/hide toggle ----
+.o_custom_login_toggle_visibility {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  color: #b8ae9b;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.o_custom_login_toggle_visibility:hover,
+.o_custom_login_toggle_visibility:focus {
+  color: $accent;
+  outline: none;
+}
+
+// ---- Button, pill-shaped, with a light sweep on hover ----
+.o_custom_login_stage .btn-primary {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: linear-gradient(135deg, $accent-light, $accent);
+  border: none;
+  border-radius: 999px;
+  padding: 13px 0;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 13px;
+  color: #ffffff;
+  margin-top: 8px;
+  box-shadow: 0 10px 24px rgba(186, 117, 23, 0.28), 0 2px 6px rgba(186, 117, 23, 0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.o_custom_login_stage .btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
+}
+
+.o_custom_login_stage .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(186, 117, 23, 0.38), 0 4px 10px rgba(186, 117, 23, 0.22);
+}
+
+.o_custom_login_stage .btn-primary:hover::after {
+  left: 130%;
+}
+
+.o_custom_login_stage .btn-primary:active {
+  transform: translateY(0);
+}
+
+// ---- Remaining links (e.g. "Log in as superuser") + fine print ----
+.o_custom_login_stage a {
+  color: $accent;
+  font-weight: 600;
+}
+
+.o_custom_login_stage small,
+.o_custom_login_stage .text-muted {
+  color: $ink-faint;
+}
+
+// Old divider lines from the stock layout don't fit this design.
+.o_custom_login_stage hr {
+  display: none;
+}
+
+// ---- Utility: hides an element while leaving it (and its form value,
+// if any) fully intact in the DOM. Used for the database selector,
+// "Reset Password", "Manage Databases", "Powered by Odoo", and the
+// logo's now-empty original wrapper. ----
+.o_custom_login_hidden {
+  display: none !important;
+}
+
+// ---- Odoo core's "remembered users" switcher. This is a separate Owl
+// component (web.user_switch) that portals a "Choose a user" button
+// into the email field's <label> when the browser has a cached login
+// for this database, and swaps in a full "pick a user" panel in place
+// of the form if more than one is cached. Not part of our form at all,
+// so login.js's DOM text-matching never reliably caught it — hidden
+// here by its real, stable core class names instead. ----
+.o_user_switch_btn,
+.o_user_switch {
+  display: none !important;
+}
+
+// When 2+ cached users exist, web.user_switch also adds "d-none" to the
+// REAL login form itself (to swap in its own picker panel). We hide the
+// picker above but that alone would leave nothing visible, so force the
+// real form back to visible. Scoped to our own login page only, via the
+// same :has() trick used elsewhere in this file — never affects the
+// oe_login_form class if it's ever reused on another page (e.g. portal).
+body:has(#wrapwrap.o_custom_login_bg) form.oe_login_form.d-none {
+  display: block !important;
+}
+
+// ---- Responsive: narrow screens ----
+@media (max-width: 480px) {
+  #wrapwrap.o_custom_login_bg {
+    padding: 24px 12px;
+  }
+  .o_custom_login_stage {
+    padding: 30px 22px 26px;
+    border-radius: 18px;
+  }
+  .o_custom_login_heading {
+    font-size: 18px;
+  }
+}
+
+// ---- Responsive: short screens (laptops with small browser windows,
+// landscape phones/tablets) — compact the vertical rhythm further so
+// the whole card keeps fitting in one screen without scrolling ----
+@media (max-height: 700px) {
+  #wrapwrap.o_custom_login_bg {
+    padding: 16px;
+  }
+  .o_custom_login_stage {
+    padding: 24px 32px 22px;
+  }
+  .o_custom_login_brand {
+    margin-bottom: 16px;
+  }
+  .o_custom_login_logo img {
+    max-width: 40px;
+    max-height: 40px;
+    margin-bottom: 8px;
+  }
+  .o_custom_login_heading {
+    font-size: 17px;
+  }
+  .o_custom_login_tagline {
+    display: none; // first thing to drop when space is tight
+  }
+  .o_custom_login_field {
+    margin-bottom: 12px;
+  }
+  .o_custom_login_field input {
+    padding: 20px 16px 6px 44px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .o_custom_login_stage,
+  .o_custom_login_brand,
+  .o_custom_login_stage::before,
+  .o_custom_login_stage .btn-primary::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

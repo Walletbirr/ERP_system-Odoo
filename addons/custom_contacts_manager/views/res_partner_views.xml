@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================== SEARCH VIEW ===================== -->
+    <record id="view_res_partner_filter_custom" model="ir.ui.view">
+        <field name="name">res.partner.search.custom</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <field name="category_id" position="after">
+                <field name="contact_type_id"/>
+            </field>
+            <field name="category_id" position="after">
+                <filter string="Category" name="group_by_category"
+                        context="{'group_by': 'contact_type_id'}"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- ===================== KANBAN VIEW ===================== -->
+    <record id="view_res_partner_kanban_custom" model="ir.ui.view">
+        <field name="name">res.partner.kanban.custom</field>
+        <field name="model">res.partner</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <kanban class="o_contacts_kanban_custom" quick_create="false"
+                    group_create="false" group_edit="false" group_delete="false">
+                <field name="id"/>
+                <field name="name"/>
+                <field name="display_name"/>
+                <field name="email"/>
+                <field name="phone"/>
+                <field name="city"/>
+                <field name="country_id"/>
+                <field name="image_128"/>
+                <field name="is_company"/>
+                <field name="function"/>
+                <field name="contact_type_id"/>
+                <field name="category_color"/>
+                <field name="active"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="o_kanban_card_header"
+                             t-attf-style="border-left: 4px solid hsl(#{record.category_color.raw_value * 47 % 360}, 55%, 45%); padding-left: 6px;">
+                            <div class="d-flex align-items-center">
+                                <div class="me-2">
+                                    <img t-if="record.image_128.raw_value"
+                                         t-attf-src="/web/image/res.partner/#{record.id.raw_value}/image_128"
+                                         class="o_kanban_image rounded-circle"
+                                         style="width:48px;height:48px;object-fit:cover;"/>
+                                    <div t-else=""
+                                         class="o_kanban_image rounded-circle d-flex align-items-center justify-content-center text-white"
+                                         t-attf-style="width:48px;height:48px;background-color:hsl(#{record.category_color.raw_value * 47 % 360}, 55%, 45%);font-size:20px;">
+                                        <t t-esc="(record.display_name.value || '?').charAt(0)"/>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong><field name="display_name"/></strong>
+                                    <div class="text-muted small">
+                                        <field name="function" t-if="record.function.raw_value"/>
+                                    </div>
+                                    <span class="badge rounded-pill text-bg-light">
+                                        <field name="contact_type_id"/>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mt-2 small text-muted">
+                                <div t-if="record.email.raw_value">
+                                    <i class="fa fa-envelope me-1"/><field name="email"/>
+                                </div>
+                                <div t-if="record.phone.raw_value">
+                                    <i class="fa fa-phone me-1"/><field name="phone"/>
+                                </div>
+                                <div t-if="record.city.raw_value">
+                                    <i class="fa fa-map-marker me-1"/>
+                                    <field name="city"/><span t-if="record.country_id.raw_value">, <field name="country_id"/></span>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- ===================== LIST VIEW ===================== -->
+    <record id="view_res_partner_list_custom" model="ir.ui.view">
+        <field name="name">res.partner.list.custom</field>
+        <field name="model">res.partner</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <list string="Contacts" decoration-muted="not active">
+                <field name="display_name" string="Name"/>
+                <field name="contact_type_id"/>
+                <field name="function" optional="show"/>
+                <field name="email"/>
+                <field name="phone" optional="show"/>
+                <field name="city" optional="show"/>
+                <field name="country_id" optional="hide"/>
+                <field name="user_ids" optional="hide" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ===================== FORM VIEW: category field + conditional sections ===================== -->
+    <record id="view_res_partner_form_custom" model="ir.ui.view">
+        <field name="name">res.partner.form.custom</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="company_type" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <field name="parent_id" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <xpath expr="//div[hasclass('oe_title')]" position="attributes">
+                <attribute name="class" add="mt-2" separator=" "/>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_title')]" position="before">
+                <div class="o_contact_category_picker mb-3 p-3"
+                     style="background:linear-gradient(135deg,#fff9ef 0%,#ffffff 65%);
+                            border-radius:10px;border:1px solid #eadcc0;
+                            box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                    <field name="contact_type_code" invisible="1"/>
+                    <field name="user_ids" invisible="1"/>
+                    <label for="contact_type_id" class="d-block mb-2"
+                           style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+                                  font-weight:700;color:#9c7a1f;">
+                        Contact Category
+                    </label>
+                    <field name="contact_type_id"
+                           widget="radio"
+                           options="{'horizontal': true, 'no_create': True}"
+                           required="not id"
+                           readonly="contact_type_code == 'internal' and user_ids"
+                           nolabel="1"/>
+                    <div class="text-muted small mt-1" invisible="not (contact_type_code == 'internal' and user_ids)">
+                        This contact is linked to a system user, so its category is
+                        managed automatically and can't be changed here.
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ===================== PER-CATEGORY WINDOW ACTIONS ===================== -->
+    <record id="action_contacts_clients" model="ir.actions.act_window">
+        <field name="name">Clients</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('contact_type_code', '=', 'client')]</field>
+        <field name="context" eval="{'default_contact_type_id': ref('classification_client'), 'search_default_customer': 0}"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_res_partner_kanban_custom')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_res_partner_list_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">Add a new client</p></field>
+    </record>
+
+    <record id="action_contacts_customers" model="ir.actions.act_window">
+        <field name="name">Customers</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('contact_type_code', '=', 'customer')]</field>
+        <field name="context" eval="{'default_contact_type_id': ref('classification_customer')}"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_res_partner_kanban_custom')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_res_partner_list_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">Add a new customer</p></field>
+    </record>
+
+    <record id="action_contacts_vendors" model="ir.actions.act_window">
+        <field name="name">Vendors</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('contact_type_code', '=', 'vendor')]</field>
+        <field name="context" eval="{'default_contact_type_id': ref('classification_vendor')}"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_res_partner_kanban_custom')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_res_partner_list_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">Add a new vendor</p></field>
+    </record>
+
+    <record id="action_contacts_companies" model="ir.actions.act_window">
+        <field name="name">Companies</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('contact_type_code', '=', 'company')]</field>
+        <field name="context" eval="{'default_contact_type_id': ref('classification_company'), 'default_is_company': 1}"/>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_res_partner_kanban_custom')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_res_partner_list_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">Add a new company</p></field>
+    </record>
+
+    <record id="action_contacts_internal" model="ir.actions.act_window">
+        <field name="name">Internal Directory</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('contact_type_code', '=', 'internal')]</field>
+        <field name="context">{}</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_res_partner_kanban_custom')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_res_partner_list_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="groups_id" eval="[(4, ref('group_contacts_view_internal')), (4, ref('group_contacts_manager_full'))]"/>
+    </record>
+
+    <record id="action_contacts_all" model="ir.actions.act_window">
+        <field name="name">All Contacts</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{'search_default_group_by_category': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_res_partner_kanban_custom')}),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_res_partner_list_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="groups_id" eval="[(4, ref('group_contacts_manager_full'))]"/>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">Add a new contact</p></field>
+    </record>
+
+</odoo>

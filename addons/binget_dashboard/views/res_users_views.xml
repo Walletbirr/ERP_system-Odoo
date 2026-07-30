@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_users_form_inherit_binget_dashboard" model="ir.ui.view">
+        <field name="name">res.users.form.inherit.binget.dashboard</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <!--
+                Appended as a new notebook page rather than targeting a
+                specific field inside the existing Access Rights tab —
+                that tab's exact internal layout varies enough across
+                Odoo versions/customizations that a precise xpath there
+                is fragile. Targeting the notebook itself is stable.
+            -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Dashboard" name="binget_dashboard">
+                    <group>
+                        <field name="dashboard_role_ids"
+                               widget="many2many_tags"
+                               options="{'no_create': True}"
+                               placeholder="e.g. Purchase Officer, Inventory Manager…"/>
+                    </group>
+                    <p class="text-muted">
+                        Controls what the Binget Dashboard shows this person. This is deliberately
+                        independent of their Access Rights below — assign every role that applies;
+                        someone can hold several. Manage the available roles from Binget Dashboard →
+                        Configuration → Dashboard Roles.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

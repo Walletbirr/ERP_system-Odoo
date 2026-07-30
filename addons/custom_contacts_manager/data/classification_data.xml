@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="classification_internal" model="res.partner.classification">
+        <field name="name">Internal User</field>
+        <field name="code">internal</field>
+        <field name="sequence">10</field>
+        <field name="color">1</field>
+        <field name="icon">fa-user-secret</field>
+        <field name="is_internal">1</field>
+    </record>
+
+    <record id="classification_client" model="res.partner.classification">
+        <field name="name">Client</field>
+        <field name="code">client</field>
+        <field name="sequence">20</field>
+        <field name="color">4</field>
+        <field name="icon">fa-handshake-o</field>
+    </record>
+
+    <record id="classification_customer" model="res.partner.classification">
+        <field name="name">Customer</field>
+        <field name="code">customer</field>
+        <field name="sequence">30</field>
+        <field name="color">10</field>
+        <field name="icon">fa-user</field>
+    </record>
+
+    <record id="classification_vendor" model="res.partner.classification">
+        <field name="name">Vendor</field>
+        <field name="code">vendor</field>
+        <field name="sequence">40</field>
+        <field name="color">3</field>
+        <field name="icon">fa-truck</field>
+    </record>
+
+    <record id="classification_company" model="res.partner.classification">
+        <field name="name">Company</field>
+        <field name="code">company</field>
+        <field name="sequence">50</field>
+        <field name="color">6</field>
+        <field name="icon">fa-building</field>
+    </record>
+
+</odoo>

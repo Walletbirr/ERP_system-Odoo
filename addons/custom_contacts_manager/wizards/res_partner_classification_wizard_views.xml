@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_res_partner_classification_wizard_form" model="ir.ui.view">
+        <field name="name">res.partner.classification.wizard.form</field>
+        <field name="model">res.partner.classification.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Set Contact Category">
+                <p>
+                    Apply a category to all selected contacts at once. Contacts
+                    linked to a system user (Internal Users) are skipped, since
+                    their category is managed automatically.
+                </p>
+                <field name="contact_type_id" widget="radio" options="{'horizontal': true}"/>
+                <footer>
+                    <button string="Apply" type="object" name="action_apply" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- binding_model_id + binding_view_types makes this appear automatically
+         in the gear/Actions menu on the Contacts list and kanban views
+         whenever one or more records are selected. This is the tool for
+         categorizing all your pre-existing, uncategorized contacts. -->
+    <record id="action_res_partner_classification_wizard" model="ir.actions.act_window">
+        <field name="name">Set Category</field>
+        <field name="res_model">res.partner.classification.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">list,kanban</field>
+    </record>
+
+</odoo>

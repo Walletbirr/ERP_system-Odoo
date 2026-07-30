@@ -1,0 +1,32 @@
+/* Scoped strictly to .o_contact_category_picker - no global style changes. */
+
+.o_contact_category_picker .o_radio_item {
+    margin-right: 6px;
+    margin-bottom: 4px;
+}
+
+.o_contact_category_picker .o_radio_item label {
+    padding: 5px 14px 5px 10px;
+    border-radius: 20px;
+    border: 1px solid #e2d3ab;
+    background-color: #ffffff;
+    font-weight: 500;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    cursor: pointer;
+}
+
+.o_contact_category_picker .o_radio_item label:hover {
+    border-color: #c9a94f;
+}
+
+.o_contact_category_picker .o_radio_input:checked + label,
+.o_contact_category_picker .o_radio_item input:checked ~ label {
+    background-color: #f4e3ae;
+    border-color: #c9a94f;
+    color: #6b4e00;
+    font-weight: 700;
+}
+
+.o_contact_category_picker .o_radio_input {
+    accent-color: #c9a94f;
+}

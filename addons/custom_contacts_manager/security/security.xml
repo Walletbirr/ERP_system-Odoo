@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!-- ===================== GROUPS ===================== -->
+        <record id="module_category_contacts_visibility" model="ir.module.category">
+            <field name="name">Contacts Visibility</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <record id="group_contacts_manager_full" model="res.groups">
+            <field name="name">Full Access (All Categories)</field>
+            <field name="category_id" ref="module_category_contacts_visibility"/>
+            <field name="comment">Sees Internal Users, Clients, Customers, Companies and Vendors.</field>
+        </record>
+
+        <record id="group_contacts_view_clients" model="res.groups">
+            <field name="name">Can View Clients</field>
+            <field name="category_id" ref="module_category_contacts_visibility"/>
+        </record>
+
+        <record id="group_contacts_view_customers" model="res.groups">
+            <field name="name">Can View Customers</field>
+            <field name="category_id" ref="module_category_contacts_visibility"/>
+        </record>
+
+        <record id="group_contacts_view_vendors" model="res.groups">
+            <field name="name">Can View Vendors</field>
+            <field name="category_id" ref="module_category_contacts_visibility"/>
+        </record>
+
+        <record id="group_contacts_view_companies" model="res.groups">
+            <field name="name">Can View Companies</field>
+            <field name="category_id" ref="module_category_contacts_visibility"/>
+        </record>
+
+        <record id="group_contacts_view_internal" model="res.groups">
+            <field name="name">Can View Internal User Directory</field>
+            <field name="category_id" ref="module_category_contacts_visibility"/>
+            <field name="comment">Only HR/Admin should normally have this.</field>
+        </record>
+
+        <!-- Admins automatically get everything -->
+        <record id="base.group_system" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('group_contacts_manager_full'))]"/>
+        </record>
+
+        <!-- ===================== RECORD RULES ===================== -->
+        <!-- Full access group: no restriction -->
+        <record id="rule_partner_full_access" model="ir.rule">
+            <field name="name">Contacts: Full access group sees everything</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('group_contacts_manager_full'))]"/>
+        </record>
+
+        <!-- Base employees: see only Customers by default (safe default) -->
+        <record id="rule_partner_default_employee" model="ir.rule">
+            <field name="name">Contacts: Default employee visibility (Customers only)</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="domain_force">[('contact_type_code', 'in', ('customer', False))]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        </record>
+
+        <record id="rule_partner_view_clients" model="ir.rule">
+            <field name="name">Contacts: Clients visibility</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="domain_force">[('contact_type_code', '=', 'client')]</field>
+            <field name="groups" eval="[(4, ref('group_contacts_view_clients'))]"/>
+        </record>
+
+        <record id="rule_partner_view_vendors" model="ir.rule">
+            <field name="name">Contacts: Vendors visibility</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="domain_force">[('contact_type_code', '=', 'vendor')]</field>
+            <field name="groups" eval="[(4, ref('group_contacts_view_vendors'))]"/>
+        </record>
+
+        <record id="rule_partner_view_companies" model="ir.rule">
+            <field name="name">Contacts: Companies visibility</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="domain_force">[('contact_type_code', '=', 'company')]</field>
+            <field name="groups" eval="[(4, ref('group_contacts_view_companies'))]"/>
+        </record>
+
+        <record id="rule_partner_view_internal" model="ir.rule">
+            <field name="name">Contacts: Internal directory visibility</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="domain_force">[('contact_type_code', '=', 'internal')]</field>
+            <field name="groups" eval="[(4, ref('group_contacts_view_internal'))]"/>
+        </record>
+
+    </data>
+</odoo>

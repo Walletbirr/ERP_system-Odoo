@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_res_partner_classification_list" model="ir.ui.view">
+        <field name="name">res.partner.classification.list</field>
+        <field name="model">res.partner.classification</field>
+        <field name="arch" type="xml">
+            <list string="Contact Categories" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="icon"/>
+                <field name="color" widget="color_picker"/>
+                <field name="is_internal"/>
+                <field name="partner_count"/>
+                <field name="active" invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_res_partner_classification_form" model="ir.ui.view">
+        <field name="name">res.partner.classification.form</field>
+        <field name="model">res.partner.classification</field>
+        <field name="arch" type="xml">
+            <form string="Contact Category">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_partners" type="object"
+                                class="oe_stat_button" icon="fa-address-book">
+                            <field name="partner_count" widget="statinfo" string="Contacts"/>
+                        </button>
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="code"/>
+                        <field name="icon" placeholder="fa-user"/>
+                        <field name="color" widget="color_picker"/>
+                        <field name="sequence"/>
+                        <field name="is_internal"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_res_partner_classification" model="ir.actions.act_window">
+        <field name="name">Contact Categories</field>
+        <field name="res_model">res.partner.classification</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

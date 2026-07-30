@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_res_partner_classification_user,res.partner.classification.user,model_res_partner_classification,base.group_user,1,0,0,0
+access_res_partner_classification_manager,res.partner.classification.manager,model_res_partner_classification,base.group_system,1,1,1,1
+access_res_partner_classification_wizard,res.partner.classification.wizard,model_res_partner_classification_wizard,base.group_user,1,1,1,1

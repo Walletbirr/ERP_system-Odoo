@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Take over the stock Contacts app slot instead of adding a second one.
+        We hide the original app icon and give ours the same web_icon/name so
+        the end user only ever sees ONE "Contacts" app, just a smarter one.
+        If this xmlid doesn't match your Odoo 18 build, go to Settings >
+        Technical > User Interface > Menu Items, search "Contacts", open the
+        top-level record with no parent, and copy its External ID here.
+    -->
+    <record id="contacts.menu_contacts" model="ir.ui.menu">
+        <field name="active">False</field>
+    </record>
+
+    <menuitem id="menu_contacts_manager_root"
+              name="Contacts"
+              sequence="15"
+              web_icon="contacts,static/description/icon.png"/>
+    <!-- web_icon borrows the stock Contacts app icon so the launcher tile
+         looks identical to what your team already recognizes. -->
+
+    <menuitem id="menu_contacts_all"
+              name="All Contacts"
+              parent="menu_contacts_manager_root"
+              action="action_contacts_all"
+              sequence="5"
+              groups="group_contacts_manager_full"/>
+
+    <menuitem id="menu_contacts_clients"
+              name="Clients"
+              parent="menu_contacts_manager_root"
+              action="action_contacts_clients"
+              sequence="10"
+              groups="group_contacts_view_clients,group_contacts_manager_full"/>
+
+    <menuitem id="menu_contacts_customers"
+              name="Customers"
+              parent="menu_contacts_manager_root"
+              action="action_contacts_customers"
+              sequence="20"
+              groups="base.group_user"/>
+
+    <menuitem id="menu_contacts_vendors"
+              name="Vendors"
+              parent="menu_contacts_manager_root"
+              action="action_contacts_vendors"
+              sequence="30"
+              groups="group_contacts_view_vendors,group_contacts_manager_full"/>
+
+    <menuitem id="menu_contacts_companies"
+              name="Companies"
+              parent="menu_contacts_manager_root"
+              action="action_contacts_companies"
+              sequence="40"
+              groups="group_contacts_view_companies,group_contacts_manager_full"/>
+
+    <menuitem id="menu_contacts_internal"
+              name="Internal Directory"
+              parent="menu_contacts_manager_root"
+              action="action_contacts_internal"
+              sequence="50"
+              groups="group_contacts_view_internal,group_contacts_manager_full"/>
+
+    <menuitem id="menu_contacts_configuration"
+              name="Configuration"
+              parent="menu_contacts_manager_root"
+              sequence="90"
+              groups="base.group_system"/>
+
+    <menuitem id="menu_contacts_categories_config"
+              name="Contact Categories"
+              parent="menu_contacts_configuration"
+              action="action_res_partner_classification"
+              sequence="10"/>
+
+</odoo>
