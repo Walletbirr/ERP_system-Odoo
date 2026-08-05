@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_customer_deposit_root"
+              name="Customer Deposits"
+              parent="sale.sale_menu_root"
+              action="action_res_partner_deposit"
+              sequence="90"/>
+
+</odoo>
