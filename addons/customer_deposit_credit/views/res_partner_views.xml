@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Smart button on the Contact form -->
+    <record id="view_partner_form_deposit_button" model="ir.ui.view">
+        <field name="name">res.partner.form.deposit.button</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="action_view_deposit_transactions"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-money"
+                        invisible="not is_deposit_customer">
+                    <div class="o_stat_info">
+                        <field name="deposit_balance" widget="monetary" class="o_stat_value"/>
+                        <span class="o_stat_text">Deposit Credit</span>
+                    </div>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Read-only list view used by the "Customer Deposits" menu -->
+    <record id="view_res_partner_deposit_list" model="ir.ui.view">
+        <field name="name">res.partner.deposit.list</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <list string="Customer Deposits" create="false" edit="false" default_order="deposit_balance desc">
+                <field name="name" string="Customer"/>
+                <field name="deposit_total_paid" string="Total Paid" sum="Total Paid"/>
+                <field name="deposit_total_invoiced" string="Total Invoiced" sum="Total Invoiced"/>
+                <field name="deposit_total_refunded" string="Total Refunded" sum="Total Refunded"/>
+                <field name="deposit_balance" string="Deposit Balance" sum="Deposit Balance" decoration-bf="1"/>
+                <field name="deposit_last_transaction_date" string="Last Transaction"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_res_partner_deposit_search" model="ir.ui.view">
+        <field name="name">res.partner.deposit.search</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <search string="Customer Deposits">
+                <field name="name" string="Customer"/>
+                <filter string="Has Deposit Credit" name="has_deposit" domain="[('is_deposit_customer', '=', True)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Customer" name="group_customer" context="{'group_by': 'name'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Dedicated dashboard-style detail page for a single customer's deposit -->
+    <record id="view_res_partner_deposit_detail_form" model="ir.ui.view">
+        <field name="name">res.partner.deposit.detail.form</field>
+        <field name="model">res.partner</field>
+        <field name="arch" type="xml">
+            <form string="Customer Deposit Detail" create="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <span class="o_form_label text-muted">Customer Deposit Overview</span>
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                        <div class="text-muted">
+                            <field name="email" readonly="1" widget="email"/>
+                            <span invisible="not phone"> · </span>
+                            <field name="phone" readonly="1"/>
+                        </div>
+                    </div>
+
+                    <field name="currency_id" invisible="1"/>
+
+                    <!-- Stat cards -->
+                    <div class="row text-center mt16 mb24">
+                        <div class="col-3">
+                            <div style="background-color:#f1f3f5; border-radius:10px; padding:18px 8px;">
+                                <div class="text-muted" style="font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    Total Paid
+                                </div>
+                                <field name="deposit_total_paid" readonly="1" widget="monetary"
+                                       class="o_stat_value"
+                                       style="font-size:26px; font-weight:600; color:#212529;"/>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div style="background-color:#f1f3f5; border-radius:10px; padding:18px 8px;">
+                                <div class="text-muted" style="font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    Total Invoiced
+                                </div>
+                                <field name="deposit_total_invoiced" readonly="1" widget="monetary"
+                                       class="o_stat_value"
+                                       style="font-size:26px; font-weight:600; color:#212529;"/>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div style="background-color:#f1f3f5; border-radius:10px; padding:18px 8px;">
+                                <div class="text-muted" style="font-size:13px; text-transform:uppercase; letter-spacing:0.5px;">
+                                    Total Refunded
+                                </div>
+                                <field name="deposit_total_refunded" readonly="1" widget="monetary"
+                                       class="o_stat_value"
+                                       style="font-size:26px; font-weight:600; color:#212529;"/>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div style="background-color:#d4edda; border-radius:10px; padding:18px 8px; border:1px solid #b7e0c1;">
+                                <div style="font-size:13px; text-transform:uppercase; letter-spacing:0.5px; color:#1e7e34;">
+                                    Deposit Balance
+                                </div>
+                                <field name="deposit_balance" readonly="1" widget="monetary"
+                                       class="o_stat_value"
+                                       style="font-size:30px; font-weight:700; color:#1e7e34;"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="deposit_last_transaction_date" readonly="1" string="Last Transaction"/>
+                        </group>
+                        <group>
+                            <field name="deposit_payment_count" readonly="1" string="Number of Payments"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Invoices &amp; Credit Notes">
+                            <field name="deposit_invoice_ids" readonly="1">
+                                <list decoration-muted="state == 'cancel'">
+                                    <field name="name"/>
+                                    <field name="invoice_date"/>
+                                    <field name="move_type"/>
+                                    <field name="amount_total" sum="Total"/>
+                                    <field name="currency_id"/>
+                                    <field name="payment_state"/>
+                                    <field name="state"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Payments (In &amp; Out)">
+                            <field name="deposit_payment_ids" readonly="1">
+                                <list decoration-success="payment_type == 'inbound'" decoration-danger="payment_type == 'outbound'">
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="payment_type"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="state"/>
+                                    <field name="memo"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_res_partner_deposit" model="ir.actions.act_window">
+        <field name="name">Customer Deposits</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_res_partner_deposit_search"/>
+        <field name="context">{'search_default_has_deposit': 1}</field>
+        <field name="domain">[('is_deposit_customer', '=', True)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No customers currently have deposit credit.
+            </p>
+            <p>
+                Customers appear here automatically once their total payments
+                exceed their total invoiced amount.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_res_partner_deposit_view_list" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_res_partner_deposit_list"/>
+        <field name="act_window_id" ref="action_res_partner_deposit"/>
+    </record>
+
+    <record id="action_res_partner_deposit_view_form" model="ir.actions.act_window.view">
+        <field name="sequence">2</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_res_partner_deposit_detail_form"/>
+        <field name="act_window_id" ref="action_res_partner_deposit"/>
+    </record>
+
+</odoo>
