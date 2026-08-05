@@ -13,6 +13,19 @@
     <record id="view_move_document_tracking_by_invoice_list" model="ir.ui.view">
         <field name="name">account.move.document.tracking.by.invoice.list</field>
         <field name="model">account.move</field>
+        <!-- IMPORTANT: this is a standalone (non-inherited) base view for
+             account.move, same as core Accounting's own Invoice/Journal
+             Entry views. Without an explicit priority it ties with core
+             on the default priority (16), and can end up being picked
+             as THE default list/form for account.move anywhere a screen
+             (Journal Entries, a payment's linked journal entry, etc.)
+             opens the model without pinning a view_id - hiding the real
+             Accounting UI behind this one. A high priority guarantees
+             core Accounting views always win by default; this view is
+             still used correctly wherever it's referenced explicitly -
+             see action_vehicle_document_tracking_by_invoice below, which
+             already pins view_ids to this view on purpose. -->
+        <field name="priority">100</field>
         <field name="arch" type="xml">
             <list string="Vehicle Document Tracking - By Invoice" create="false" delete="false">
                 <field name="name" string="Invoice"/>
@@ -29,6 +42,10 @@
     <record id="view_move_document_tracking_by_invoice_form" model="ir.ui.view">
         <field name="name">account.move.document.tracking.by.invoice.form</field>
         <field name="model">account.move</field>
+        <!-- Same reasoning as the list view above: high priority so this
+             is never auto-selected as the default account.move form
+             outside of this module's own action. -->
+        <field name="priority">100</field>
         <field name="arch" type="xml">
             <form string="Vehicle Document Tracking" create="false" delete="false">
                 <sheet>
