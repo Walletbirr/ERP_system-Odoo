@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="bh_management_dashboard.Dashboard">
+<div class="bh_dashboard">
+
+    <!-- TOP NAV BAR -->
+    <div class="bh-topnav">
+        <div class="bh-topnav-logo">
+            <div class="bh-logo-icon">
+                <img class="bh-logo-img"
+                     src="/bh_management_dashboard/static/src/img/binget_logo.png"
+                     alt="BINGET"/>
+            </div>
+            <div class="bh-logo-text">
+                <div class="bh-logo-title">BINGET</div>
+                <div class="bh-logo-sub">Executive Dashboard</div>
+            </div>
+        </div>
+
+        <nav class="bh-topnav-menu">
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'sales' ? ' active' : '')" t-on-click="setTabSales">
+                <i class="fa fa-line-chart bh-nav-icon"/>
+                <span class="bh-nav-label">Sales</span>
+            </div>
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'inventory' ? ' active' : '')" t-on-click="setTabInventory">
+                <i class="fa fa-cubes bh-nav-icon"/>
+                <span class="bh-nav-label">Inventory</span>
+            </div>
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'finance' ? ' active' : '')" t-on-click="setTabFinance">
+                <i class="fa fa-university bh-nav-icon"/>
+                <span class="bh-nav-label">Finance</span>
+            </div>
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'purchase' ? ' active' : '')" t-on-click="setTabPurchase">
+                <i class="fa fa-shopping-cart bh-nav-icon"/>
+                <span class="bh-nav-label">Purchase</span>
+            </div>
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'manufacturing' ? ' active' : '')" t-on-click="setTabManufacturing">
+                <i class="fa fa-industry bh-nav-icon"/>
+                <span class="bh-nav-label">Manufacturing</span>
+            </div>
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'hr' ? ' active' : '')" t-on-click="setTabHr">
+                <i class="fa fa-users bh-nav-icon"/>
+                <span class="bh-nav-label">HR</span>
+            </div>
+        </nav>
+
+        <div class="bh-topnav-footer">
+            <div class="bh-footer-company">BINGET HOLDING PLC</div>
+            <div class="bh-footer-sub">Higher Management Reporting</div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="bh-main">
+
+        <!-- TOP BAR -->
+        <div class="bh-topbar">
+            <div class="bh-topbar-title">
+
+    <t t-if="state.activeTab === 'sales'">
+        <i class="fa fa-line-chart bh-title-icon"/>
+        Sales Overview
+    </t>
+
+    <t t-elif="state.activeTab === 'inventory'">
+        <i class="fa fa-cubes bh-title-icon"/>
+        Inventory Overview
+    </t>
+
+    <t t-elif="state.activeTab === 'finance'">
+        <i class="fa fa-university bh-title-icon"/>
+        Finance Overview
+    </t>
+
+    <t t-elif="state.activeTab === 'purchase'">
+        <i class="fa fa-shopping-cart bh-title-icon"/>
+        Purchase Overview
+    </t>
+
+    <t t-elif="state.activeTab === 'manufacturing'">
+        <i class="fa fa-industry bh-title-icon"/>
+        Manufacturing Overview
+    </t>
+
+    <t t-elif="state.activeTab === 'hr'">
+        <i class="fa fa-users bh-title-icon"/>
+        HR Overview
+    </t>
+
+</div>
+            <div class="bh-date-filter">
+                <div class="bh-period-wrap">
+                    <label class="bh-filter-label">Period</label>
+                    <select class="bh-period-select" t-on-change="onPeriodChange">
+                        <t t-foreach="state.periods" t-as="p" t-key="p.key">
+                            <option t-att-value="p.key"
+                                t-att-selected="state.selectedPeriod === p.key"
+                                    t-att-disabled="p.key.startsWith('__sep')"
+                                t-esc="p.label"/>
+                        </t>
+                    </select>
+                </div>
+                <div class="bh-date-divider"/>
+                <label class="bh-filter-label">From</label>
+                <input type="date" t-att-value="state.dateFrom" t-on-change="onDateFromChange"/>
+                <label class="bh-filter-label">To</label>
+                <input type="date" t-att-value="state.dateTo" t-on-change="onDateToChange"/>
+                <button class="bh-refresh-btn" t-on-click="onRefresh">Search</button>
+            </div>
+        </div>
+
+        <!-- ERROR -->
+        <div t-if="state.error" class="bh-error-banner">
+            <i class="fa fa-exclamation-triangle"/> Dashboard Error: <t t-esc="state.error"/>
+            <button t-on-click="onRefresh" style="margin-left:12px;">Retry</button>
+        </div>
+
+        <!-- LOADING -->
+        <div t-if="state.loading" class="bh-loading">
+            <div class="bh-spinner"/>
+            Loading dashboard data...
+        </div>
+
+        <!-- CONTENT -->
+        <div t-if="!state.loading and state.data" class="bh-content">
+
+            <!-- SALES TAB -->
+            <div t-if="state.activeTab === 'sales'">
+                <!-- Zero-data hint -->
+                <div t-if="state.data.sales.summary.total_orders == 0" class="bh-info-banner">
+                    <i class="fa fa-info-circle"/> No sales orders found for the selected date range. Try widening the From/To dates.
+                </div>
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-line-chart"/></div>
+                        <div class="bh-kpi-label">Total Revenue</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.sales.summary.total_revenue)"/>
+                        <div class="bh-kpi-sub">All orders in period</div>
+                    </div>
+                    <div class="bh-kpi-card blue">
+                        <div class="bh-kpi-icon"><i class="fa fa-file-text-o"/></div>
+                        <div class="bh-kpi-label">Total Orders</div>
+                        <div class="bh-kpi-value" t-esc="state.data.sales.summary.total_orders"/>
+                        <div class="bh-kpi-sub">Excl. cancelled</div>
+                    </div>
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
+                        <div class="bh-kpi-label">Confirmed Orders</div>
+                        <div class="bh-kpi-value" t-esc="state.data.sales.summary.confirmed_orders"/>
+                        <div class="bh-kpi-sub">Sale + Done states</div>
+                    </div>
+                    <div class="bh-kpi-card purple">
+                        <div class="bh-kpi-icon"><i class="fa fa-lightbulb-o"/></div>
+                        <div class="bh-kpi-label">Avg Order Value</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.sales.summary.avg_order_value)"/>
+                        <div class="bh-kpi-sub">Confirmed only</div>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel full-width">
+                        <div class="bh-panel-title">Revenue &amp; Orders Trend (Last 6 Months)</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-sales-trend"/></div>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Top 5 Customers by Revenue</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-top-customers"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Customer Breakdown</div>
+                        <div class="bh-table-wrap">
+                            <table class="bh-table">
+                                <thead><tr><th>#</th><th>Customer</th><th>Revenue (ETB)</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="state.data.sales.top_customers" t-as="c" t-key="c_index">
+                                        <tr>
+                                            <td t-esc="c_index + 1"/>
+                                            <td t-esc="c.customer"/>
+                                            <td t-esc="fmtCur(c.total)"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INVENTORY TAB -->
+            <div t-if="state.activeTab === 'inventory'">
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card blue">
+                        <div class="bh-kpi-icon"><i class="fa fa-archive"/></div>
+                        <div class="bh-kpi-label">Total Products</div>
+                        <div class="bh-kpi-value" t-esc="state.data.inventory.summary.total_products"/>
+                    </div>
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-money"/></div>
+                        <div class="bh-kpi-label">Stock Value</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.inventory.summary.total_value)"/>
+                    </div>
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-bar-chart"/></div>
+                        <div class="bh-kpi-label">Total Quantity</div>
+                        <div class="bh-kpi-value" t-esc="fmt(state.data.inventory.summary.total_qty)"/>
+                    </div>
+                    <div class="bh-kpi-card red">
+                        <div class="bh-kpi-icon"><i class="fa fa-exclamation-triangle"/></div>
+                        <div class="bh-kpi-label">Stockouts</div>
+                        <div class="bh-kpi-value" t-esc="state.data.inventory.summary.stockout_count"/>
+                        <div class="bh-kpi-sub">Zero quantity</div>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Stock Value by Location</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-inv-location"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Qty Distribution by Location</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-inv-pie"/></div>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel full-width">
+                        <div class="bh-panel-title"><i class="fa fa-exclamation-triangle"/> Low Stock Alert (Below 10 Units)</div>
+                        <div class="bh-table-wrap">
+                            <table class="bh-table">
+                                <thead><tr><th>Product</th><th>Qty On Hand</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="state.data.inventory.low_stock" t-as="p" t-key="p.product_id">
+                                        <tr>
+                                            <td t-esc="p.product"/>
+                                            <td t-esc="fmt(p.qty_on_hand, 2)"/>
+                                            <td>
+                                                <span t-att-class="'bh-badge ' + (p.qty_on_hand == 0 ? 'danger' : 'warning')"
+                                                      t-esc="p.qty_on_hand == 0 ? 'OUT OF STOCK' : 'LOW STOCK'"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FINANCE TAB -->
+            <div t-if="state.activeTab === 'finance'">
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-file-text-o"/></div>
+                        <div class="bh-kpi-label">Total Invoiced</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.finance.summary.total_invoiced)"/>
+                    </div>
+                    <div class="bh-kpi-card blue">
+                        <div class="bh-kpi-icon"><i class="fa fa-clipboard"/></div>
+                        <div class="bh-kpi-label">Total Invoices</div>
+                        <div class="bh-kpi-value" t-esc="state.data.finance.summary.total_invoices"/>
+                    </div>
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-down"/></div>
+                        <div class="bh-kpi-label">Accounts Receivable</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.finance.summary.total_receivable)"/>
+                        <div class="bh-kpi-sub">Unpaid invoices</div>
+                    </div>
+                    <div class="bh-kpi-card red">
+                        <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-up"/></div>
+                        <div class="bh-kpi-label">Accounts Payable</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.finance.summary.total_payable)"/>
+                        <div class="bh-kpi-sub">Unpaid bills</div>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Invoiced vs Bills (Last 6 Months)</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-finance-trend"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Receivable vs Payable</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-finance-pie"/></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PURCHASE TAB -->
+            <div t-if="state.activeTab === 'purchase'">
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card red">
+                        <div class="bh-kpi-icon"><i class="fa fa-credit-card"/></div>
+                        <div class="bh-kpi-label">Total Spent</div>
+                        <div class="bh-kpi-value" t-esc="fmtCur(state.data.purchase.summary.total_spent)"/>
+                    </div>
+                    <div class="bh-kpi-card blue">
+                        <div class="bh-kpi-icon"><i class="fa fa-list-alt"/></div>
+                        <div class="bh-kpi-label">Total Orders</div>
+                        <div class="bh-kpi-value" t-esc="state.data.purchase.summary.total_orders"/>
+                    </div>
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
+                        <div class="bh-kpi-label">Confirmed POs</div>
+                        <div class="bh-kpi-value" t-esc="state.data.purchase.summary.confirmed"/>
+                    </div>
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-pencil-square-o"/></div>
+                        <div class="bh-kpi-label">RFQs (Draft)</div>
+                        <div class="bh-kpi-value" t-esc="state.data.purchase.summary.rfqs"/>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Top Vendors by Spend</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-purchase-vendors"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Vendor Spend Details</div>
+                        <div class="bh-table-wrap">
+                            <table class="bh-table">
+                                <thead><tr><th>#</th><th>Vendor</th><th>Total (ETB)</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="state.data.purchase.top_vendors" t-as="v" t-key="v_index">
+                                        <tr>
+                                            <td t-esc="v_index + 1"/>
+                                            <td t-esc="v.vendor"/>
+                                            <td t-esc="fmtCur(v.total)"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MANUFACTURING TAB -->
+            <div t-if="state.activeTab === 'manufacturing'">
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card blue">
+                        <div class="bh-kpi-icon"><i class="fa fa-industry"/></div>
+                        <div class="bh-kpi-label">Total MOs</div>
+                        <div class="bh-kpi-value" t-esc="state.data.manufacturing.summary.total_orders"/>
+                    </div>
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
+                        <div class="bh-kpi-label">Completed</div>
+                        <div class="bh-kpi-value" t-esc="state.data.manufacturing.summary.completed"/>
+                    </div>
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-cog"/></div>
+                        <div class="bh-kpi-label">In Progress</div>
+                        <div class="bh-kpi-value" t-esc="state.data.manufacturing.summary.in_progress"/>
+                    </div>
+                    <div class="bh-kpi-card purple">
+                        <div class="bh-kpi-icon"><i class="fa fa-cube"/></div>
+                        <div class="bh-kpi-label">Qty Produced</div>
+                        <div class="bh-kpi-value" t-esc="fmt(state.data.manufacturing.summary.total_qty_produced)"/>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Order Status Breakdown</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-mrp-status"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Top Products Produced</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-mrp-products"/></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HR TAB -->
+            <div t-if="state.activeTab === 'hr'">
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card blue">
+                        <div class="bh-kpi-icon"><i class="fa fa-users"/></div>
+                        <div class="bh-kpi-label">Total Employees</div>
+                        <div class="bh-kpi-value" t-esc="state.data.hr.summary.total_employees"/>
+                    </div>
+                    <div class="bh-kpi-card teal">
+                        <div class="bh-kpi-icon"><i class="fa fa-sitemap"/></div>
+                        <div class="bh-kpi-label">Departments</div>
+                        <div class="bh-kpi-value" t-esc="state.data.hr.summary.total_departments"/>
+                    </div>
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-mars"/></div>
+                        <div class="bh-kpi-label">Male</div>
+                        <div class="bh-kpi-value" t-esc="state.data.hr.summary.male_count"/>
+                    </div>
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-venus"/></div>
+                        <div class="bh-kpi-label">Female</div>
+                        <div class="bh-kpi-value" t-esc="state.data.hr.summary.female_count"/>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Employees by Department</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-hr-dept"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Gender Distribution</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-hr-gender"/></div>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel full-width">
+                        <div class="bh-panel-title">Department Headcount</div>
+                        <div class="bh-table-wrap">
+                            <table class="bh-table">
+                                <thead><tr><th>#</th><th>Department</th><th>Headcount</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="state.data.hr.by_department" t-as="d" t-key="d_index">
+                                        <tr>
+                                            <td t-esc="d_index + 1"/>
+                                            <td t-esc="d.department"/>
+                                            <td t-esc="d.count"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- NO DATA -->
+        <div t-if="!state.loading and !state.data and !state.error" class="bh-loading">
+            No data available for the selected period.
+        </div>
+
+    </div>
+</div>
+</t>
+</templates>

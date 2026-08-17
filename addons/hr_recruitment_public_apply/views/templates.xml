@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================= Job listing page: /careers ================= -->
+    <template id="careers_list_template" name="Careers - Job Listing">
+        <html>
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <title>Careers - Job Openings</title>
+                <link rel="stylesheet" type="text/css"
+                      href="/hr_recruitment_public_apply/static/src/css/portal.css"/>
+                <style>
+                    :root { --brand-color: <t t-esc="company.careers_portal_color or '#714B67'"/>; --brand-rgb: <t t-esc="brand_rgb"/>; }
+                </style>
+            </head>
+            <body>
+                <div class="top-header">
+                    <span class="brand">
+                        <img t-if="company.logo" src="/careers/logo" alt="" class="careers-logo"/>
+                        <span class="careers-company-name" t-esc="company.name"/>
+                    </span>
+                </div>
+
+                <div class="hero">
+                    <div class="hero-inner">
+                        <span class="hero-eyebrow">We're hiring</span>
+                        <h1>Build your career with <t t-esc="company.name"/></h1>
+                        <p class="hero-subtitle">Explore our open roles and find the place where you'll do your best work.</p>
+
+                        <t t-if="jobs">
+                            <label class="search-bar" for="job-search">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                                    <circle cx="11" cy="11" r="7"/>
+                                    <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+                                </svg>
+                                <input type="text" id="job-search" placeholder="Search job titles..." autocomplete="off"/>
+                            </label>
+
+                            <t t-if="departments">
+                                <div class="chip-row" id="dept-chips">
+                                    <button type="button" class="chip active" data-department="all">All departments</button>
+                                    <t t-foreach="departments" t-as="dept">
+                                        <button type="button" class="chip" t-att-data-department="dept" t-esc="dept"/>
+                                    </t>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
+                </div>
+
+                <div class="page-wrap">
+                    <t t-if="not jobs">
+                        <div class="empty-state">
+                            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="7" width="18" height="13" rx="2"/>
+                                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <line x1="3" y1="12" x2="21" y2="12"/>
+                            </svg>
+                            <p>There are no open positions at the moment. Please check back soon.</p>
+                        </div>
+                    </t>
+
+                    <t t-if="jobs">
+                        <div class="jobs-toolbar">
+                            <span class="jobs-count"><strong id="job-count" t-esc="len(jobs)"/> open position<t t-if="len(jobs) != 1">s</t></span>
+                        </div>
+
+                        <div class="job-list" id="job-list">
+                            <t t-foreach="jobs" t-as="job">
+                                <div class="job-card"
+                                     t-att-data-department="job.department_id.name or ''"
+                                     t-attf-data-search="#{(job.name or '').lower() + ' ' + (job.department_id.name or '').lower()}">
+                                    <h2><t t-esc="job.name"/></h2>
+                                    <div class="pill-row">
+                                        <span t-if="job.department_id" class="pill pill-brand">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="3" y="7" width="18" height="13" rx="2"/>
+                                                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                            </svg>
+                                            <t t-esc="job.department_id.name"/>
+                                        </span>
+                                        <span t-if="job.address_id and job.address_id.city" class="pill">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/>
+                                                <circle cx="12" cy="9" r="2.3"/>
+                                            </svg>
+                                            <t t-esc="job.address_id.city"/>
+                                        </span>
+                                    </div>
+                                    <p t-if="job.portal_job_description_preview" class="job-preview">
+                                        <t t-esc="job.portal_job_description_preview"/>
+                                    </p>
+                                    <p t-if="job.portal_application_deadline_display" class="job-deadline">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="9"/>
+                                            <polyline points="12 7 12 12 15.5 14"/>
+                                        </svg>
+                                        Apply by <t t-esc="job.portal_application_deadline_display"/>
+                                    </p>
+                                    <div class="job-card-footer">
+                                        <a t-attf-href="/careers/apply/#{job.id}" class="btn-apply btn-sm">
+                                            View &amp; Apply
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                                <polyline points="12 5 19 12 12 19"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+
+                        <div class="empty-state" id="no-results" style="display:none;">
+                            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="7"/>
+                                <line x1="21" y1="21" x2="16.5" y2="16.5"/>
+                            </svg>
+                            <p>No positions match your search. Try a different keyword or department.</p>
+                        </div>
+                    </t>
+                </div>
+
+                <script type="text/javascript"><![CDATA[
+                (function () {
+                    var search = document.getElementById('job-search');
+                    var chipRow = document.getElementById('dept-chips');
+                    var cards = document.querySelectorAll('.job-card');
+                    var noResults = document.getElementById('no-results');
+                    var countEl = document.getElementById('job-count');
+                    var activeDept = 'all';
+
+                    function applyFilters() {
+                        var q = (search ? search.value : '').toLowerCase().trim();
+                        var visible = 0;
+                        cards.forEach(function (card) {
+                            var dept = card.getAttribute('data-department') || '';
+                            var text = card.getAttribute('data-search') || '';
+                            var matchesDept = activeDept === 'all' || dept === activeDept;
+                            var matchesSearch = !q || text.indexOf(q) !== -1;
+                            var show = matchesDept && matchesSearch;
+                            card.style.display = show ? '' : 'none';
+                            if (show) { visible += 1; }
+                        });
+                        if (noResults) { noResults.style.display = visible === 0 ? '' : 'none'; }
+                        if (countEl) { countEl.textContent = visible; }
+                    }
+
+                    if (search) { search.addEventListener('input', applyFilters); }
+                    if (chipRow) {
+                        chipRow.querySelectorAll('.chip').forEach(function (chip) {
+                            chip.addEventListener('click', function () {
+                                chipRow.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
+                                chip.classList.add('active');
+                                activeDept = chip.getAttribute('data-department');
+                                applyFilters();
+                            });
+                        });
+                    }
+                })();
+                ]]></script>
+            </body>
+        </html>
+    </template>
+
+    <!-- ================= Application form: /careers/apply/<id> ================= -->
+    <template id="careers_apply_form_template" name="Careers - Application Form">
+        <html>
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <title>Apply - <t t-esc="job.name"/></title>
+                <link rel="stylesheet" type="text/css"
+                      href="/hr_recruitment_public_apply/static/src/css/portal.css"/>
+                <style>
+                    :root { --brand-color: <t t-esc="company.careers_portal_color or '#714B67'"/>; --brand-rgb: <t t-esc="brand_rgb"/>; }
+                </style>
+            </head>
+            <body>
+                <div class="top-header">
+                    <span class="brand">
+                        <img t-if="company.logo" src="/careers/logo" alt="" class="careers-logo"/>
+                        <span class="careers-company-name" t-esc="company.name"/>
+                    </span>
+                    <a href="/careers" class="back-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"/>
+                            <polyline points="12 19 5 12 12 5"/>
+                        </svg>
+                        All openings
+                    </a>
+                </div>
+
+                <div class="hero hero-compact">
+                    <div class="hero-inner">
+                        <h1><t t-esc="job.name"/></h1>
+                        <div class="pill-row">
+                            <span t-if="job.department_id" class="pill" style="background:rgba(255,255,255,0.18); color:#fff;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="7" width="18" height="13" rx="2"/>
+                                    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                <t t-esc="job.department_id.name"/>
+                            </span>
+                            <span t-if="job.address_id and job.address_id.city" class="pill" style="background:rgba(255,255,255,0.18); color:#fff;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/>
+                                    <circle cx="12" cy="9" r="2.3"/>
+                                </svg>
+                                <t t-esc="job.address_id.city"/>
+                            </span>
+                            <span t-if="job.portal_application_deadline_display" class="pill" style="background:rgba(255,255,255,0.18); color:#fff;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <polyline points="12 7 12 12 15.5 14"/>
+                                </svg>
+                                Apply by <t t-esc="job.portal_application_deadline_display"/>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="page-wrap">
+                    <div class="detail-layout">
+                        <div class="info-card">
+                            <span t-if="job.portal_application_deadline_display" class="deadline-banner">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <polyline points="12 7 12 12 15.5 14"/>
+                                </svg>
+                                Applications close on <strong><t t-esc="job.portal_application_deadline_display"/></strong>
+                            </span>
+                            <span t-if="job.description" class="info-card-heading">About this role</span>
+                            <div t-if="job.description" class="job-description" t-raw="job.description"/>
+                            <p t-else="" class="job-description" style="color: var(--ink-faint);">No further details were provided for this role.</p>
+                        </div>
+
+                        <div class="apply-card">
+                            <h2>Apply for this role</h2>
+                            <p class="apply-subtitle">Takes less than 2 minutes</p>
+
+                            <t t-if="error">
+                                <div class="form-error">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="9"/>
+                                        <line x1="12" y1="8" x2="12" y2="13"/>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                    </svg>
+                                    <span t-esc="error"/>
+                                </div>
+                            </t>
+
+                            <form t-attf-action="/careers/apply/#{job.id}/submit" method="post"
+                                  enctype="multipart/form-data" class="apply-form">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                                <div class="form-row">
+                                    <label for="partner_name">Full Name *</label>
+                                    <input type="text" id="partner_name" name="partner_name" required="required"
+                                           t-att-value="post.get('partner_name', '')"/>
+                                </div>
+
+                                <div class="form-row">
+                                    <label for="email_from">Email *</label>
+                                    <input type="email" id="email_from" name="email_from" required="required"
+                                           t-att-value="post.get('email_from', '')"/>
+                                </div>
+
+                                <div class="form-row">
+                                    <label for="partner_phone">Phone</label>
+                                    <input type="text" id="partner_phone" name="partner_phone"
+                                           t-att-value="post.get('partner_phone', '')"/>
+                                </div>
+
+                                <div class="form-row">
+                                    <label for="cv_file">CV / Resume *</label>
+                                    <label for="cv_file" class="file-drop-label">
+                                        <span class="file-drop-icon">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                        </span>
+                                        <span class="file-drop-text">
+                                            <strong>Click to upload your CV</strong>
+                                            <small>PDF, DOC or DOCX — max 5MB</small>
+                                        </span>
+                                    </label>
+                                    <input type="file" id="cv_file" name="cv_file" class="file-input-native"
+                                           accept=".pdf,.doc,.docx" required="required"/>
+                                    <span class="file-chosen-name" id="file-chosen-name"></span>
+                                </div>
+
+                                <div class="form-row">
+                                    <label for="cover_letter">Cover Letter / Notes</label>
+                                    <textarea id="cover_letter" name="cover_letter" rows="4"
+                                              t-esc="post.get('cover_letter', '')"/>
+                                </div>
+
+                                <!-- Honeypot: hidden from real visitors via CSS, catches simple spam bots -->
+                                <div class="hp-field" aria-hidden="true">
+                                    <label for="company_website_hp">Leave this field empty</label>
+                                    <input type="text" id="company_website_hp" name="company_website_hp"
+                                           tabindex="-1" autocomplete="off"/>
+                                </div>
+
+                                <button type="submit" class="btn-apply btn-block">Submit Application</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <script type="text/javascript"><![CDATA[
+                (function () {
+                    var input = document.getElementById('cv_file');
+                    var out = document.getElementById('file-chosen-name');
+                    if (input && out) {
+                        input.addEventListener('change', function () {
+                            out.textContent = input.files && input.files[0] ? input.files[0].name : '';
+                        });
+                    }
+                })();
+                ]]></script>
+            </body>
+        </html>
+    </template>
+
+    <!-- ================= Thank you page ================= -->
+    <template id="careers_thank_you_template" name="Careers - Thank You">
+        <html>
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <title>Application Received</title>
+                <link rel="stylesheet" type="text/css"
+                      href="/hr_recruitment_public_apply/static/src/css/portal.css"/>
+                <style>
+                    :root { --brand-color: <t t-esc="company.careers_portal_color or '#714B67'"/>; --brand-rgb: <t t-esc="brand_rgb"/>; }
+                </style>
+            </head>
+            <body>
+                <div class="top-header">
+                    <span class="brand">
+                        <img t-if="company.logo" src="/careers/logo" alt="" class="careers-logo"/>
+                        <span class="careers-company-name" t-esc="company.name"/>
+                    </span>
+                </div>
+
+                <div class="success-wrap">
+                    <div class="success-card">
+                        <div class="success-icon">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                        </div>
+                        <h1>Application received!</h1>
+                        <p>
+                            Thanks for applying to <strong><t t-esc="job.name"/></strong>.
+                            Our recruitment team will review your application and get back to you soon.
+                        </p>
+                        <a href="/careers" class="btn-apply">View other openings</a>
+                    </div>
+                </div>
+            </body>
+        </html>
+    </template>
+
+</odoo>

@@ -1,0 +1,413 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="binget_stock_dashboard.Dashboard">
+    <div class="o_binget_stock" t-ref="root">
+
+        <!-- LOADING -->
+        <div t-if="state.loading" class="o_binget_loading">
+            <div class="o_binget_spinner"/>
+            <span>Loading stock overview…</span>
+        </div>
+
+        <!-- OVERVIEW -->
+        <div t-elif="state.view === 'overview'" class="o_binget_overview" t-att-key="state.animKey">
+
+            <div class="o_binget_header">
+                <div>
+                    <h2>Stock Overview</h2>
+                    <p class="o_binget_subtitle">Monitor and manage inventory across all branches</p>
+                </div>
+                <button class="btn o_binget_btn_primary" t-on-click="openNewWarehouse">
+                    <i class="fa fa-plus"/> New Warehouse
+                </button>
+            </div>
+
+            <div class="o_binget_kpis">
+                <div class="o_binget_kpi_card o_binget_anim" style="--i:0">
+                    <div class="o_binget_kpi_icon"><i class="fa fa-building-o"/></div>
+                    <div class="o_binget_kpi_body">
+                        <div class="o_binget_kpi_value" t-esc="fmtNumber(state.data.kpis.total_warehouses)"/>
+                        <div class="o_binget_kpi_label">Total Warehouses</div>
+                    </div>
+                </div>
+                <div class="o_binget_kpi_card o_binget_anim" style="--i:1">
+                    <div class="o_binget_kpi_icon"><i class="fa fa-cube"/></div>
+                    <div class="o_binget_kpi_body">
+                        <div class="o_binget_kpi_value" t-esc="fmtNumber(state.data.kpis.total_products)"/>
+                        <div class="o_binget_kpi_label">Total Products</div>
+                    </div>
+                </div>
+                <div class="o_binget_kpi_card o_binget_anim" style="--i:2">
+                    <div class="o_binget_kpi_icon o_binget_icon_teal"><i class="fa fa-th-large"/></div>
+                    <div class="o_binget_kpi_body">
+                        <div class="o_binget_kpi_value" t-esc="fmtNumber(state.data.kpis.total_units)"/>
+                        <div class="o_binget_kpi_label">Total Units</div>
+                    </div>
+                </div>
+                <div class="o_binget_kpi_card o_binget_anim" style="--i:3">
+                    <div class="o_binget_kpi_icon"><i class="fa fa-money"/></div>
+                    <div class="o_binget_kpi_body">
+                        <div class="o_binget_kpi_value" t-esc="fmtMoney(state.data.kpis.total_value)"/>
+                        <div class="o_binget_kpi_label">Stock Value</div>
+                    </div>
+                </div>
+                <div class="o_binget_kpi_card o_binget_kpi_alert o_binget_anim" style="--i:4">
+                    <div class="o_binget_kpi_icon o_binget_icon_alert"><i class="fa fa-exclamation-triangle"/></div>
+                    <div class="o_binget_kpi_body">
+                        <div class="o_binget_kpi_value" t-esc="fmtNumber(state.data.kpis.low_stock_items)"/>
+                        <div class="o_binget_kpi_label">Low Stock Items</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="o_binget_cards_grid">
+                <!-- All warehouses -->
+                <t t-set="c" t-value="state.data.all_warehouses_card"/>
+                <t t-set="seg" t-value="healthSegments(c)"/>
+                <div class="o_binget_wh_card o_binget_wh_tone_0 o_binget_anim"
+                     style="--i:0"
+                     t-on-click="() => this.openWarehouse(0, 'All Warehouses')">
+                    <div class="o_binget_wh_ribbon" title="Primary"><i class="fa fa-star"/></div>
+                    <div class="o_binget_wh_hero">
+                        <div class="o_binget_wh_info">
+                            <div class="o_binget_wh_title">
+                                <div class="o_binget_wh_icon o_binget_wh_icon_all"><i class="fa fa-home"/></div>
+                                <div class="o_binget_wh_title_text">
+                                    <h3>
+                                        <t t-esc="c.name"/>
+                                        <span class="o_binget_badge o_binget_badge_active">Active</span>
+                                    </h3>
+                                    <p class="o_binget_wh_loc"><i class="fa fa-map-marker"/> <t t-esc="c.location"/></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="o_binget_wh_art" aria-hidden="true">
+                            <div class="o_wh_illu">
+                                <div class="o_wh_roof"/>
+                                <div class="o_wh_body">
+                                    <div class="o_wh_door"/>
+                                    <div class="o_wh_win o_wh_win1"/>
+                                    <div class="o_wh_win o_wh_win2"/>
+                                </div>
+                                <div class="o_wh_dock"/>
+                                <div class="o_wh_truck">
+                                    <div class="o_wh_cab"/>
+                                    <div class="o_wh_wheel o_wh_w1"/>
+                                    <div class="o_wh_wheel o_wh_w2"/>
+                                </div>
+                                <div class="o_wh_crate o_wh_c1"/>
+                                <div class="o_wh_crate o_wh_c2"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="o_binget_wh_stats">
+                        <div class="o_binget_wh_stat">
+                            <span t-esc="fmtNumber(c.products)"/>
+                            <small>Products</small>
+                        </div>
+                        <div class="o_binget_wh_stat">
+                            <span t-esc="fmtNumber(c.units)"/>
+                            <small>Units</small>
+                        </div>
+                        <div class="o_binget_wh_stat">
+                            <span t-esc="fmtMoney(c.value)"/>
+                            <small>Value</small>
+                        </div>
+                    </div>
+                    <div class="o_binget_health">
+                        <div class="o_binget_health_seg o_seg_good" t-att-style="'width:' + seg.good + '%'"/>
+                        <div class="o_binget_health_seg o_seg_low"  t-att-style="'width:' + seg.low + '%'"/>
+                        <div class="o_binget_health_seg o_seg_out"  t-att-style="'width:' + seg.out + '%'"/>
+                    </div>
+                    <div class="o_binget_wh_flow">
+                        <div class="o_flow_in">
+                            <div class="o_flow_val"><i class="fa fa-arrow-down"/> <t t-esc="fmtNumber(c.incoming)"/></div>
+                            <div class="o_flow_lbl">Incoming</div>
+                        </div>
+                        <div class="o_flow_out">
+                            <div class="o_flow_val"><i class="fa fa-arrow-up"/> <t t-esc="fmtNumber(c.outgoing)"/></div>
+                            <div class="o_flow_lbl">Outgoing</div>
+                        </div>
+                        <div class="o_flow_low">
+                            <div class="o_flow_val"><i class="fa fa-exclamation-circle"/> <t t-esc="c.low_stock"/></div>
+                            <div class="o_flow_lbl">Low Stock</div>
+                        </div>
+                    </div>
+                    <div class="o_binget_wh_footer">
+                        <div class="o_binget_wh_link">View Inventory <i class="fa fa-arrow-right"/></div>
+                        <i class="fa fa-bar-chart o_binget_wh_chart"/>
+                    </div>
+                </div>
+
+                <!-- Per-warehouse -->
+                <div t-foreach="state.data.warehouses" t-as="wh" t-key="wh.id"
+                     t-att-class="'o_binget_wh_card o_binget_anim o_binget_wh_tone_' + ((wh_index % 5) + 1)"
+                     t-att-style="'--i:' + (wh_index + 1)"
+                     t-on-click="() => this.openWarehouse(wh.id, wh.name)">
+                    <t t-set="seg" t-value="healthSegments(wh)"/>
+                    <div class="o_binget_wh_hero">
+                        <div class="o_binget_wh_info">
+                            <div class="o_binget_wh_title">
+                                <div class="o_binget_wh_icon"><i class="fa fa-building"/></div>
+                                <div class="o_binget_wh_title_text">
+                                    <h3>
+                                        <t t-esc="wh.name"/>
+                                        <span t-att-class="wh.low_stock ? 'o_binget_badge o_binget_badge_warn' : 'o_binget_badge o_binget_badge_active'"
+                                              t-esc="wh.low_stock ? 'Low Stock' : 'Active'"/>
+                                    </h3>
+                                    <p class="o_binget_wh_loc"><i class="fa fa-map-marker"/> <t t-esc="wh.location"/></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="o_binget_wh_art" aria-hidden="true">
+                            <div class="o_wh_illu">
+                                <div class="o_wh_roof"/>
+                                <div class="o_wh_body">
+                                    <div class="o_wh_door"/>
+                                    <div class="o_wh_win o_wh_win1"/>
+                                    <div class="o_wh_win o_wh_win2"/>
+                                </div>
+                                <div class="o_wh_dock"/>
+                                <div class="o_wh_truck">
+                                    <div class="o_wh_cab"/>
+                                    <div class="o_wh_wheel o_wh_w1"/>
+                                    <div class="o_wh_wheel o_wh_w2"/>
+                                </div>
+                                <div class="o_wh_crate o_wh_c1"/>
+                                <div class="o_wh_crate o_wh_c2"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="o_binget_wh_stats">
+                        <div class="o_binget_wh_stat">
+                            <span t-esc="fmtNumber(wh.products)"/>
+                            <small>Products</small>
+                        </div>
+                        <div class="o_binget_wh_stat">
+                            <span t-esc="fmtNumber(wh.units)"/>
+                            <small>Units</small>
+                        </div>
+                        <div class="o_binget_wh_stat">
+                            <span t-esc="fmtMoney(wh.value)"/>
+                            <small>Value</small>
+                        </div>
+                    </div>
+                    <div class="o_binget_health">
+                        <div class="o_binget_health_seg o_seg_good" t-att-style="'width:' + seg.good + '%'"/>
+                        <div class="o_binget_health_seg o_seg_low"  t-att-style="'width:' + seg.low + '%'"/>
+                        <div class="o_binget_health_seg o_seg_out"  t-att-style="'width:' + seg.out + '%'"/>
+                    </div>
+                    <div class="o_binget_wh_flow">
+                        <div class="o_flow_in">
+                            <div class="o_flow_val"><i class="fa fa-arrow-down"/> <t t-esc="fmtNumber(wh.incoming)"/></div>
+                            <div class="o_flow_lbl">Incoming</div>
+                        </div>
+                        <div class="o_flow_out">
+                            <div class="o_flow_val"><i class="fa fa-arrow-up"/> <t t-esc="fmtNumber(wh.outgoing)"/></div>
+                            <div class="o_flow_lbl">Outgoing</div>
+                        </div>
+                        <div class="o_flow_low">
+                            <div class="o_flow_val"><i class="fa fa-exclamation-circle"/> <t t-esc="wh.low_stock"/></div>
+                            <div class="o_flow_lbl">Low Stock</div>
+                        </div>
+                    </div>
+                    <div class="o_binget_wh_footer">
+                        <div class="o_binget_wh_link">View Inventory <i class="fa fa-arrow-right"/></div>
+                        <i class="fa fa-bar-chart o_binget_wh_chart"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETAIL -->
+        <div t-else="" class="o_binget_detail" t-att-key="state.animKey">
+
+            <div class="o_binget_header">
+                <div class="o_binget_breadcrumb">
+                    <button class="o_binget_back" t-on-click="backToOverview" title="Back to overview">
+                        <i class="fa fa-arrow-left"/>
+                    </button>
+                    <div>
+                        <h2 t-esc="state.currentWarehouseName"/>
+                        <p class="o_binget_subtitle">
+                            Stock Overview <i class="fa fa-angle-right mx-1"/> <t t-esc="state.currentWarehouseName"/>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="o_binget_toolbar">
+                <div class="o_binget_search">
+                    <i class="fa fa-search"/>
+                    <input type="text"
+                           placeholder="Search by product name or reference…"
+                           t-att-value="state.search"
+                           t-on-input="onSearchInput"/>
+                </div>
+                <select class="o_binget_select" t-on-change="onCategoryChange">
+                    <option value="">All Categories</option>
+                    <t t-foreach="state.categories" t-as="cat" t-key="cat.id">
+                        <option t-att-value="cat.id" t-esc="cat.name"
+                                t-att-selected="state.categoryId === cat.id"/>
+                    </t>
+                </select>
+            </div>
+
+            <div class="o_binget_tabs">
+                <button t-att-class="{'active': state.status === 'all'}" t-on-click="() => this.setStatus('all')">All Products</button>
+                <button t-att-class="{'active': state.status === 'low_stock'}" t-on-click="() => this.setStatus('low_stock')">Low Stock</button>
+                <button t-att-class="{'active': state.status === 'out_of_stock'}" t-on-click="() => this.setStatus('out_of_stock')">Out of Stock</button>
+                <button t-att-class="{'active': state.status === 'incoming'}" t-on-click="() => this.setStatus('incoming')">Incoming</button>
+                <button t-att-class="{'active': state.status === 'outgoing'}" t-on-click="() => this.setStatus('outgoing')">Outgoing</button>
+            </div>
+
+            <div t-if="state.detailLoading" class="o_binget_loading o_binget_loading_sm">
+                <div class="o_binget_spinner"/>
+                <span>Loading products…</span>
+            </div>
+
+            <div t-else="" class="o_binget_table_wrap">
+                <table class="o_binget_table">
+                    <thead>
+                        <tr>
+                            <th style="width:28px"></th>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th class="text-end">On Hand</th>
+                            <th class="text-end">Free</th>
+                            <th class="text-end">Incoming</th>
+                            <th class="text-end">Outgoing</th>
+                            <th class="text-end">Reserved</th>
+                            <th class="text-end">Value</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="state.detail.rows" t-as="row" t-key="row.id">
+                            <tr class="o_binget_row_anim"
+                                t-att-class="{'o_row_expanded': state.expandedId === row.id, 'o_row_tracked': row.is_tracked}">
+                                <td class="o_binget_expand_cell">
+                                    <button t-if="row.is_tracked"
+                                            class="o_binget_expand_btn"
+                                            t-att-class="{'open': state.expandedId === row.id}"
+                                            t-on-click.stop="() => this.toggleUnits(row.id, true)"
+                                            title="Show serial / lot units">
+                                        <i class="fa fa-chevron-right"/>
+                                    </button>
+                                </td>
+                                <td class="o_binget_product_cell"
+                                    t-on-click="() => this.toggleUnits(row.id, row.is_tracked)">
+                                    <div class="o_binget_product_thumb">
+                                        <img t-att-src="row.image_url" alt=""/>
+                                    </div>
+                                    <div class="o_binget_product_meta">
+                                        <span class="o_prod_name" t-esc="row.name"/>
+                                        <span t-if="row.is_tracked" class="o_track_tag">
+                                            <t t-esc="row.tracking === 'serial' ? 'Serial' : 'Lot'"/>
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="o_binget_mono" t-esc="row.default_code"/>
+                                <td t-esc="row.category"/>
+                                <td class="text-end" t-esc="fmtNumber(row.on_hand)"/>
+                                <td class="text-end" t-esc="fmtNumber(row.free)"/>
+                                <td class="text-end" t-esc="fmtNumber(row.incoming)"/>
+                                <td class="text-end" t-esc="fmtNumber(row.outgoing)"/>
+                                <td class="text-end" t-esc="fmtNumber(row.reserved)"/>
+                                <td class="text-end" t-esc="fmtMoney(row.value)"/>
+                                <td>
+                                    <span t-att-class="'o_binget_status o_binget_status_' + row.status"
+                                          t-esc="statusLabel(row.status)"/>
+                                </td>
+                                <td class="text-end o_binget_actions">
+                                    <button class="o_binget_icon_btn" title="Open product" t-on-click.stop="() => this.openProduct(row.id)">
+                                        <i class="fa fa-eye"/>
+                                    </button>
+                                    <button class="o_binget_icon_btn" title="Move history" t-on-click.stop="() => this.openHistory(row.id)">
+                                        <i class="fa fa-history"/>
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Expanded serial / lot units panel -->
+                            <tr t-if="state.expandedId === row.id" class="o_binget_units_row">
+                                <td colspan="12">
+                                    <div class="o_binget_units_panel">
+                                        <div t-if="state.unitsLoading" class="o_binget_units_loading">
+                                            <div class="o_binget_spinner"/> Loading units…
+                                        </div>
+                                        <t t-elif="state.units and state.units.units.length">
+                                            <div class="o_binget_units_header">
+                                                <span>
+                                                    <i class="fa fa-barcode"/>
+                                                    <t t-esc="state.units.tracking === 'serial' ? 'Serial numbers' : 'Lots'"/>
+                                                    — <strong t-esc="state.units.units.length"/> unit(s)
+                                                </span>
+                                            </div>
+                                            <table class="o_binget_units_table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Location</th>
+                                                        <th>VIN</th>
+                                                        <th>Serial Number</th>
+                                                        <th>Shipment</th>
+                                                        <th class="text-end">On Hand</th>
+                                                        <th class="text-end">Reserved</th>
+                                                        <th class="text-end">Free</th>
+                                                        <th class="text-end">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr t-foreach="state.units.units" t-as="u" t-key="u.id">
+                                                        <td t-esc="u.location"/>
+                                                        <td class="o_binget_mono" t-esc="u.vin"/>
+                                                        <td class="o_binget_mono" t-esc="u.serial"/>
+                                                        <td t-esc="u.shipment"/>
+                                                        <td class="text-end" t-esc="fmtNumber(u.on_hand)"/>
+                                                        <td class="text-end" t-esc="fmtNumber(u.reserved)"/>
+                                                        <td class="text-end" t-esc="fmtNumber(u.free)"/>
+                                                        <td class="text-end">
+                                                            <button class="o_binget_icon_btn" title="History"
+                                                                    t-on-click="() => this.openLotHistory(u.lot_id, row.id)">
+                                                                <i class="fa fa-history"/>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </t>
+                                        <div t-else="" class="o_binget_units_empty">
+                                            No individual units found in this location.
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </t>
+
+                        <tr t-if="!state.detail.rows.length">
+                            <td colspan="12" class="o_binget_empty">
+                                <i class="fa fa-inbox"/>
+                                <div>No products match this filter.</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="o_binget_pagination" t-if="state.detail and state.detail.total > state.pageSize">
+                    <button class="o_binget_page_btn" t-on-click="prevPage" t-att-disabled="state.page === 1">
+                        <i class="fa fa-chevron-left"/>
+                    </button>
+                    <span>Page <t t-esc="state.page"/> of <t t-esc="pageCount"/></span>
+                    <button class="o_binget_page_btn" t-on-click="nextPage" t-att-disabled="state.page >= pageCount">
+                        <i class="fa fa-chevron-right"/>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

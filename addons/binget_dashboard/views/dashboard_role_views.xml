@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_binget_dashboard_role_tree" model="ir.ui.view">
+        <field name="name">binget.dashboard.role.list</field>
+        <field name="model">binget.dashboard.role</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="description"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_binget_dashboard_role_form" model="ir.ui.view">
+        <field name="name">binget.dashboard.role.form</field>
+        <field name="model">binget.dashboard.role</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="e.g. Purchase Officer"/>
+                        <field name="code"/>
+                        <field name="sequence"/>
+                        <field name="description" placeholder="Optional note for other admins"/>
+                        <field name="active"/>
+                    </group>
+                    <p class="text-muted">
+                        "Section" decides which dashboard content this role unlocks. You can create
+                        several differently-named roles that point at the same section — e.g. both
+                        "Purchase Officer" and "Procurement Lead" could map to Purchase.
+                    </p>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_binget_dashboard_role" model="ir.actions.act_window">
+        <field name="name">Dashboard Roles</field>
+        <field name="res_model">binget.dashboard.role</field>
+        <field name="view_mode">list,form</field>
+        <field name="help">
+            Create named roles (e.g. "Purchase Officer", "Warehouse Supervisor") and map each to a
+            dashboard section. Assign them to people from Settings → Users — a user can hold several
+            at once. This is completely independent of that person's actual Odoo access rights.
+        </field>
+    </record>
+
+    <menuitem id="menu_binget_dashboard_config"
+              name="Configuration"
+              parent="menu_binget_dashboard_root"
+              groups="base.group_system"
+              sequence="90"/>
+
+    <menuitem id="menu_binget_dashboard_role"
+              name="Dashboard Roles"
+              parent="menu_binget_dashboard_config"
+              action="action_binget_dashboard_role"
+              sequence="10"/>
+
+</odoo>

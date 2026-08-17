@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_binget_dashboard" model="ir.actions.client">
+        <field name="name">Binget Dashboard</field>
+        <field name="tag">binget_dashboard</field>
+    </record>
+
+    <!--
+        Deliberately a NEW top-level app menu, not an override of the
+        existing default "Dashboards" app. Replacing that app's action in
+        place would mean guessing its exact XML id (likely something
+        from the spreadsheet_dashboard module) without being able to
+        verify it against your actual database — a wrong guess there
+        risks breaking an unrelated existing module rather than just
+        looking wrong. Safer path: this ships as its own app, and you
+        hide the old one yourself via Settings -> Technical -> Menu
+        Items -> search "Dashboards" -> untick Active. That's a
+        reversible, zero-risk action you control directly rather than
+        something baked into this module's install.
+    -->
+    <menuitem id="menu_binget_dashboard_root"
+              name="Binget Dashboard"
+              sequence="1"/>
+
+    <menuitem id="menu_binget_dashboard_main"
+              name="Dashboard"
+              action="action_binget_dashboard"
+              parent="menu_binget_dashboard_root"
+              sequence="1"/>
+
+</odoo>

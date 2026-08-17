@@ -1,0 +1,264 @@
+// ============================================================
+// Binget product kanban – compact GRID cards (not full-width rows)
+// ============================================================
+$gold:        #c9a227;
+$gold-dark:   #a8871c;
+$gold-soft:   #f8f0d8;
+$gold-border: #e8d9a0;
+$gold-glow:   rgba(201, 162, 39, 0.22);
+$text:        #1a1d23;
+$muted:       #8a9099;
+$border:      #ebe6dc;
+$cream:       #faf7f1;
+$cream-deep:  #f0ebe3;
+$green:       #1f9d57;
+$green-soft:  #e6f7ee;
+$orange:      #e09220;
+$orange-soft: #fef6e6;
+$red:         #e04545;
+$red-soft:    #fdeeee;
+
+@keyframes bpk-up {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bpk-shine {
+    from { transform: translateX(-130%) skewX(-14deg); }
+    to   { transform: translateX(220%) skewX(-14deg); }
+}
+
+// Force multi-column grid — critical so cards are NOT full-width rows
+.o_kanban_view.o_binget_product_kanban,
+.o_kanban_view:has(.o_bpk_inner) {
+    .o_control_panel {
+        margin-bottom: 4px;
+    }
+
+    .o_kanban_renderer {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+        gap: 14px !important;
+        padding: 8px 16px 28px !important;
+        --KanbanRecord-width: 1fr !important;
+        align-content: start;
+    }
+
+    .o_kanban_record {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        animation: bpk-up 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+        @for $i from 1 through 24 {
+            &:nth-child(#{$i}) {
+                animation-delay: #{($i - 1) * 0.035}s;
+            }
+        }
+    }
+}
+
+.o_bpk_card {
+    width: 100% !important;
+    height: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.o_bpk_inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: linear-gradient(165deg, #fffefb 0%, $cream 100%);
+    border: 1px solid $border;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(26, 29, 35, 0.04), 0 1px 2px rgba(26, 29, 35, 0.03);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.28s ease,
+                border-color 0.28s ease;
+    cursor: pointer;
+
+    &:hover {
+        transform: translateY(-5px);
+        border-color: $gold-border;
+        box-shadow: 0 14px 32px rgba(26, 29, 35, 0.1), 0 4px 10px $gold-glow;
+
+        .o_bpk_img { transform: scale(1.07); }
+        .o_bpk_shine { animation: bpk-shine 0.65s ease; }
+        .o_bpk_media { background: darken($cream-deep, 2%); }
+    }
+}
+
+// Image area — short
+.o_bpk_media {
+    position: relative;
+    height: 112px;
+    background: $cream-deep;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-bottom: 1px solid rgba($border, 0.8);
+
+    .o_field_widget,
+    .o_field_image,
+    img,
+    .o_bpk_img {
+        width: 96px !important;
+        height: 96px !important;
+        max-width: 96px !important;
+        max-height: 96px !important;
+        object-fit: contain !important;
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+}
+
+.o_bpk_shine {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        105deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 60%
+    );
+    transform: translateX(-130%) skewX(-14deg);
+    pointer-events: none;
+}
+
+.o_bpk_badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+
+    &.is-ok {
+        background: rgba($green-soft, 0.95);
+        color: $green;
+    }
+    &.is-low {
+        background: rgba($orange-soft, 0.95);
+        color: darken($orange, 6%);
+    }
+    &.is-out {
+        background: rgba($red-soft, 0.95);
+        color: $red;
+    }
+}
+
+.o_bpk_body {
+    padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.o_bpk_row_top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 18px;
+
+    .o_priority,
+    .o_favorite,
+    .o_field_boolean_favorite {
+        transform: scale(0.82);
+        transform-origin: right center;
+    }
+}
+
+.o_bpk_sku {
+    font-size: 10.5px;
+    font-weight: 650;
+    color: $gold-dark;
+    letter-spacing: 0.02em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: $gold-soft;
+    padding: 1px 6px;
+    border-radius: 4px;
+    line-height: 1.4;
+    max-width: 70%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o_bpk_name {
+    font-size: 13.5px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: $text;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.5em;
+
+    span, .o_field_widget {
+        font-weight: 700 !important;
+    }
+}
+
+.o_bpk_footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid rgba($border, 0.85);
+}
+
+.o_bpk_price {
+    font-size: 13.5px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    color: $text;
+    font-variant-numeric: tabular-nums;
+}
+
+.o_bpk_qty {
+    text-align: right;
+    font-size: 13px;
+    font-weight: 720;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+
+    small {
+        display: block;
+        font-size: 10px;
+        font-weight: 550;
+        opacity: 0.85;
+        margin-top: 1px;
+    }
+
+    &.is-ok  { color: $green; }
+    &.is-low { color: $orange; }
+    &.is-out { color: $red; }
+}
+
+// Responsive: more columns on wide screens
+@media (min-width: 1400px) {
+    .o_kanban_view.o_binget_product_kanban .o_kanban_renderer,
+    .o_kanban_view:has(.o_bpk_inner) .o_kanban_renderer {
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
+    }
+}

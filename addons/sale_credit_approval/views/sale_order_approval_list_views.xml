@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- List view: what the High-Level Manager sees -->
+    <record id="view_sale_order_credit_approval_list" model="ir.ui.view">
+        <field name="name">sale.order.credit.approval.list</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <list string="Credit Approvals" create="0" import="0"
+                  decoration-warning="approval_state == 'to_approve'"
+                  decoration-success="approval_state == 'approved'"
+                  decoration-muted="approval_state == 'rejected'">
+                <field name="name"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="user_id" string="Salesperson"/>
+                <field name="date_order" string="Submitted"/>
+                <field name="amount_total" sum="Total" widget="monetary"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="payment_term_id"/>
+                <field name="approval_state" widget="badge"
+                       decoration-success="approval_state == 'approved'"
+                       decoration-warning="approval_state == 'to_approve'"
+                       decoration-danger="approval_state == 'rejected'"/>
+                <field name="can_approve_credit" column_invisible="1"/>
+                <button name="action_approve_credit_order" type="object"
+                        string="Approve" class="btn-success" icon="fa-check"
+                        invisible="not can_approve_credit"
+                        confirm="Approve this Credit Sales order?"/>
+                <button name="action_reject_credit_order" type="object"
+                        string="Reject" class="btn-danger" icon="fa-times"
+                        invisible="not can_approve_credit"
+                        confirm="Reject this Credit Sales order?"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search view: quick filters -->
+    <record id="view_sale_order_credit_approval_search" model="ir.ui.view">
+        <field name="name">sale.order.credit.approval.search</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <search string="Credit Approvals">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="user_id" string="Salesperson"/>
+                <filter string="Pending My Approval" name="to_approve"
+                        domain="[('approval_state', '=', 'to_approve')]"/>
+                <filter string="Approved" name="approved"
+                        domain="[('approval_state', '=', 'approved')]"/>
+                <filter string="Rejected" name="rejected"
+                        domain="[('approval_state', '=', 'rejected')]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status" context="{'group_by': 'approval_state'}"/>
+                    <filter string="Salesperson" name="group_salesperson" context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_sale_order_credit_approvals" model="ir.actions.act_window">
+        <field name="name">Credit Approvals</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_sale_order_credit_approval_search"/>
+        <field name="domain">[('requires_credit_approval', '=', True)]</field>
+        <field name="context">{'search_default_to_approve': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No Credit Sales orders yet.
+            </p>
+            <p>
+                Sales Orders using a payment term flagged "Requires High-Level
+                Manager Approval" will show up here once a salesperson submits
+                them for confirmation.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_sale_order_credit_approvals_view_list" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_sale_order_credit_approval_list"/>
+        <field name="act_window_id" ref="action_sale_order_credit_approvals"/>
+    </record>
+
+    <record id="action_sale_order_credit_approvals_view_form" model="ir.actions.act_window.view">
+        <field name="sequence">2</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_order_form_credit_approval_readonly"/>
+        <field name="act_window_id" ref="action_sale_order_credit_approvals"/>
+    </record>
+
+    <!-- Menu: sits in the Executive Dashboard app, between Management
+         Overview and Configuration, visible to the same executive group -->
+    <menuitem id="menu_sale_order_credit_approvals"
+              name="Credit Approvals"
+              parent="bh_management_dashboard.menu_bh_dashboard_root"
+              action="action_sale_order_credit_approvals"
+              sequence="2"
+              groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
+
+</odoo>

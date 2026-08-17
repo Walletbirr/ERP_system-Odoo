@@ -1,0 +1,1073 @@
+// ============================================================
+// Binget Holding – Stock Dashboard  ·  Premium UI
+// ============================================================
+$binget-gold:        #c9a227;
+$binget-gold-dark:   #a8871c;
+$binget-gold-soft:   #f8f0d8;
+$binget-gold-border: #e8d9a0;
+$binget-gold-glow:   rgba(201, 162, 39, 0.18);
+
+$binget-bg:          #ffffff;
+$binget-card:        #ffffff;
+$binget-text:        #1a1d23;
+$binget-muted:       #8a9099;
+$binget-border:      #ebe9e3;
+$binget-border-soft: #f2f0eb;
+$binget-surface:     #faf9f6;
+
+$binget-green:       #1f9d57;
+$binget-green-soft:  #e6f7ee;
+$binget-red:         #e04545;
+$binget-red-soft:    #fdeeee;
+$binget-orange:      #e09220;
+$binget-orange-soft: #fef6e6;
+$binget-teal:        #1a9b8e;
+
+$radius: 16px;
+$radius-sm: 11px;
+$radius-xs: 8px;
+
+$shadow-sm: 0 1px 2px rgba(26, 29, 35, 0.04);
+$shadow: 0 2px 8px rgba(26, 29, 35, 0.04), 0 1px 2px rgba(26, 29, 35, 0.03);
+$shadow-md: 0 8px 24px rgba(26, 29, 35, 0.07), 0 2px 6px rgba(26, 29, 35, 0.04);
+$shadow-lg: 0 16px 40px rgba(26, 29, 35, 0.1), 0 4px 12px rgba(26, 29, 35, 0.05);
+
+// ---------- Motion ----------
+@keyframes binget-fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes binget-scale-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes binget-spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes binget-pulse-soft {
+    0%, 100% { box-shadow: 0 0 0 0 rgba($binget-red, 0.3); }
+    50%      { box-shadow: 0 0 0 8px rgba($binget-red, 0); }
+}
+@keyframes binget-shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+@keyframes binget-bar-grow {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+}
+
+.o_binget_stock {
+    padding: 28px 32px 48px;
+    background: $binget-bg;
+    min-height: 100%;
+    color: $binget-text;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+
+    // ---------- Loading ----------
+    .o_binget_loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 120px 0;
+        color: $binget-muted;
+        font-size: 14.5px;
+        font-weight: 500;
+        &.o_binget_loading_sm { padding: 72px 0; }
+    }
+    .o_binget_spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid $binget-border;
+        border-top-color: $binget-gold;
+        border-radius: 50%;
+        animation: binget-spin 0.65s linear infinite;
+    }
+
+    .o_binget_anim {
+        animation: binget-fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation-delay: calc(var(--i, 0) * 60ms);
+    }
+
+    // ---------- Header ----------
+    .o_binget_header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        gap: 16px;
+
+        h2 {
+            margin: 0;
+            font-weight: 750;
+            font-size: 24px;
+            letter-spacing: -0.03em;
+            color: $binget-text;
+        }
+        .o_binget_subtitle {
+            margin: 4px 0 0;
+            font-size: 13.5px;
+            color: $binget-muted;
+            font-weight: 450;
+        }
+    }
+
+    .o_binget_breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .o_binget_back {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: $binget-card;
+        border: 1px solid $binget-border;
+        color: $binget-text;
+        cursor: pointer;
+        box-shadow: $shadow-sm;
+        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        &:hover {
+            background: $binget-gold-soft;
+            border-color: $binget-gold-border;
+            color: $binget-gold-dark;
+            transform: translateX(-3px);
+            box-shadow: $shadow;
+        }
+    }
+
+    .o_binget_btn_primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, $binget-gold 0%, $binget-gold-dark 100%);
+        border: none;
+        color: #fff;
+        font-weight: 650;
+        font-size: 13.5px;
+        padding: 11px 20px;
+        border-radius: $radius-sm;
+        box-shadow: 0 4px 14px $binget-gold-glow, 0 1px 3px rgba(168, 135, 28, 0.25);
+        transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+        letter-spacing: -0.01em;
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(201, 162, 39, 0.35), 0 2px 6px rgba(168, 135, 28, 0.2);
+            color: #fff;
+            filter: brightness(1.05);
+        }
+        &:active { transform: translateY(0); }
+    }
+
+    // ---------- KPI strip ----------
+    .o_binget_kpis {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 14px;
+        margin-bottom: 30px;
+
+        @media (max-width: 1280px) { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 800px)  { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .o_binget_kpi_card {
+        background: $binget-card;
+        border: 1px solid $binget-border;
+        border-radius: $radius;
+        padding: 18px 16px 16px;
+        box-shadow: $shadow;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                    box-shadow 0.25s ease,
+                    border-color 0.25s ease;
+
+        // subtle top highlight line
+        &::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 16px; right: 16px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+            opacity: 0.6;
+        }
+
+        &:hover {
+            transform: translateY(-3px);
+            box-shadow: $shadow-md;
+            border-color: darken($binget-border, 4%);
+        }
+
+        &.o_binget_kpi_alert {
+            border-color: rgba($binget-red, 0.22);
+            background: linear-gradient(180deg, #fff 0%, #fffbfb 100%);
+            .o_binget_kpi_value { color: $binget-red; }
+        }
+    }
+
+    .o_binget_kpi_icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
+        background: linear-gradient(145deg, $binget-gold-soft, lighten($binget-gold-soft, 3%));
+        color: $binget-gold-dark;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+
+        &.o_binget_icon_teal {
+            background: linear-gradient(145deg, rgba($binget-teal, 0.12), rgba($binget-teal, 0.06));
+            color: $binget-teal;
+        }
+        &.o_binget_icon_alert {
+            background: linear-gradient(145deg, $binget-red-soft, lighten($binget-red-soft, 2%));
+            color: $binget-red;
+            animation: binget-pulse-soft 2.6s ease-in-out infinite;
+        }
+    }
+
+    .o_binget_kpi_body { min-width: 0; flex: 1; }
+    .o_binget_kpi_value {
+        font-size: 23px;
+        font-weight: 750;
+        letter-spacing: -0.04em;
+        line-height: 1.15;
+        color: $binget-text;
+        font-variant-numeric: tabular-nums;
+    }
+    .o_binget_kpi_label {
+        margin-top: 3px;
+        font-size: 12px;
+        color: $binget-muted;
+        font-weight: 520;
+        letter-spacing: 0.01em;
+    }
+
+    // ---------- Warehouse cards ----------
+    .o_binget_cards_grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+
+    .o_binget_wh_card {
+        background: #ffffff;
+        border: 1px solid rgba(30, 25, 15, 0.07);
+        border-radius: 18px;
+        padding: 18px 18px 14px;
+        box-shadow: 0 1px 2px rgba(30, 25, 15, 0.03), 0 8px 24px rgba(30, 25, 15, 0.05);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        transform-style: preserve-3d;
+        will-change: transform;
+        transition: transform 0.18s ease-out,
+                    box-shadow 0.28s ease,
+                    border-color 0.28s ease;
+
+        &::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, $binget-gold, lighten($binget-gold, 12%));
+            opacity: 0;
+            transform: scaleX(0.35);
+            transition: opacity 0.28s, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        &:hover {
+            box-shadow: 0 12px 36px rgba(30, 25, 15, 0.1);
+            border-color: rgba(201, 162, 39, 0.4);
+            &::before { opacity: 1; transform: scaleX(1); }
+            .o_binget_wh_link { color: $binget-gold-dark; }
+            .o_binget_wh_art { transform: scale(1.04) translateY(-2px); }
+        }
+    }
+
+    // Soft color washes per tone
+    .o_binget_wh_tone_0 { background: linear-gradient(165deg, #fffefb, #fff7ea); }
+    .o_binget_wh_tone_1 { background: linear-gradient(165deg, #f8fbff, #eef5fc); }
+    .o_binget_wh_tone_2 { background: linear-gradient(165deg, #f6fbf8, #eaf6ef); }
+    .o_binget_wh_tone_3 { background: linear-gradient(165deg, #faf8fc, #f3ecf8); }
+    .o_binget_wh_tone_4 { background: linear-gradient(165deg, #f5fbfb, #e8f5f4); }
+    .o_binget_wh_tone_5 { background: linear-gradient(165deg, #fff8f7, #fceeed); }
+
+    .o_binget_wh_ribbon {
+        position: absolute;
+        top: 0;
+        right: 16px;
+        width: 26px;
+        height: 34px;
+        background: linear-gradient(180deg, #e0b93a, #c9a227);
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 7px;
+        color: #fff;
+        font-size: 10px;
+        z-index: 3;
+        box-shadow: 0 4px 10px rgba(201, 162, 39, 0.35);
+    }
+
+    .o_binget_wh_hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 14px;
+        min-height: 78px;
+    }
+
+    .o_binget_wh_info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .o_binget_wh_title {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .o_binget_wh_icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        background: linear-gradient(145deg, #f0ebe3, #e5dfd4);
+        color: #6a5e48;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 2px 8px rgba(30,25,15,0.05);
+    }
+    .o_binget_wh_tone_0 .o_binget_wh_icon { background: linear-gradient(145deg, #f8e9c0, #e8c96a); color: #7a5e10; }
+    .o_binget_wh_tone_1 .o_binget_wh_icon { background: linear-gradient(145deg, #d6e8f8, #7eb3e0); color: #1e5a8a; }
+    .o_binget_wh_tone_2 .o_binget_wh_icon { background: linear-gradient(145deg, #c8ecd8, #6bc99a); color: #1a6b45; }
+    .o_binget_wh_tone_3 .o_binget_wh_icon { background: linear-gradient(145deg, #e4d4f0, #b48ad4); color: #5a2d7a; }
+    .o_binget_wh_tone_4 .o_binget_wh_icon { background: linear-gradient(145deg, #c5ebe8, #5dbdb5); color: #1a6b66; }
+    .o_binget_wh_tone_5 .o_binget_wh_icon { background: linear-gradient(145deg, #f5d0cc, #e88a82); color: #8a2e28; }
+
+    .o_binget_wh_title_text {
+        min-width: 0;
+        h3 {
+            margin: 0;
+            font-size: 15.5px;
+            font-weight: 750;
+            letter-spacing: -0.02em;
+            line-height: 1.35;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            color: $binget-text;
+        }
+        .o_binget_wh_loc {
+            margin: 5px 0 0;
+            font-size: 12px;
+            color: $binget-muted;
+            font-weight: 450;
+            i { margin-right: 4px; opacity: 0.75; }
+        }
+    }
+
+    .o_binget_badge_active {
+        background: linear-gradient(135deg, #dff7ea, #c8efd8);
+        color: #157a42;
+        border: 1px solid #9fd9b8;
+        font-size: 10.5px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .o_binget_badge_warn {
+        background: linear-gradient(135deg, #fff0d6, #ffe4b0);
+        color: #b86a08;
+        border: 1px solid #f0c878;
+        font-size: 10.5px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    /* Warehouse illustration */
+    .o_binget_wh_art {
+        width: 124px;
+        height: 90px;
+        flex-shrink: 0;
+        position: relative;
+        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: none;
+    }
+    .o_wh_illu {
+        position: absolute;
+        inset: 0;
+    }
+    .o_wh_roof {
+        position: absolute;
+        right: 6px;
+        top: 10px;
+        width: 88px;
+        height: 18px;
+        border-radius: 3px 3px 0 0;
+        clip-path: polygon(0 100%, 10% 15%, 90% 15%, 100% 100%);
+        filter: brightness(0.92);
+    }
+    .o_wh_body {
+        position: absolute;
+        right: 10px;
+        bottom: 18px;
+        width: 80px;
+        height: 50px;
+        border-radius: 3px 6px 3px 3px;
+        box-shadow: 0 10px 18px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.28);
+    }
+    .o_wh_door {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        width: 22px;
+        height: 28px;
+        background: rgba(0,0,0,0.22);
+        border-radius: 2px 2px 0 0;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+        &::after {
+            content: "";
+            position: absolute;
+            top: 10px;
+            right: 3px;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.35);
+        }
+    }
+    .o_wh_win {
+        position: absolute;
+        top: 8px;
+        width: 12px;
+        height: 10px;
+        background: rgba(255,255,255,0.35);
+        border-radius: 1px;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+    }
+    .o_wh_win1 { left: 8px; }
+    .o_wh_win2 { left: 24px; }
+    .o_wh_dock {
+        position: absolute;
+        right: 10px;
+        bottom: 14px;
+        width: 80px;
+        height: 5px;
+        background: rgba(0,0,0,0.12);
+        border-radius: 1px;
+    }
+    .o_wh_truck {
+        position: absolute;
+        left: 2px;
+        bottom: 16px;
+        width: 34px;
+        height: 16px;
+        background: #5c6670;
+        border-radius: 2px 3px 2px 2px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    }
+    .o_wh_cab {
+        position: absolute;
+        right: -11px;
+        bottom: 0;
+        width: 14px;
+        height: 12px;
+        background: #6a7580;
+        border-radius: 2px;
+        &::before {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            height: 5px;
+            background: rgba(160, 200, 230, 0.55);
+            border-radius: 1px;
+        }
+    }
+    .o_wh_wheel {
+        position: absolute;
+        bottom: -4px;
+        width: 7px;
+        height: 7px;
+        background: #2a2e33;
+        border-radius: 50%;
+        box-shadow: inset 0 0 0 2px #555;
+    }
+    .o_wh_w1 { left: 4px; }
+    .o_wh_w2 { left: 20px; }
+    .o_wh_crate {
+        position: absolute;
+        width: 12px;
+        height: 10px;
+        border-radius: 1px;
+        background: #c9a227;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+    .o_wh_c1 { left: 14px; bottom: 34px; }
+    .o_wh_c2 { left: 22px; bottom: 44px; background: #b8922a; width: 10px; height: 8px; }
+
+    .o_binget_wh_tone_0 {
+        .o_wh_body, .o_wh_roof { background: linear-gradient(145deg, #e0b93a, #c9a227); }
+        .o_wh_roof { background: #b89220; }
+    }
+    .o_binget_wh_tone_1 {
+        .o_wh_body { background: linear-gradient(145deg, #6fa8d8, #3d7eb5); }
+        .o_wh_roof { background: #326a98; }
+    }
+    .o_binget_wh_tone_2 {
+        .o_wh_body { background: linear-gradient(145deg, #5cba8f, #2e8f62); }
+        .o_wh_roof { background: #247a52; }
+    }
+    .o_binget_wh_tone_3 {
+        .o_wh_body { background: linear-gradient(145deg, #a078c8, #7a4aa8); }
+        .o_wh_roof { background: #653d8e; }
+    }
+    .o_binget_wh_tone_4 {
+        .o_wh_body { background: linear-gradient(145deg, #4caba4, #2a8580); }
+        .o_wh_roof { background: #22706c; }
+    }
+    .o_binget_wh_tone_5 {
+        .o_wh_body { background: linear-gradient(145deg, #d96a62, #b8443c); }
+        .o_wh_roof { background: #9a3832; }
+    }
+
+    .o_binget_wh_stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 0;
+        padding: 12px 8px;
+        margin-bottom: 12px;
+        background: rgba(255,255,255,0.72);
+        border: 1px solid rgba(30, 25, 15, 0.06);
+        border-radius: 14px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .o_binget_wh_stat {
+        text-align: center;
+        position: relative;
+        &:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: 0; top: 15%; bottom: 15%;
+            width: 1px;
+            background: linear-gradient(180deg, transparent, #e5dcc8, transparent);
+        }
+        span {
+            display: block;
+            font-size: 16px;
+            font-weight: 780;
+            letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+            color: $binget-text;
+        }
+        small {
+            display: block;
+            margin-top: 3px;
+            font-size: 10.5px;
+            color: $binget-muted;
+            font-weight: 650;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+    }
+
+    .o_binget_health {
+        display: flex;
+        width: 100%;
+        height: 7px;
+        background: #eeebe4;
+        border-radius: 5px;
+        overflow: hidden;
+        margin-bottom: 14px;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .o_binget_health_seg {
+        height: 100%;
+        transform-origin: left center;
+        animation: binget-bar-grow 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation-delay: 0.15s;
+        min-width: 0;
+        &.o_seg_good { background: linear-gradient(90deg, #1a8f4e, #2eb86a); }
+        &.o_seg_low  { background: linear-gradient(90deg, #d4881a, #f0b020); }
+        &.o_seg_out  { background: linear-gradient(90deg, #c93a3a, #e86060); }
+    }
+
+    /* Reference-style: number on top, label under — 3 columns */
+    .o_binget_wh_flow {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding: 0 2px;
+
+        .o_flow_val {
+            font-size: 13.5px;
+            font-weight: 750;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+            i { margin-right: 4px; font-size: 11px; }
+        }
+        .o_flow_lbl {
+            margin-top: 3px;
+            font-size: 11px;
+            font-weight: 520;
+            color: $binget-muted;
+        }
+        .o_flow_in  .o_flow_val { color: $binget-green; }
+        .o_flow_out .o_flow_val { color: $binget-red; }
+        .o_flow_low .o_flow_val { color: $binget-orange; }
+    }
+
+    .o_binget_wh_footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .o_binget_wh_link {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 650;
+        color: $binget-muted;
+        transition: color 0.22s ease;
+        .fa { font-size: 12px; transition: transform 0.22s; }
+    }
+    .o_binget_wh_card:hover .o_binget_wh_link .fa {
+        transform: translateX(3px);
+    }
+
+    .o_binget_wh_chart {
+        color: $binget-muted;
+        font-size: 14px;
+        opacity: 0.7;
+    }
+
+    // ---------- Detail toolbar
+    // ---------- Detail toolbar & tabs ----------
+    .o_binget_toolbar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: nowrap;
+        align-items: stretch;
+
+        @media (max-width: 720px) {
+            flex-wrap: wrap;
+        }
+    }
+
+    .o_binget_search {
+        flex: 1 1 auto;
+        min-width: 200px;
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        i {
+            position: absolute;
+            left: 15px;
+            color: $binget-muted;
+            font-size: 14px;
+            pointer-events: none;
+            transition: color 0.2s ease;
+        }
+        input {
+            width: 100%;
+            padding: 11px 16px 11px 42px;
+            border: 1px solid $binget-border;
+            border-radius: $radius-sm;
+            background: $binget-card;
+            font-size: 13.5px;
+            color: $binget-text;
+            outline: none;
+            box-shadow: $shadow-sm;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            &::placeholder { color: lighten($binget-muted, 10%); }
+            &:focus {
+                border-color: $binget-gold;
+                box-shadow: 0 0 0 4px $binget-gold-glow, $shadow-sm;
+                ~ i, + i { color: $binget-gold-dark; }
+            }
+        }
+        &:focus-within i { color: $binget-gold-dark; }
+    }
+
+    .o_binget_select {
+        flex: 0 0 220px;
+        min-width: 180px;
+        max-width: 280px;
+        padding: 11px 16px;
+        border: 1px solid $binget-border;
+        border-radius: $radius-sm;
+        background: $binget-card;
+        font-size: 13.5px;
+        color: $binget-text;
+        outline: none;
+        cursor: pointer;
+        box-shadow: $shadow-sm;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        &:focus {
+            border-color: $binget-gold;
+            box-shadow: 0 0 0 4px $binget-gold-glow;
+        }
+    }
+
+    .o_binget_tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        padding: 4px;
+        background: $binget-surface;
+        border-radius: 14px;
+        width: fit-content;
+        border: 1px solid $binget-border-soft;
+
+        button {
+            padding: 8px 18px;
+            border-radius: 10px;
+            border: none;
+            background: transparent;
+            color: $binget-muted;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            letter-spacing: -0.01em;
+
+            &:hover {
+                color: $binget-text;
+                background: rgba(255,255,255,0.7);
+            }
+            &.active {
+                background: linear-gradient(135deg, $binget-gold 0%, $binget-gold-dark 100%);
+                color: #fff;
+                box-shadow: 0 3px 10px $binget-gold-glow;
+            }
+        }
+    }
+
+    // ---------- Table ----------
+    .o_binget_table_wrap {
+        background: $binget-card;
+        border: 1px solid $binget-border;
+        border-radius: $radius;
+        box-shadow: $shadow;
+        overflow: hidden;
+        animation: binget-scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .o_binget_table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+
+        thead {
+            background: linear-gradient(180deg, #faf9f6 0%, #f7f5f0 100%);
+            th {
+                padding: 13px 14px;
+                text-align: left;
+                font-size: 11px;
+                font-weight: 700;
+                color: $binget-muted;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border-bottom: 1px solid $binget-border;
+                white-space: nowrap;
+            }
+        }
+
+        tbody tr {
+            transition: background 0.15s ease;
+            &:hover { background: #fdfcfa; }
+            td {
+                padding: 13px 14px;
+                border-bottom: 1px solid $binget-border-soft;
+                vertical-align: middle;
+            }
+            &:last-child td { border-bottom: none; }
+        }
+
+        .text-end { text-align: right; font-variant-numeric: tabular-nums; }
+        .o_binget_mono {
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12.5px;
+            color: $binget-muted;
+            letter-spacing: -0.02em;
+        }
+    }
+
+    .o_binget_product_cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 550;
+        max-width: 280px;
+    }
+    .o_binget_product_thumb {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: $binget-surface;
+        overflow: hidden;
+        flex-shrink: 0;
+        border: 1px solid $binget-border-soft;
+        box-shadow: $shadow-sm;
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    .o_binget_status {
+        display: inline-block;
+        font-size: 11.5px;
+        font-weight: 650;
+        padding: 4px 11px;
+        border-radius: 20px;
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+
+        &.o_binget_status_good_stock {
+            background: $binget-green-soft;
+            color: $binget-green;
+        }
+        &.o_binget_status_low_stock {
+            background: $binget-orange-soft;
+            color: darken($binget-orange, 4%);
+        }
+        &.o_binget_status_out_of_stock {
+            background: $binget-red-soft;
+            color: $binget-red;
+        }
+    }
+
+    .o_binget_actions { white-space: nowrap; }
+    .o_binget_icon_btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: $binget-muted;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        &:hover {
+            background: $binget-gold-soft;
+            border-color: $binget-gold-border;
+            color: $binget-gold-dark;
+            transform: scale(1.06);
+        }
+    }
+
+    .o_binget_empty {
+        text-align: center;
+        padding: 56px 16px !important;
+        color: $binget-muted;
+        i {
+            font-size: 32px;
+            display: block;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+        div { font-weight: 500; }
+    }
+
+    // ---------- Pagination ----------
+    .o_binget_pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 14px;
+        border-top: 1px solid $binget-border-soft;
+        font-size: 13px;
+        color: $binget-muted;
+        font-weight: 500;
+        background: $binget-surface;
+    }
+    .o_binget_page_btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid $binget-border;
+        background: $binget-card;
+        color: $binget-text;
+        cursor: pointer;
+        box-shadow: $shadow-sm;
+        transition: all 0.18s ease;
+        &:hover:not(:disabled) {
+            border-color: $binget-gold;
+            color: $binget-gold-dark;
+            background: $binget-gold-soft;
+        }
+        &:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+    }
+
+    // ---------- Expand / serial panel ----------
+    .o_binget_expand_cell {
+        width: 28px;
+        padding-right: 0 !important;
+    }
+    .o_binget_expand_btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: $binget-muted;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        i { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); font-size: 11px; }
+        &.open {
+            background: $binget-gold-soft;
+            color: $binget-gold-dark;
+            i { transform: rotate(90deg); }
+        }
+        &:hover {
+            background: $binget-gold-soft;
+            color: $binget-gold-dark;
+        }
+    }
+    .o_row_tracked .o_binget_product_cell { cursor: pointer; }
+    .o_row_expanded {
+        background: #fdfbf5 !important;
+        td { border-bottom-color: transparent !important; }
+    }
+
+    .o_binget_product_meta {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+        .o_prod_name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: -0.01em;
+        }
+    }
+    .o_track_tag {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: $binget-gold-dark;
+        background: $binget-gold-soft;
+        padding: 2px 8px;
+        border-radius: 5px;
+        width: fit-content;
+    }
+
+    .o_binget_units_row > td {
+        padding: 0 !important;
+        border-bottom: 1px solid $binget-border !important;
+        background: linear-gradient(180deg, #fdfbf5 0%, #f9f7f2 100%);
+    }
+    .o_binget_units_panel {
+        margin: 0 16px 16px 44px;
+        background: #fff;
+        border: 1px solid $binget-border;
+        border-radius: 14px;
+        box-shadow: $shadow-md;
+        overflow: hidden;
+        animation: binget-fade-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    .o_binget_units_header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 18px;
+        background: linear-gradient(180deg, #faf9f6, #f5f3ee);
+        border-bottom: 1px solid $binget-border-soft;
+        font-size: 12.5px;
+        color: $binget-muted;
+        font-weight: 500;
+        i {
+            margin-right: 7px;
+            color: $binget-gold-dark;
+            font-size: 13px;
+        }
+        strong { color: $binget-text; font-weight: 700; }
+    }
+    .o_binget_units_loading,
+    .o_binget_units_empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 32px;
+        color: $binget-muted;
+        font-size: 13.5px;
+        font-weight: 500;
+    }
+    .o_binget_units_table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        thead th {
+            padding: 10px 16px;
+            text-align: left;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: $binget-muted;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: #fff;
+            border-bottom: 1px solid $binget-border-soft;
+        }
+        tbody tr {
+            transition: background 0.12s ease;
+            &:hover { background: #fdfcfa; }
+            td {
+                padding: 11px 16px;
+                border-bottom: 1px solid $binget-border-soft;
+                vertical-align: middle;
+            }
+            &:last-child td { border-bottom: none; }
+        }
+        .text-end { text-align: right; font-variant-numeric: tabular-nums; }
+    }
+}

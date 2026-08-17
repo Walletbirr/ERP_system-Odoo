@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eef2f8"/>
+      <stop offset="100%" stop-color="#dbe3ee"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b95a6"/>
+      <stop offset="100%" stop-color="#6d7787"/>
+    </linearGradient>
+    <linearGradient id="wallLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a5adba"/>
+      <stop offset="100%" stop-color="#8b95a6"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#525c6c"/>
+      <stop offset="100%" stop-color="#3f4753"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c7cfdb"/>
+      <stop offset="100%" stop-color="#b6bfcc"/>
+    </linearGradient>
+    <linearGradient id="doorMetal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4b5563"/>
+      <stop offset="100%" stop-color="#374151"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="400" height="240" fill="url(#sky)"/>
+  <rect y="168" width="400" height="72" fill="url(#ground)"/>
+  <rect y="168" width="400" height="3" fill="#a9b2c1" opacity="0.6"/>
+
+  <!-- distant warehouse block -->
+  <rect x="0" y="70" width="150" height="100" fill="url(#wallLight)"/>
+  <polygon points="0,70 150,70 130,48 20,48" fill="url(#roof)" opacity="0.85"/>
+  <rect x="14" y="96" width="26" height="26" rx="2" fill="#eef2f8" opacity="0.55"/>
+  <rect x="52" y="96" width="26" height="26" rx="2" fill="#eef2f8" opacity="0.55"/>
+  <rect x="90" y="96" width="26" height="26" rx="2" fill="#eef2f8" opacity="0.55"/>
+
+  <!-- main warehouse building -->
+  <rect x="110" y="46" width="290" height="128" fill="url(#wall)"/>
+  <polygon points="110,46 400,46 400,26 150,26" fill="url(#roof)"/>
+  <rect x="110" y="46" width="290" height="6" fill="#4a5364"/>
+
+  <!-- roof ridge line -->
+  <line x1="150" y1="26" x2="400" y2="26" stroke="#2f3742" stroke-width="2"/>
+
+  <!-- big garage door -->
+  <rect x="150" y="88" width="86" height="86" rx="4" fill="url(#doorMetal)"/>
+  <line x1="150" y1="104" x2="236" y2="104" stroke="#5b6474" stroke-width="2"/>
+  <line x1="150" y1="120" x2="236" y2="120" stroke="#5b6474" stroke-width="2"/>
+  <line x1="150" y1="136" x2="236" y2="136" stroke="#5b6474" stroke-width="2"/>
+  <line x1="150" y1="152" x2="236" y2="152" stroke="#5b6474" stroke-width="2"/>
+
+  <!-- second smaller door -->
+  <rect x="256" y="112" width="46" height="62" rx="3" fill="url(#doorMetal)" opacity="0.9"/>
+  <line x1="256" y1="124" x2="302" y2="124" stroke="#5b6474" stroke-width="1.6"/>
+  <line x1="256" y1="136" x2="302" y2="136" stroke="#5b6474" stroke-width="1.6"/>
+  <line x1="256" y1="148" x2="302" y2="148" stroke="#5b6474" stroke-width="1.6"/>
+  <line x1="256" y1="160" x2="302" y2="160" stroke="#5b6474" stroke-width="1.6"/>
+
+  <!-- windows -->
+  <rect x="322" y="66" width="60" height="22" rx="2" fill="#eef2f8" opacity="0.55"/>
+  <line x1="352" y1="66" x2="352" y2="88" stroke="#8b95a6" stroke-width="1.4"/>
+
+  <!-- signage strip -->
+  <rect x="150" y="60" width="120" height="10" rx="2" fill="#eef2f8" opacity="0.35"/>
+
+  <!-- loading dock platform -->
+  <rect x="150" y="174" width="86" height="8" fill="#525c6c"/>
+
+  <!-- truck -->
+  <g transform="translate(268,142)">
+    <rect x="0" y="10" width="70" height="34" rx="3" fill="#eef2f8"/>
+    <rect x="4" y="14" width="62" height="14" rx="2" fill="#c7cfdb"/>
+    <rect x="70" y="0" width="34" height="44" rx="3" fill="#dbe3ee"/>
+    <rect x="76" y="6" width="20" height="16" rx="2" fill="#8b95a6"/>
+    <circle cx="18" cy="46" r="9" fill="#2f3742"/>
+    <circle cx="18" cy="46" r="4" fill="#8b95a6"/>
+    <circle cx="88" cy="46" r="9" fill="#2f3742"/>
+    <circle cx="88" cy="46" r="4" fill="#8b95a6"/>
+  </g>
+
+  <!-- pallets / crates -->
+  <g transform="translate(40,150)">
+    <rect x="0" y="6" width="30" height="18" rx="1.5" fill="#a5adba"/>
+    <rect x="0" y="6" width="30" height="4" fill="#8b95a6"/>
+    <rect x="34" y="0" width="24" height="24" rx="1.5" fill="#8b95a6"/>
+    <rect x="34" y="0" width="24" height="5" fill="#6d7787"/>
+  </g>
+
+  <!-- ground shadow accents -->
+  <ellipse cx="303" cy="190" rx="42" ry="4" fill="#8b95a6" opacity="0.35"/>
+  <ellipse cx="55" cy="178" rx="28" ry="3" fill="#8b95a6" opacity="0.3"/>
+</svg>

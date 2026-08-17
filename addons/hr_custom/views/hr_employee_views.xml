@@ -1,0 +1,21 @@
+<odoo>
+    <record id="view_employee_form_inherit_guarantee_doc" model="ir.ui.view">
+        <field name="name">hr.employee.form.inherit.guarantee.doc</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page name="hr_custom_documents" string="Documents">
+                    <group string="Guarantor &amp; Resume Documents">
+                        <field name="guarantee_document" filename="guarantee_document_filename" widget="binary"/>
+                        <field name="guarantee_document_filename" invisible="1"/>
+                        <field name="guarantor_id_document" filename="guarantor_id_document_filename" widget="binary"/>
+                        <field name="guarantor_id_document_filename" invisible="1"/>
+                        <field name="resume_file" filename="resume_file_filename" widget="binary"/>
+                        <field name="resume_file_filename" invisible="1"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

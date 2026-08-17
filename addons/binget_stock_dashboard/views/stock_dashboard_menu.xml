@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_binget_stock_dashboard" model="ir.actions.client">
+        <field name="name">Stock</field>
+        <field name="tag">binget_stock_dashboard</field>
+    </record>
+
+    <menuitem id="menu_binget_stock_dashboard"
+              name="Stock"
+              parent="stock.menu_stock_root"
+              action="action_binget_stock_dashboard"
+              sequence="10"
+              groups="stock.group_stock_user"/>
+
+    <record id="action_binget_products_gallery" model="ir.actions.client">
+        <field name="name">Products</field>
+        <field name="tag">binget_products_gallery</field>
+    </record>
+
+    <!--
+        Run on every module install AND upgrade so Products menus
+        always point at the premium catalog (no shell needed).
+    -->
+    <function model="ir.actions.client" name="_binget_apply_menu_overrides"/>
+
+</odoo>

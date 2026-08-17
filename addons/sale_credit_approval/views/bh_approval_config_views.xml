@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_bh_approval_config_form" model="ir.ui.view">
+        <field name="name">bh.approval.config.form</field>
+        <field name="model">bh.approval.config</field>
+        <field name="arch" type="xml">
+            <form string="Sales Approval Configuration">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Credit Sales Approval Settings</h1>
+                    </div>
+                    <group>
+                        <field name="high_level_manager_id" options="{'no_create': True}"/>
+                    </group>
+                    <p class="text-muted">
+                        The selected user receives an approval request whenever a
+                        Sales Order using a payment term flagged
+                        "Requires High-Level Manager Approval" (e.g. Credit Sales)
+                        is confirmed. Only this user (or an Administrator) can
+                        approve or reject those orders.
+                    </p>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bh_approval_config" model="ir.actions.act_window">
+        <field name="name">Approval Settings</field>
+        <field name="res_model">bh.approval.config</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_bh_approval_config_form"/>
+        <field name="res_id" ref="default_bh_approval_config"/>
+        <field name="target">current</field>
+    </record>
+
+    <menuitem id="menu_bh_approval_config"
+              name="Configuration"
+              parent="bh_management_dashboard.menu_bh_dashboard_root"
+              action="action_bh_approval_config"
+              sequence="10"
+              groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
+
+</odoo>

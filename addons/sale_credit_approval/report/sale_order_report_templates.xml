@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Adds "Payment Term" and "Approved By" as two more columns in the
+         same top info row that already shows Order/Quotation Date,
+         Expiration, and Salesperson (id="informations" in
+         sale.report_saleorder_document) - appended with position="inside"
+         so they land right after Salesperson, in the same style, rather
+         than being buried in a footer.
+
+         "Approved By" deliberately mirrors the exact structure of the
+         existing Salesperson column (<strong>label</strong> + <div
+         t-field="..."> showing the record directly) so it renders with
+         the same look, and only appears once the order has actually been
+         approved - for a draft/pending quotation there's no approver yet,
+         so the column simply doesn't show, same as how "Expiration"
+         itself disappears once an order is confirmed. -->
+    <template id="report_saleorder_document_bh_informations"
+              inherit_id="sale.report_saleorder_document">
+        <xpath expr="//div[@id='informations']" position="inside">
+            <div t-if="doc.payment_term_id" class="col" name="bh_informations_payment_term">
+                <strong>Payment Term</strong>
+                <div t-field="doc.payment_term_id">21 Days</div>
+            </div>
+            <t t-set="bh_decision_line"
+               t-value="doc.approval_ids.filtered(lambda a: a.role == 'high_level_manager' and a.status == 'approved')[:1]"/>
+            <div t-if="doc.approval_state == 'approved' and doc.high_level_manager_id"
+                 class="col" name="bh_informations_approval">
+                <strong>Approved By</strong>
+                <div t-field="doc.high_level_manager_id">Manager Name</div>
+                <div t-if="bh_decision_line" class="text-muted" style="font-size: 10px;">
+                    <span t-field="bh_decision_line.date" t-options="{'widget': 'date'}">2026-01-01</span>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

@@ -3,3 +3,6 @@ access_sale_order_billing_readonly,sale.order.billing.readonly,sale.model_sale_o
 access_sale_order_accountant_readonly,sale.order.accountant.readonly,sale.model_sale_order,account.group_account_user,1,0,0,0
 access_sale_order_line_billing_readonly,sale.order.line.billing.readonly,sale.model_sale_order_line,account.group_account_invoice,1,0,0,0
 access_sale_order_line_accountant_readonly,sale.order.line.accountant.readonly,sale.model_sale_order_line,account.group_account_user,1,0,0,0
+access_sale_order_payment_proof_salesman,sale.order.payment.proof.salesman,model_sale_order_payment_proof,sales_team.group_sale_salesman,1,1,1,0
+access_sale_order_payment_proof_billing,sale.order.payment.proof.billing,model_sale_order_payment_proof,account.group_account_invoice,1,0,0,0
+access_sale_order_payment_proof_accountant,sale.order.payment.proof.accountant,model_sale_order_payment_proof,account.group_account_user,1,0,0,0
