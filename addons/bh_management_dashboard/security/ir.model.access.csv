@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_bh_dashboard_executive,bh.management.dashboard executive,model_bh_management_dashboard,group_bh_executive,1,0,0,0
+access_bh_dashboard_admin,bh.management.dashboard admin,model_bh_management_dashboard,base.group_system,1,1,1,1

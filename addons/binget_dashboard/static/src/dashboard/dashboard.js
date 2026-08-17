@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, useRef, onWillStart, useEffect, useExternalListener } from "@odoo/owl";
+import { Component, useState, useRef, onWillStart, onWillUnmount, useEffect, useExternalListener } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
 
@@ -22,12 +22,18 @@ export class BingetDashboard extends Component {
         this.trendChartRef = useRef("trendChart");
         this.purchaseTrendChartRef = useRef("purchaseTrendChart");
         this.agingChartRef = useRef("agingChart");
-        this.notifWrapRef = useRef("notifWrap");
+        this.employeeGrowthChartRef = useRef("employeeGrowthChart");
+        this.departmentPieChartRef = useRef("departmentPieChart");
+        this.revenueOverviewChartRef = useRef("revenueOverviewChart");
+        this.revenueOverviewCardRef = useRef("revenueOverviewCard");
         this.dateSelectorRef = useRef("dateSelector");
         this.explorerCardRef = useRef("explorerCard");
         this.trendChartInstance = null;
         this.purchaseTrendChartInstance = null;
         this.agingChartInstance = null;
+        this.employeeGrowthChartInstance = null;
+        this.departmentPieChartInstance = null;
+        this.revenueOverviewChartInstance = null;
         this._productLookupTimer = null;
 
         const today = new Date();
@@ -58,10 +64,8 @@ export class BingetDashboard extends Component {
             trendChartType: "line",
             loading: true,
             showConfig: false,
-            showNotifications: false,
             config: {},
             roleProfile: { is_admin: false, roles: [], display_name: "Business Dashboard", tabs: [{ key: "overview", label: "Overview", icon: "fa-th-large" }], visible_kpis: [], user_name: "" },
-            notifications: { rows: [] },
             filterOptions: { locations: [], warehouses: [], companies: [] },
             data: {
                 kpis: {}, sales_trend: { rows: [] }, top_customers: { rows: [] }, top_products: { rows: [] },
@@ -70,6 +74,7 @@ export class BingetDashboard extends Component {
                 purchase_pipeline: { stages: [] },
                 inventory_summary: {}, cash_flow: { ar_aging: [] }, top_overdue_customers: { rows: [] },
                 procurement: {}, workforce: {}, manufacturing: {}, activity: { rows: [] },
+                revenue_overview: { labels: [], revenue: [], expenses: [], total_revenue: 0, total_expenses: 0, net_amount: 0, net_margin_pct: 0 },
             },
             branches: { rows: [] },
             branchDetail: {
@@ -91,11 +96,23 @@ export class BingetDashboard extends Component {
                 rows: [], total: 0, offset: 0, limit: 20, loading: false,
                 typeFilter: "all", userId: "", search: "",
                 users: [], loaded: false,
+                // Set on a failed RPC only, cleared on the next attempt
+                // (success or fail). Kept separate from an empty `rows`
+                // result on purpose: "0 rows, no error" is a legitimate,
+                // common state (nobody's done anything yet); "0 rows,
+                // error set" means the request itself blew up server-
+                // side and the table shown is stale/wrong, not actually
+                // empty - those used to render as the exact same "No
+                // activity matches these filters" message, which is
+                // exactly what made this bug so hard to tell apart from
+                // a real empty state.
+                error: false,
             },
             // Common "what just happened" modal shown for any Recent
             // Activity / Activity Log row, instead of jumping straight
             // into the underlying record's form view.
             activityDetail: { open: false, row: null },
+            activityDebug: { open: false, loading: false, data: null },
         });
 
         this._applyDateRange();
@@ -106,29 +123,38 @@ export class BingetDashboard extends Component {
                 this.loadOverview(),
                 this.loadConfig(),
                 this.loadFilterOptions(),
-                this.loadNotifications(),
                 this.loadBranches(),
             ]);
             if (!this.state.roleProfile.tabs.some((t) => t.key === this.state.activeTab)) {
                 this.state.activeTab = this.state.roleProfile.tabs[0]?.key || "overview";
             }
+            this._applyDeepLink();
         });
 
         useEffect(
             () => this.renderCharts(),
-            () => [this.state.data.sales_trend, this.state.data.purchase_trend, this.state.data.cash_flow, this.state.trendChartType, this.state.loading, this.state.activeTab, this.state.view]
+            () => [this.state.data.sales_trend, this.state.data.purchase_trend, this.state.data.cash_flow, this.state.data.workforce, this.state.data.revenue_overview, this.state.trendChartType, this.state.loading, this.state.activeTab, this.state.view]
         );
 
         // Click anywhere outside a popover closes it — no need to hit
         // the trigger again to dismiss.
         useExternalListener(window, "click", (ev) => {
-            if (this.state.showNotifications && this.notifWrapRef.el && !this.notifWrapRef.el.contains(ev.target)) {
-                this.state.showNotifications = false;
-            }
             if (this.state.dateSelectorOpen && this.dateSelectorRef.el && !this.dateSelectorRef.el.contains(ev.target)) {
                 this.state.dateSelectorOpen = false;
             }
         }, { capture: true });
+    }
+
+    // Lets an external caller open this dashboard already jumped to a
+    // specific filtered view instead of the plain Overview tab — used
+    // by theme_shell's sidebar notification bell, whose "Low stock"
+    // row does `doAction({ tag: "binget_dashboard", params: { explorerStatus: "low" } })`
+    // rather than opening a plain list view like every other notification.
+    _applyDeepLink() {
+        const explorerStatus = this.props.action?.params?.explorerStatus;
+        if (explorerStatus) {
+            this.openInventoryStatus(explorerStatus);
+        }
     }
 
     // ------------------------------------------------------------
@@ -174,61 +200,13 @@ export class BingetDashboard extends Component {
         }
     }
 
-    async loadNotifications() {
-        try {
-            this.state.notifications = await this.orm.call("binget.dashboard", "get_notifications", []);
-        } catch (e) {
-            console.error("binget_dashboard: failed to load notifications", e);
-        }
-    }
-
-    // Marks currently-shown notifications as acknowledged — updates
-    // local state immediately for a responsive feel, and persists it
-    // server-side so it survives closing/reopening the dashboard.
-    // System-level alerts (see visibleNotifications below) drop out of
-    // the list and the badge as soon as they're acknowledged; request
-    // notifications (assigned specifically to this user) simply lose
-    // their "new" highlight and keep showing until actually resolved.
-    async markNotificationsSeen() {
-        this.state.notifications.rows = this.state.notifications.rows.map((r) => ({ ...r, is_new: false }));
-        try {
-            await this.orm.call("binget.dashboard", "mark_notifications_seen", []);
-        } catch (e) {
-            console.error("binget_dashboard: failed to mark notifications seen", e);
-        }
-    }
-
-    // Acknowledge a single notification without touching the others.
-    async markNotificationSeen(row, ev) {
-        if (ev) ev.stopPropagation();
-        row.is_new = false;
-        try {
-            await this.orm.call("binget.dashboard", "mark_notification_seen", [], {
-                notif_id: row.id, notif_title: row.title,
-            });
-        } catch (e) {
-            console.error("binget_dashboard: failed to mark notification seen", e);
-        }
-    }
-
-    // System-level alerts (overdue invoices, low stock, admin-oversight
-    // FYIs, …) are hidden once acknowledged - they'll come back on
-    // their own if the underlying count changes, or after a few days
-    // if it's still unresolved (see _SYSTEM_RENOTIFY_DAYS server-side).
-    // Request notifications assigned specifically to this user always
-    // stay visible in the list until they're genuinely resolved -
-    // "seen" just stops them counting toward the badge, it never hides
-    // them, and it never re-nags on a timer.
-    get visibleNotifications() {
-        return this.state.notifications.rows.filter((r) => r.notif_type === "request" || r.is_new);
-    }
-
-    // Only rows still flagged is_new count toward the badge - a seen-
-    // but-unresolved request row stays in the list above but no longer
-    // adds to this number, which is the "count down once seen" behavior.
-    get notificationBadgeCount() {
-        return this.state.notifications.rows.filter((r) => r.is_new).length;
-    }
+    // NOTE: notification loading/acknowledgement (get_notifications,
+    // mark_notifications_seen, mark_notification_seen on binget.dashboard)
+    // used to live here. That data and those RPC methods still exist
+    // server-side untouched — LC Management and other modules still feed
+    // into them — but the bell UI that read them now lives in theme_shell's
+    // sidebar (visible on every page), so this component no longer polls
+    // or renders it itself.
 
     async loadBranches() {
         try {
@@ -246,7 +224,20 @@ export class BingetDashboard extends Component {
             console.error("binget_dashboard: failed to save setting", key, e);
         }
         this.loadOverview();
-        this.loadNotifications();
+    }
+
+    // Template expressions in OWL are compiled against the component's
+    // rendering context, not the global scope - a bare `parseFloat(...)`
+    // written directly in a t-on-change attribute resolves to
+    // `ctx['parseFloat']`, which is undefined, not the built-in
+    // function ("v71 is not a function" is exactly that: the compiled
+    // reference to parseFloat). So numeric settings fields pass their
+    // raw string value here and let real JS (this file, not a template
+    // expression) do the parsing, instead of calling parseFloat from
+    // inside the XML.
+    saveConfigNumber(key, rawValue, fallback) {
+        const parsed = parseFloat(rawValue);
+        this.saveConfigValue(key, Number.isFinite(parsed) ? parsed : fallback);
     }
 
     async loadExplorer(resetOffset = true) {
@@ -347,12 +338,13 @@ export class BingetDashboard extends Component {
         return { empty: false, ok: (ok / total) * 100, low: (low / total) * 100, out: (out / total) * 100 };
     }
 
-    // KPI grid columns: capped at 3, but uses the actual number of
-    // visible cards when there are fewer — otherwise a role with only
-    // 2 KPIs (e.g. Purchase Officer) gets a blank third column on the
-    // fixed 3-col grid instead of both cards filling the row.
+    // KPI grid columns: capped at 4 (the admin Overview strip is 4
+    // cards), but uses the actual number of visible cards when
+    // there are fewer - otherwise a role with only 2 KPIs (e.g.
+    // Purchase Officer) gets blank columns on a fixed grid instead
+    // of both cards filling the row.
     get kpiStripColumns() {
-        return Math.min(3, Math.max(1, this.state.roleProfile.visible_kpis.length));
+        return Math.min(5, Math.max(1, this.state.roleProfile.visible_kpis.length));
     }
 
     get dateLabel() {
@@ -372,7 +364,6 @@ export class BingetDashboard extends Component {
     toggleDateSelector() {
         this.state.dateSelectorOpen = !this.state.dateSelectorOpen;
         if (this.state.dateSelectorOpen) {
-            this.state.showNotifications = false;
             // Seed the draft from the last committed selection.
             this.state.dateDraft.scope = this.state.dateScope;
             this.state.dateDraft.year = this.state.selectedYear;
@@ -464,10 +455,22 @@ export class BingetDashboard extends Component {
     // ------------------------------------------------------------
     setTab(key) {
         this.state.activeTab = key;
-        if (key === "activity" && !this.state.activityLog.loaded) {
+        // Always refetch on opening the Activity tab, rather than only
+        // the first time this session (the old `!loaded` guard). This
+        // tab is meant to be a live audit trail - caching it stale
+        // across tab switches led to exactly the kind of confusing
+        // mismatch we saw: 1 row showing on the Overview widget (which
+        // always reloads fresh) but 0 on this tab, for the very same
+        // user, because this tab still held whatever it fetched the
+        // very first time it was opened that session, before newer
+        // activity existed yet. `loaded` is now only used to decide
+        // whether the (admin-only) user filter list still needs a
+        // one-time fetch, not to skip refetching the rows themselves.
+        if (key === "activity") {
+            const firstOpen = !this.state.activityLog.loaded;
             this.state.activityLog.loaded = true;
             this.loadActivityLog();
-            if (this.state.roleProfile.is_admin) this.loadActivityUsers();
+            if (firstOpen && this.state.roleProfile.is_admin) this.loadActivityUsers();
         }
     }
 
@@ -483,17 +486,6 @@ export class BingetDashboard extends Component {
 
     toggleConfig() {
         this.state.showConfig = !this.state.showConfig;
-        if (this.state.showConfig) this.state.showNotifications = false;
-    }
-
-    toggleNotifications() {
-        this.state.showNotifications = !this.state.showNotifications;
-        if (this.state.showNotifications) this.state.showConfig = false;
-    }
-
-    onNotificationClick(row) {
-        this.state.showNotifications = false;
-        if (typeof this[row.action] === "function") this[row.action]();
     }
 
     // ------------------------------------------------------------
@@ -606,6 +598,7 @@ export class BingetDashboard extends Component {
         const log = this.state.activityLog;
         if (resetOffset) log.offset = 0;
         log.loading = true;
+        log.error = false;
         try {
             const res = await this.orm.call("binget.dashboard", "get_activity_log", [], {
                 type_filter: log.typeFilter,
@@ -621,6 +614,14 @@ export class BingetDashboard extends Component {
             log.total = res.total;
         } catch (e) {
             console.error("binget_dashboard: failed to load activity log", e);
+            // Previously left `rows`/`total` untouched on failure, so
+            // the table just showed "No activity matches these
+            // filters" - indistinguishable from a real empty result.
+            // Now it's explicit: the request failed, here's nothing
+            // to trust on screen, try again.
+            log.rows = [];
+            log.total = 0;
+            log.error = true;
         } finally {
             log.loading = false;
         }
@@ -709,21 +710,35 @@ export class BingetDashboard extends Component {
     openOpenOrders() {
         this._openList("sale.order", "Open Sales Orders", [["state", "in", ["draft", "sent"]]]);
     }
+    // Clicking the Total Revenue tile used to jump to a separate list
+    // view. It now just scrolls down to the Revenue Overview chart
+    // that's already on this same page — no page navigation needed.
+    // That chart only renders for admins/accounting (see the xml), so
+    // this falls back to the old list view for anyone else who can
+    // still see the tile (e.g. Sales) but not that card.
+    openRevenueReport() {
+        if (this.revenueOverviewCardRef.el) {
+            this.state.activeTab = "overview";
+            this._scrollToRef(this.revenueOverviewCardRef);
+            return;
+        }
+        this._openList("sale.order", "Revenue — Confirmed Orders", [["state", "in", ["sale", "done"]]]);
+    }
     openOverdueInvoices() {
         this._openList("account.move", "Overdue Invoices", [
             ["move_type", "=", "out_invoice"], ["state", "=", "posted"],
-            ["payment_state", "not in", ["paid", "in_payment"]],
+            ["payment_state", "not in", ["paid", "in_payment", "reversed"]],
             ["invoice_date_due", "<", new Date().toISOString().slice(0, 10)],
         ]);
     }
     openOutstandingReceivables() {
         this._openList("account.move", "Outstanding Receivables", [
-            ["move_type", "=", "out_invoice"], ["state", "=", "posted"], ["payment_state", "not in", ["paid", "in_payment"]],
+            ["move_type", "=", "out_invoice"], ["state", "=", "posted"], ["payment_state", "not in", ["paid", "in_payment", "reversed"]],
         ]);
     }
     openOutstandingPayables() {
         this._openList("account.move", "Outstanding Payables", [
-            ["move_type", "=", "in_invoice"], ["state", "=", "posted"], ["payment_state", "not in", ["paid", "in_payment"]],
+            ["move_type", "=", "in_invoice"], ["state", "=", "posted"], ["payment_state", "not in", ["paid", "in_payment", "reversed"]],
         ]);
     }
     openInventoryStatus(status) {
@@ -751,9 +766,9 @@ export class BingetDashboard extends Component {
             });
         });
     }
-    // Kept as a thin alias: the backend's low-stock notification action
-    // is stored as the string "openLowStock" and resolved dynamically
-    // via this[row.action] — renaming would silently break it.
+    // Kept as a thin alias: still used directly by this dashboard's own
+    // KPI cards/Explorer, and by name ("openLowStock") by theme_shell's
+    // sidebar notification bell — renaming would silently break that.
     openLowStock() {
         this.openInventoryStatus("low");
     }
@@ -765,6 +780,14 @@ export class BingetDashboard extends Component {
     }
     openPendingPurchases() {
         this.openProcurement(["sent", "to approve"]);
+    }
+    // Also called by name ("openOrdersReadyToInvoice") from theme_shell's
+    // sidebar notification bell — see get_notifications() in dashboard.py
+    // for the backend action string this must keep matching.
+    openOrdersReadyToInvoice() {
+        this._openList("sale.order", "Sales Orders Ready to Invoice", [
+            ["state", "=", "sale"], ["invoice_status", "=", "to invoice"],
+        ]);
     }
     openPartner(id) { this._openForm("res.partner", id); }
     openProduct(id) { this._openForm("product.product", id); }
@@ -784,9 +807,34 @@ export class BingetDashboard extends Component {
 
     openActivityDetailRecord() {
         const row = this.state.activityDetail.row;
-        if (!row) return;
+        if (!row || row.action === "deleted") return;
         this.state.activityDetail.open = false;
         this._openForm(row.model, row.res_id);
+    }
+
+    async runActivityDebug() {
+        const userId = this.state.activityLog.userId;
+        if (!userId) return;
+        this.state.activityDebug.open = true;
+        this.state.activityDebug.loading = true;
+        this.state.activityDebug.data = null;
+        try {
+            this.state.activityDebug.data = await this.orm.call("binget.dashboard", "get_activity_debug", [], {
+                user_id: userId,
+                date_from: this.state.dateFrom || null,
+                date_to: this.state.dateTo || null,
+                company_id: this.state.companyId || null,
+            });
+        } catch (e) {
+            console.error("binget_dashboard: activity debug failed", e);
+            this.state.activityDebug.open = false;
+        } finally {
+            this.state.activityDebug.loading = false;
+        }
+    }
+
+    closeActivityDebug() {
+        this.state.activityDebug.open = false;
     }
     openEmployees() { this._openList("hr.employee", "Employees", [["active", "=", true]]); }
     openTimeOff() { this._openList("hr.leave", "Pending Time Off", [["state", "in", ["confirm", "validate1"]]]); }
@@ -809,6 +857,9 @@ export class BingetDashboard extends Component {
         this.renderTrendChart();
         this.renderPurchaseTrendChart();
         this.renderAgingChart();
+        this.renderEmployeeGrowthChart();
+        this.renderDepartmentPieChart();
+        this.renderRevenueOverviewChart();
     }
 
     renderTrendChart() {
@@ -888,6 +939,108 @@ export class BingetDashboard extends Component {
                 scales: {
                     x: { ticks: { color: textDim }, grid: { display: false } },
                     y: { ticks: { color: textDim }, grid: { color: "rgba(0,0,0,0.05)" } },
+                },
+            },
+        });
+    }
+
+    // "Employee Growth" — cumulative active headcount over the last 6
+    // months, same visual language as Sales Trend so it reads as
+    // familiar rather than a bolted-on afterthought.
+    renderEmployeeGrowthChart() {
+        if (!this.employeeGrowthChartRef.el || typeof Chart === "undefined") return;
+        if (this.employeeGrowthChartInstance) this.employeeGrowthChartInstance.destroy();
+        const rootStyles = getComputedStyle(document.body);
+        const accent = rootStyles.getPropertyValue("--sb-accent").trim() || "#ba7517";
+        const textDim = rootStyles.getPropertyValue("--sb-text-dim").trim() || "#666";
+        const rows = (this.state.data.workforce && this.state.data.workforce.employee_growth) || [];
+        this.employeeGrowthChartInstance = new Chart(this.employeeGrowthChartRef.el, {
+            type: "line",
+            data: {
+                labels: rows.map((r) => r.label),
+                datasets: [{
+                    label: "Headcount", data: rows.map((r) => r.count), borderColor: accent,
+                    backgroundColor: `${accent}33`, fill: true,
+                    tension: 0.35, borderWidth: 2.5,
+                    pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: accent,
+                }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: { duration: 700, easing: "easeOutQuart" },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: textDim }, grid: { display: false } },
+                    y: { ticks: { color: textDim, precision: 0 }, grid: { color: "rgba(0,0,0,0.05)" }, beginAtZero: true },
+                },
+            },
+        });
+    }
+
+    // "Department Distribution" — active headcount by department, as a
+    // donut so the total (already shown as the Active Employees KPI)
+    // isn't duplicated awkwardly inside the chart itself.
+    renderDepartmentPieChart() {
+        if (!this.departmentPieChartRef.el || typeof Chart === "undefined") return;
+        if (this.departmentPieChartInstance) this.departmentPieChartInstance.destroy();
+        const rows = (this.state.data.workforce && this.state.data.workforce.department_distribution) || [];
+        const palette = ["#ba7517", "#4caf50", "#3d7ba8", "#a83232", "#8a5fb0", "#d6961d", "#2e8f8f", "#6b6b6b"];
+        this.departmentPieChartInstance = new Chart(this.departmentPieChartRef.el, {
+            type: "doughnut",
+            data: {
+                labels: rows.map((r) => r.label),
+                datasets: [{ data: rows.map((r) => r.count), backgroundColor: rows.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: "#fff" }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: "62%",
+                animation: { duration: 700, easing: "easeOutQuart" },
+                plugins: { legend: { position: "right", labels: { boxWidth: 12, padding: 12 } } },
+            },
+        });
+    }
+    // "Revenue Overview" — Revenue (posted customer invoices) as bars
+    // against Expenses (posted vendor bills) as an overlaid line, one
+    // point per month for the current year. Lives in the accounting
+    // section since it's a P&L-style view, not a sales pipeline one.
+    renderRevenueOverviewChart() {
+        if (!this.revenueOverviewChartRef.el || typeof Chart === "undefined") return;
+        if (this.revenueOverviewChartInstance) this.revenueOverviewChartInstance.destroy();
+        const rootStyles = getComputedStyle(document.body);
+        const accent = rootStyles.getPropertyValue("--sb-accent").trim() || "#ba7517";
+        const textDim = rootStyles.getPropertyValue("--sb-text-dim").trim() || "#666";
+        const expenseColor = "#8a93a3";
+        const data = this.state.data.revenue_overview || { labels: [], revenue: [], expenses: [] };
+        this.revenueOverviewChartInstance = new Chart(this.revenueOverviewChartRef.el, {
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        type: "bar", label: "Revenue", data: data.revenue,
+                        backgroundColor: accent, borderRadius: 5, maxBarThickness: 30, order: 2,
+                    },
+                    {
+                        type: "line", label: "Expenses", data: data.expenses,
+                        borderColor: expenseColor, backgroundColor: "transparent",
+                        tension: 0.35, borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5,
+                        pointBackgroundColor: expenseColor, order: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: { duration: 700, easing: "easeOutQuart" },
+                interaction: { mode: "index", intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ` ${ctx.dataset.label}: ${this.formatCompact(ctx.parsed.y)}`,
+                        },
+                    },
+                },
+                scales: {
+                    x: { ticks: { color: textDim }, grid: { display: false } },
+                    y: { ticks: { color: textDim, callback: (v) => this.formatCompact(v) }, grid: { color: "rgba(0,0,0,0.05)" }, beginAtZero: true },
                 },
             },
         });

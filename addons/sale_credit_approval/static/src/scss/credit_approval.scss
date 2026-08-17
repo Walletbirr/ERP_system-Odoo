@@ -1,0 +1,94 @@
+// Status badge(s) used in the Sales Order header for Credit-Approval
+// orders (both salespeople, in Sales > Orders, and the High-Level
+// Manager, on the Credit-Approval screen) - each a single current label,
+// never a multi-stage breadcrumb. See sale_order_views.xml.
+//
+// Match the box model of the header's own buttons instead of Bootstrap's
+// default fully-rounded "pill" badge shape: same padding/height/
+// border-radius/border-width as a .btn, just without a solid fill, so it
+// reads as a status indicator rather than a clickable action.
+.o_credit_approval_status {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+
+  .badge {
+    // Match Odoo/Bootstrap's standard .btn padding, radius and
+    // border width instead of the badge widget's default
+    // rounded-pill + tighter padding.
+    padding: 0.375rem 0.75rem;
+    border-radius: 7.5px !important;
+    border-width: var(--btn-border-width, 1px);
+    font-weight: 500;
+    font-size: inherit;
+    line-height: inherit;
+
+    // Outline style: keep the status color for text/border, drop the
+    // solid fill the badge widget applies via its text-bg-* classes.
+    //
+    // IMPORTANT: text-bg-* utility classes set BOTH background-color
+    // AND a hardcoded white text color. Stripping only the background
+    // (as a previous version of this file did) left white text on a
+    // transparent background - invisible against the page, which is
+    // why the status appeared to "disappear" after an order was
+    // approved or rejected. It was always rendering, just unreadable.
+    // Each contextual color is restored explicitly below so both the
+    // border and the text stay legible.
+    border-style: solid;
+    background-color: transparent !important;
+    border-color: currentColor;
+
+    &.text-bg-info {
+      background-color: var(--info, #17a2b8) !important;
+    }
+    &.text-bg-warning {
+      background-color: var(--warning, #f0ad4e) !important;
+    }
+    &.text-bg-success {
+      background-color: var(--success, #28a745) !important;
+    }
+    &.text-bg-danger {
+      background-color: var(--danger, #dc3545) !important;
+    }
+    &.text-bg-secondary {
+      background-color: var(--secondary, #6c757d) !important;
+    }
+  }
+}
+
+// The two status badges (order stage + approval status) are wrapped in
+// this single group so, as far as layout is concerned, they count as
+// ONE item - giving them the tight, even spacing of the button list to
+// their left instead of the wider gap the header normally puts between
+// separate items.
+//
+// Anchored with position:absolute against the header rather than
+// flex/margin-left:auto: the header's flex layout only reliably pushes
+// the NATIVE statusbar widget to the right edge (that behaviour is
+// internal to Odoo's own statusbar field, not something a plain sibling
+// div can opt into by copying "margin-left: auto" - tried that and it
+// stayed put, flush left after the buttons). Absolute positioning
+// against the header is the reliable way to reach the same right-edge
+// spot from a plain div.
+.o_credit_approval_status_group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+// Positioning context for the absolute group above, plus:
+// - padding-right so the action buttons never scroll underneath it
+// - min-height so top:50% always has enough room to center into, even
+//   when the header has NO visible action buttons of its own (e.g. an
+//   already-decided order on the Credit-Approval screen, where the
+//   header would otherwise collapse to almost nothing and push the
+//   badges up out of the header, overlapping the breadcrumb above it)
+.o_form_statusbar:has(.o_credit_approval_status_group) {
+  position: relative;
+  padding-right: 220px;
+  min-height: 42px;
+}

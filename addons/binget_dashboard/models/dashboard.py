@@ -1,16 +1,35 @@
 # -*- coding: utf-8 -*-
 import json
+import logging
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
+_logger = logging.getLogger(__name__)
+
+MONTH_LABELS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+# A KPI's "previous period" figure is sometimes a tiny near-zero amount
+# (e.g. one small draft order in an otherwise-quiet prior month) rather
+# than a genuine zero — _pct_change's "no previous data" branch below
+# only catches an *actual* zero/falsy previous, so a case like that
+# still runs the division and produces a huge, meaningless swing (a few
+# hundred currency units to a few million reads as a six-figure percent).
+# Capping the result keeps the number readable either way: past a
+# certain point the precise figure carries no extra signal, "up a lot"
+# is the whole message, so this stops the KPI card text from overflowing
+# or looking like a bug.
+_PCT_CHANGE_CAP = 999.9
+
 
 def _pct_change(current, previous):
     if not previous:
         return 100.0 if current else 0.0
-    return round((current - previous) / abs(previous) * 100, 1)
+    pct = round((current - previous) / abs(previous) * 100, 1)
+    return max(-_PCT_CHANGE_CAP, min(_PCT_CHANGE_CAP, pct))
 
 
 # ------------------------------------------------------------
@@ -56,7 +75,18 @@ _KPI_ROLES = {
     "overdue_invoices_count": {"accounting"},
     "outstanding_payables": {"accounting", "purchase"},
     "open_purchase_orders": {"purchase"},
+    "inventory_value": {"inventory", "sales"},
+    "active_employees": {"hr"},
+    "new_hires_count": {"hr"},
+    "pending_time_off_count": {"hr"},
 }
+
+# The admin/executive Overview strip is deliberately NOT "every KPI from
+# every role stacked together" - each role already sees their own tiles
+# on their own Overview, and the role-specific tabs (Finance, Operations,
+# etc.) carry the rest of that detail. Admin gets a small, top-level set:
+# the five numbers an owner actually glances at first.
+_ADMIN_KPIS = ["revenue", "open_orders_count", "outstanding_receivables", "inventory_value", "overdue_invoices_count"]
 
 _ROLE_PRIORITY = ["sales", "accounting", "purchase", "inventory", "manufacturing", "hr"]
 
@@ -84,21 +114,56 @@ _SECTION_DEFAULTS = {
     "workforce": {"installed": False},
     "manufacturing": {"installed": False},
     "activity": {"rows": []},
+    "revenue_overview": {"labels": [], "revenue": [], "expenses": [], "total_revenue": 0, "total_expenses": 0, "net_amount": 0, "net_margin_pct": 0},
 }
 
 _CONFIG_DEFAULTS = {
     "low_stock_threshold": "5",
     "receivables_grace_days": "0",
+    "velocity_window_days": "90",
     "default_period": "month",
     "show_workforce_section": "1",
     "show_manufacturing_section": "1",
     "notify_low_stock": "1",
     "notify_overdue_invoices": "1",
     "notify_pending_purchases": "1",
+    "notify_orders_ready_to_invoice": "1",
 }
-_CONFIG_FLOAT_KEYS = {"low_stock_threshold", "receivables_grace_days"}
+
+# ------------------------------------------------------------
+# PRODUCT MOVEMENT (sales-velocity) CLASSIFICATION
+# Answers "does this product actually sell" alongside the stock-level
+# badge (ok/low/out), which only answers "how much is left". A product
+# can be "low" and still be a top seller (needs reordering urgently) or
+# "low" simply because nobody buys it (doesn't matter much) — the two
+# questions are independent, so this is a second, separate badge next
+# to the product name rather than folded into the stock status.
+#
+# Ranking (not a fixed qty cutoff) is used deliberately: "sells a lot"
+# only means something relative to the rest of the catalog, and a fixed
+# number would need re-tuning per business. Every product that sold at
+# least once in the trailing window is ranked by units sold and split
+# into thirds; anything with zero sales in the window is Slow-Moving
+# regardless of ranking. That's also the answer to "do we need an
+# amount/quantity setting too": no — because tiers are relative
+# (top/middle/bottom third of whatever sold), there's no absolute
+# units-sold number to configure. The only real lever is the window
+# itself (velocity_window_days, configurable in Settings) - a shorter
+# window makes the ranking more reactive to recent activity, a longer
+# one smooths out seasonal/bursty sales. Falls back to 90 days if the
+# setting is missing, blank, zero, or not a valid number, so a bad
+# value in Settings can't silently disable the classification.
+# ------------------------------------------------------------
+_VELOCITY_WINDOW_DAYS_DEFAULT = 90
+_VELOCITY_LABELS = {
+    "fast": "Fast-Moving",
+    "medium": "Medium-Moving",
+    "slow": "Slow-Moving",
+}
+_CONFIG_FLOAT_KEYS = {"low_stock_threshold", "receivables_grace_days", "velocity_window_days"}
 _CONFIG_BOOL_KEYS = {"show_workforce_section", "show_manufacturing_section",
-                     "notify_low_stock", "notify_overdue_invoices", "notify_pending_purchases"}
+                     "notify_low_stock", "notify_overdue_invoices", "notify_pending_purchases",
+                     "notify_orders_ready_to_invoice"}
 
 
 class BingetDashboard(models.AbstractModel):
@@ -201,11 +266,16 @@ class BingetDashboard(models.AbstractModel):
             display_name = "Business Dashboard"
 
         if is_admin:
-            visible_kpis = list(_KPI_ROLES.keys())
+            visible_kpis = list(_ADMIN_KPIS)
         else:
+            # No forced fallback to "revenue" here anymore - that used to
+            # make an Inventory/Manufacturing-only viewer (or, until the
+            # HR entries above existed, an HR viewer) see a "Revenue"
+            # tile that has nothing to do with their role. A role with
+            # no matching KPI tiles just gets none - the role-specific
+            # widgets further down the Overview tab (or the relevant
+            # tab itself) are what's actually relevant to them.
             visible_kpis = [k for k, rs in _KPI_ROLES.items() if rs & role_set]
-            if not visible_kpis:
-                visible_kpis = ["revenue"]
 
         return {
             "is_admin": is_admin,
@@ -235,7 +305,7 @@ class BingetDashboard(models.AbstractModel):
         result = {}
 
         sections = {
-            "kpis": lambda: self._get_kpis(start, end, prev_start, prev_end, cid),
+            "kpis": lambda: self._get_kpis(start, end, cid),
             "sales_trend": lambda: self._get_sales_trend(start, end, cid),
             "top_customers": lambda: self._get_top_customers(start, end, cid),
             "top_products": lambda: self._get_top_products(start, end, cid),
@@ -251,6 +321,7 @@ class BingetDashboard(models.AbstractModel):
             "workforce": lambda: self._get_workforce_snapshot(),
             "manufacturing": lambda: self._get_manufacturing_snapshot(),
             "activity": lambda: self._get_recent_activity(start, end, role_set, is_admin),
+            "revenue_overview": lambda: self._get_revenue_overview(start, end, cid),
         }
         for key, fn in sections.items():
             try:
@@ -263,40 +334,51 @@ class BingetDashboard(models.AbstractModel):
     # ------------------------------------------------------------
     # EXECUTIVE KPI STRIP
     # ------------------------------------------------------------
-    def _get_kpis(self, start, end, prev_start, prev_end, company_id):
+    def _get_kpis(self, start, end, company_id):
         SaleOrder = self.env["sale.order"].sudo()
         cdomain = self._company_domain(company_id)
         params = self.env["ir.config_parameter"].sudo()
 
-        def revenue_for(d_from, d_to):
-            orders = SaleOrder.search(
-                cdomain + [("state", "in", ["sale", "done"]), ("date_order", ">=", d_from), ("date_order", "<=", d_to)]
-            )
-            return sum(orders.mapped("amount_total"))
-
-        current_revenue = revenue_for(start, end)
-        previous_revenue = revenue_for(prev_start, prev_end)
+        # Deliberately just the current period's figures now - no
+        # "vs last month" comparison, no trailing sparkline series.
+        # Those meant computing every KPI twice (current AND previous
+        # period) plus an extra weekly-bucketed history query per KPI
+        # on every single Overview load - real, recurring backend work
+        # for a purely decorative flourish on the card. Kept simple and
+        # fast; can always be revisited later if wanted back.
+        current_revenue = sum(SaleOrder.search(
+            cdomain + [("state", "in", ["sale", "done"]), ("date_order", ">=", start), ("date_order", "<=", end)]
+        ).mapped("amount_total"))
 
         open_orders = SaleOrder.search_count(cdomain + [("state", "in", ["draft", "sent"])])
 
         grace_days = int(float(params.get_param("binget_dashboard.receivables_grace_days", "0")))
         cutoff = date.today() - timedelta(days=grace_days)
 
+        # A "reversed" invoice (one that's had a credit note issued
+        # against it and reconciled) is a distinct payment_state in
+        # Odoo, separate from paid/in_payment — but it has nothing left
+        # to collect either: amount_residual is 0 the moment the credit
+        # note is reconciled against it. Left out of this "not in"
+        # list, it would still count as "unpaid" (and even "overdue" if
+        # its due date has passed), while contributing 0 to the amount
+        # total — exactly the count-vs-amount mismatch this comment is
+        # here to prevent. So it's excluded everywhere receivables/
+        # payables/overdue are computed, not just here.
         unpaid = self.env["account.move"].sudo().search(
-            cdomain + [("move_type", "=", "out_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment"])]
+            cdomain + [("move_type", "=", "out_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment", "reversed"])]
         )
         overdue = unpaid.filtered(lambda m: m.invoice_date_due and m.invoice_date_due < cutoff)
 
         payable_moves = self.env["account.move"].sudo().search(
-            cdomain + [("move_type", "=", "in_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment"])]
+            cdomain + [("move_type", "=", "in_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment", "reversed"])]
         )
         open_pos = self.env["purchase.order"].sudo().search_count(cdomain + [("state", "in", ["draft", "sent", "to approve"])])
 
         threshold = float(params.get_param("binget_dashboard.low_stock_threshold", "5"))
 
-        return {
+        kpis = {
             "revenue": current_revenue,
-            "revenue_delta_pct": _pct_change(current_revenue, previous_revenue),
             "open_orders_count": open_orders,
             "outstanding_receivables": sum(unpaid.mapped("amount_residual")),
             "overdue_invoices_count": len(overdue),
@@ -304,11 +386,92 @@ class BingetDashboard(models.AbstractModel):
             "low_stock_count": self._count_low_stock(threshold),
             "outstanding_payables": sum(payable_moves.mapped("amount_residual")),
             "open_purchase_orders": open_pos,
+            "inventory_value": self._get_inventory_summary()["estimated_value"],
         }
+
+        # HR figures — soft-optional like the Manufacturing/LC blocks
+        # elsewhere in this file: only computed if HR is actually
+        # installed, so this dashboard has no hard dependency on it.
+        if "hr.employee" in self.env:
+            Employee = self.env["hr.employee"].sudo()
+            active_employees = Employee.search([("active", "=", True)])
+
+            def joined_on(emp):
+                # hr.employee doesn't reliably have a dedicated "hire
+                # date" field across all Odoo editions/installs, but
+                # every record has create_date - close enough for "when
+                # did this person show up in the system" and never
+                # missing, which is what a "new hires this period" KPI
+                # needs above all.
+                return emp.create_date.date() if emp.create_date else None
+
+            new_hires_current = len([e for e in active_employees if joined_on(e) and start <= joined_on(e) <= end])
+            kpis["active_employees"] = len(active_employees)
+            kpis["new_hires_count"] = new_hires_current
+
+        if "hr.leave" in self.env:
+            kpis["pending_time_off_count"] = self.env["hr.leave"].sudo().search_count([("state", "in", ["confirm", "validate1"])])
+
+        return kpis
 
     def _count_low_stock(self, threshold):
         rows = self.env["stock.quant"].sudo().read_group([("location_id.usage", "=", "internal")], ["quantity"], ["product_id"])
         return len([r for r in rows if (r.get("quantity", 0) or 0) <= threshold])
+
+    # ------------------------------------------------------------
+    # REVENUE OVERVIEW — Revenue vs Expenses, broken into calendar
+    # months across whatever range the dashboard's shared date filter
+    # currently resolves to (same start/end as every other chart), not
+    # pinned to "Jan through this month" regardless of that filter.
+    # Revenue = posted customer invoices, Expenses = posted vendor
+    # bills; both by invoice_date, mirroring how _get_cash_flow reads
+    # the books elsewhere in this file.
+    # ------------------------------------------------------------
+    def _get_revenue_overview(self, start, end, company_id):
+        cdomain = self._company_domain(company_id)
+        Move = self.env["account.move"].sudo()
+        multi_year = start.year != end.year
+
+        labels, revenue, expenses = [], [], []
+        cursor = date(start.year, start.month, 1)
+        while cursor <= end:
+            if cursor.month == 12:
+                m_end = date(cursor.year, 12, 31)
+            else:
+                m_end = date(cursor.year, cursor.month + 1, 1) - timedelta(days=1)
+            b_start = max(cursor, start)
+            b_end = min(m_end, end)
+
+            rev_moves = Move.search(cdomain + [
+                ("move_type", "=", "out_invoice"), ("state", "=", "posted"),
+                ("invoice_date", ">=", b_start), ("invoice_date", "<=", b_end),
+            ])
+            exp_moves = Move.search(cdomain + [
+                ("move_type", "=", "in_invoice"), ("state", "=", "posted"),
+                ("invoice_date", ">=", b_start), ("invoice_date", "<=", b_end),
+            ])
+            label = MONTH_LABELS_SHORT[cursor.month - 1] + (f" {cursor.year}" if multi_year else "")
+            labels.append(label)
+            revenue.append(sum(rev_moves.mapped("amount_total")))
+            expenses.append(sum(exp_moves.mapped("amount_total")))
+            cursor = cursor + relativedelta(months=1)
+
+        total_revenue = sum(revenue)
+        total_expenses = sum(expenses)
+        net_amount = total_revenue - total_expenses
+        net_margin_pct = round(net_amount / total_revenue * 100, 1) if total_revenue else 0.0
+
+        return {
+            "labels": labels, "revenue": revenue, "expenses": expenses,
+            # Quick-glance stats for the companion "Revenue Snapshot"
+            # card next to this chart — same posted-invoices/bills
+            # basis as the chart itself, just for the selected period
+            # as a whole instead of broken out by month.
+            "total_revenue": total_revenue,
+            "total_expenses": total_expenses,
+            "net_amount": net_amount,
+            "net_margin_pct": net_margin_pct,
+        }
 
     # ------------------------------------------------------------
     # SALES TREND / TOP CUSTOMERS / TOP PRODUCTS
@@ -457,6 +620,97 @@ class BingetDashboard(models.AbstractModel):
     # availability lookup, and a full paginated explorer table. Four
     # different granularities for four different questions.
     # ------------------------------------------------------------
+    def _aggregate_quants_by_product(self, domain):
+        """Groups stock.quant rows by PRODUCT, summing quantity across
+        every lot/serial number (and, unless the domain already pins
+        one, every location) that matches. A product tracked by unique
+        serials (VINs, IMEIs, ...) has one stock.quant per unit in
+        stock — without this grouping, a single product with 3 units
+        on hand as 3 serials is counted, and shown, as three separate
+        products instead of one product with 3 on hand."""
+        quants = self.env["stock.quant"].sudo().search(domain)
+        per_product = {}
+        for q in quants:
+            pid = q.product_id.id
+            if pid not in per_product:
+                per_product[pid] = {
+                    "product_id": pid,
+                    "product": q.product_id.display_name,
+                    "quantity": 0.0,
+                    "warehouses": set(),
+                }
+            per_product[pid]["quantity"] += q.quantity
+            wh_name = q.warehouse_id.name if hasattr(q, "warehouse_id") and q.warehouse_id else None
+            if wh_name:
+                per_product[pid]["warehouses"].add(wh_name)
+        return per_product
+
+    def _get_velocity_window_days(self):
+        raw = self.env["ir.config_parameter"].sudo().get_param("binget_dashboard.velocity_window_days", "90")
+        try:
+            days = int(float(raw))
+        except (TypeError, ValueError):
+            days = _VELOCITY_WINDOW_DAYS_DEFAULT
+        return days if days > 0 else _VELOCITY_WINDOW_DAYS_DEFAULT
+
+    def _get_product_sales_velocity(self, product_ids):
+        """Units sold per product (confirmed sale order lines) in the
+        trailing, admin-configurable window — the raw signal behind the
+        Fast/Medium/Slow-Moving badge."""
+        if not product_ids:
+            return {}
+        cutoff = date.today() - timedelta(days=self._get_velocity_window_days())
+        domain = [
+            ("product_id", "in", product_ids),
+            ("order_id.state", "in", ["sale", "done"]),
+            ("order_id.date_order", ">=", cutoff),
+            ("display_type", "=", False),
+        ]
+        rows = self.env["sale.order.line"].sudo().read_group(domain, ["product_uom_qty"], ["product_id"])
+        return {r["product_id"][0]: (r.get("product_uom_qty") or 0.0) for r in rows if r.get("product_id")}
+
+    def _classify_velocity(self, product_ids):
+        """Ranks the given products by trailing sales volume and splits
+        them into three movement tiers. Ranking (rather than a fixed
+        units-sold cutoff) is deliberate: "sells a lot" is only
+        meaningful relative to the rest of the catalog, and a fixed
+        number would need constant re-tuning per business. Anything
+        with zero sales in the window is always Slow-Moving, regardless
+        of how the rest of the catalog ranks."""
+        product_ids = list(dict.fromkeys(product_ids))  # de-dupe, keep order
+        velocity = self._get_product_sales_velocity(product_ids)
+        selling = sorted(
+            (pid for pid in product_ids if velocity.get(pid, 0) > 0),
+            key=lambda pid: velocity[pid], reverse=True,
+        )
+        n = len(selling)
+        fast_cut = -(-n // 3)       # ceil(n / 3)
+        medium_cut = -(-2 * n // 3)  # ceil(2n / 3)
+        tiers = {}
+        for idx, pid in enumerate(selling):
+            if idx < fast_cut:
+                tiers[pid] = "fast"
+            elif idx < medium_cut:
+                tiers[pid] = "medium"
+            else:
+                tiers[pid] = "slow"
+        for pid in product_ids:
+            tiers.setdefault(pid, "slow")
+        return tiers
+
+    def _attach_velocity(self, rows):
+        """Mutates a list of dicts that each have a 'product_id' key,
+        adding 'velocity_tier' (fast/medium/slow) and 'velocity_label'
+        (the display badge text) computed relative to the whole set of
+        products passed in — not just whichever page is on screen, so
+        a product's badge doesn't change depending on which page you
+        paginate to."""
+        tiers = self._classify_velocity([r["product_id"] for r in rows])
+        for r in rows:
+            tier = tiers.get(r["product_id"], "slow")
+            r["velocity_tier"] = tier
+            r["velocity_label"] = _VELOCITY_LABELS[tier]
+
     def _get_inventory_summary(self):
         threshold = float(self.env["ir.config_parameter"].sudo().get_param("binget_dashboard.low_stock_threshold", "5"))
         rows = self.env["stock.quant"].sudo().read_group([("location_id.usage", "=", "internal")], ["quantity"], ["product_id"])
@@ -535,15 +789,24 @@ class BingetDashboard(models.AbstractModel):
         out = sum(1 for qty in per_product.values() if qty <= 0)
         value = sum(q.quantity * (q.product_id.standard_price or 0) for q in quants if q.quantity > 0)
 
-        attention_quants = self.env["stock.quant"].sudo().search(
-            base_domain + [("quantity", "<=", threshold)], limit=limit, order="quantity asc"
-        )
+        # PRODUCT-level, not one row per stock.quant — see
+        # _aggregate_quants_by_product: a product tracked by unique
+        # lot/serial numbers (e.g. VINs) would otherwise show up here
+        # as several separate "needs attention" rows instead of one.
+        per_product_agg = self._aggregate_quants_by_product(base_domain)
+        attention_data = sorted(
+            (d for d in per_product_agg.values() if d["quantity"] <= threshold),
+            key=lambda d: d["quantity"],
+        )[:limit]
+        self._attach_velocity(attention_data)
         attention_rows = [{
-            "product_id": q.product_id.id,
-            "product": q.product_id.display_name,
-            "quantity": q.quantity,
-            "status": "out" if q.quantity <= 0 else "low",
-        } for q in attention_quants]
+            "product_id": d["product_id"],
+            "product": d["product"],
+            "quantity": d["quantity"],
+            "status": "out" if d["quantity"] <= 0 else "low",
+            "velocity_tier": d["velocity_tier"],
+            "velocity_label": d["velocity_label"],
+        } for d in attention_data]
 
         return {
             "found": True,
@@ -591,7 +854,17 @@ class BingetDashboard(models.AbstractModel):
     def get_inventory_explorer(self, warehouse_id=None, location_id=None, product_id=None, status=None, limit=50, offset=0):
         """Full filterable/paginated inventory table, separate from the
         overview call since this can be a large dataset on a real
-        install and shouldn't slow down the main dashboard load."""
+        install and shouldn't slow down the main dashboard load.
+
+        Rows are PRODUCT-level, not one row per stock.quant: a product
+        tracked by unique lot/serial numbers (e.g. VINs) has one quant
+        per unit in stock, and a per-quant listing would show that
+        single product as several separate rows — each individually
+        judged "low"/"out" off just its own unit — instead of one
+        product with its combined quantity on hand. Status filtering
+        and pagination therefore both happen in Python, after
+        aggregating, rather than as a search domain on stock.quant.
+        """
         domain = [("location_id.usage", "=", "internal")]
         if location_id:
             domain.append(("location_id", "=", int(location_id)))
@@ -603,33 +876,27 @@ class BingetDashboard(models.AbstractModel):
             domain.append(("product_id", "=", int(product_id)))
 
         threshold = float(self.env["ir.config_parameter"].sudo().get_param("binget_dashboard.low_stock_threshold", "5"))
-        # Status has to be part of the SEARCH domain, not a post-fetch
-        # Python filter — otherwise "Low"/"Out" only ever checks the one
-        # page of rows already pulled back, and a low-stock item sitting
-        # on page 2 would never appear no matter how far you paginate.
-        if status == "out":
-            domain.append(("quantity", "<=", 0))
-        elif status == "low":
-            domain += [("quantity", ">", 0), ("quantity", "<=", threshold)]
-        elif status == "ok":
-            domain.append(("quantity", ">", threshold))
-
-        total = self.env["stock.quant"].sudo().search_count(domain)
-        quants = self.env["stock.quant"].sudo().search(domain, limit=limit, offset=offset, order="quantity asc")
+        per_product = self._aggregate_quants_by_product(domain)
 
         rows = []
-        for q in quants:
-            qty = q.quantity
+        for data in per_product.values():
+            qty = data["quantity"]
             row_status = "out" if qty <= 0 else ("low" if qty <= threshold else "ok")
+            if status and status not in ("all",) and status != row_status:
+                continue
             rows.append({
-                "product_id": q.product_id.id,
-                "product": q.product_id.display_name,
-                "location": q.location_id.display_name,
-                "warehouse": q.warehouse_id.name if hasattr(q, "warehouse_id") and q.warehouse_id else "",
-                "quantity": qty,
+                "product_id": data["product_id"],
+                "product": data["product"],
+                "warehouse": ", ".join(sorted(data["warehouses"])) if data["warehouses"] else "",
+                "quantity": data["quantity"],
                 "status": row_status,
             })
-        return {"rows": rows, "total": total}
+        rows.sort(key=lambda r: r["quantity"])
+
+        total = len(rows)
+        page_rows = rows[offset:offset + limit]
+        self._attach_velocity(page_rows)
+        return {"rows": page_rows, "total": total}
 
     @api.model
     def get_filter_options(self):
@@ -668,10 +935,10 @@ class BingetDashboard(models.AbstractModel):
     def _get_cash_flow(self, company_id):
         cdomain = self._company_domain(company_id)
         receivable_moves = self.env["account.move"].sudo().search(
-            cdomain + [("move_type", "=", "out_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment"])]
+            cdomain + [("move_type", "=", "out_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment", "reversed"])]
         )
         payable_moves = self.env["account.move"].sudo().search(
-            cdomain + [("move_type", "=", "in_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment"])]
+            cdomain + [("move_type", "=", "in_invoice"), ("state", "=", "posted"), ("payment_state", "not in", ["paid", "in_payment", "reversed"])]
         )
         total_receivable = sum(receivable_moves.mapped("amount_residual"))
         total_payable = sum(payable_moves.mapped("amount_residual"))
@@ -691,7 +958,7 @@ class BingetDashboard(models.AbstractModel):
         overdue = self.env["account.move"].sudo().search(
             cdomain + [
                 ("move_type", "=", "out_invoice"), ("state", "=", "posted"),
-                ("payment_state", "not in", ["paid", "in_payment"]),
+                ("payment_state", "not in", ["paid", "in_payment", "reversed"]),
                 ("invoice_date_due", "<", date.today()),
             ]
         )
@@ -727,11 +994,52 @@ class BingetDashboard(models.AbstractModel):
         if not show or "hr.employee" not in self.env:
             return {"installed": False}
         Employee = self.env["hr.employee"].sudo()
-        result = {"installed": True, "active_employees": Employee.search_count([("active", "=", True)])}
+        active = Employee.search([("active", "=", True)])
+        result = {"installed": True, "active_employees": len(active)}
         if "hr.leave" in self.env:
             result["pending_time_off"] = self.env["hr.leave"].sudo().search_count([("state", "in", ["confirm", "validate1"])])
         else:
             result["pending_time_off"] = None
+
+        # Department Distribution — active headcount per department,
+        # for a pie chart on the HR Overview tab. Employees without a
+        # department land in "Unassigned" rather than silently
+        # vanishing from the total (a pie chart that doesn't add up to
+        # the headcount number above it looks broken).
+        dept_counts = {}
+        for emp in active:
+            label = emp.department_id.name or "Unassigned"
+            dept_counts[label] = dept_counts.get(label, 0) + 1
+        result["department_distribution"] = [
+            {"label": k, "count": v} for k, v in sorted(dept_counts.items(), key=lambda kv: -kv[1])
+        ]
+
+        # Employee Growth — cumulative active headcount at the end of
+        # each of the last 6 months, using create_date as the "joined"
+        # moment (see the same choice/reasoning in _get_kpis above).
+        # Cumulative rather than "hires per month" so the line actually
+        # shows growth (or shrinkage) of the team over time, the way
+        # Sales Trend shows revenue over time.
+        today = date.today()
+        month_starts = []
+        cursor = today.replace(day=1)
+        for _ in range(6):
+            month_starts.append(cursor)
+            cursor = (cursor - timedelta(days=1)).replace(day=1)
+        month_starts.reverse()
+
+        join_dates = sorted(d for d in (
+            (e.create_date.date() if e.create_date else None) for e in active
+        ) if d)
+
+        growth = []
+        for m_start in month_starts:
+            next_month = (m_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+            month_end = next_month - timedelta(days=1)
+            count = sum(1 for d in join_dates if d <= month_end)
+            growth.append({"label": m_start.strftime("%b"), "count": count})
+        result["employee_growth"] = growth
+
         return result
 
     # ------------------------------------------------------------
@@ -755,31 +1063,30 @@ class BingetDashboard(models.AbstractModel):
     # of everyone else's in the same department.
     # ------------------------------------------------------------
     def _get_recent_activity(self, start, end, role_set, is_admin, limit=10):
-        activity = []
-        own_domain = [] if is_admin else [("create_uid", "=", self.env.uid)]
-        date_domain = [("create_date", ">=", start), ("create_date", "<=", end)]
-        if is_admin or "sales" in role_set:
-            for so in self.env["sale.order"].sudo().search(own_domain + date_domain, order="create_date desc", limit=limit):
-                activity.append({"type": "Sales Order", "label": so.name, "partner": so.partner_id.name or "",
-                                  "amount": so.amount_total, "date": so.create_date and so.create_date.isoformat(),
-                                  "res_id": so.id, "model": "sale.order"})
-        if is_admin or "accounting" in role_set:
-            for inv in self.env["account.move"].sudo().search(own_domain + date_domain + [("move_type", "in", ["out_invoice", "in_invoice"])], order="create_date desc", limit=limit):
-                activity.append({"type": "Bill" if inv.move_type == "in_invoice" else "Invoice", "label": inv.name,
-                                  "partner": inv.partner_id.name or "", "amount": inv.amount_total,
-                                  "date": inv.create_date and inv.create_date.isoformat(), "res_id": inv.id, "model": "account.move"})
-        if is_admin or "purchase" in role_set:
-            for po in self.env["purchase.order"].sudo().search(own_domain + date_domain, order="create_date desc", limit=limit):
-                activity.append({"type": "Purchase Order", "label": po.name, "partner": po.partner_id.name or "",
-                                  "amount": po.amount_total, "date": po.create_date and po.create_date.isoformat(),
-                                  "res_id": po.id, "model": "purchase.order"})
-        if (is_admin or "manufacturing" in role_set) and "mrp.production" in self.env:
-            for mo in self.env["mrp.production"].sudo().search(own_domain + date_domain, order="create_date desc", limit=limit):
-                activity.append({"type": "Manufacturing Order", "label": mo.name, "partner": "",
-                                  "amount": 0, "date": mo.create_date and mo.create_date.isoformat(),
-                                  "res_id": mo.id, "model": "mrp.production"})
-        activity.sort(key=lambda a: a["date"] or "", reverse=True)
-        return {"rows": activity[:limit]}
+        """Deliberately just a role-filtered slice of _build_activity_rows
+        - see that method's docstring. This used to be its own,
+        separate query (only 4 of the 7+ tracked types, its own domain
+        construction) which is exactly how it drifted out of sync with
+        the Activity Log tab - the same user's own data could show up
+        in one and not the other. Sharing the builder makes that
+        structurally impossible going forward: whatever Activity Log
+        can see, this is always a subset of, never a divergent copy.
+        include_updates=False here on purpose - see the builder's
+        docstring for why."""
+        scope_user = None if is_admin else self.env.uid
+        rows = self._build_activity_rows(
+            scope_user=scope_user, company_id=None,
+            date_from=start, date_to=end,
+            type_filter=None, search=None, include_updates=False,
+        )
+        if not is_admin:
+            rows = [r for r in rows if role_set & self._ACTIVITY_TYPE_ROLES.get(r["type_key"], set())]
+        rows.sort(key=lambda r: r["date"] or "", reverse=True)
+        activity = [{
+            "type": r["type"], "label": r["label"], "partner": r["partner"],
+            "amount": r["amount"], "date": r["date"], "res_id": r["res_id"], "model": r["model"],
+        } for r in rows[:limit]]
+        return {"rows": activity}
 
     # ------------------------------------------------------------
     # ACTIVITY LOG — the full, searchable/filterable counterpart to the
@@ -812,6 +1119,26 @@ class BingetDashboard(models.AbstractModel):
         "stock.picking": "stock_picking",
         "res.partner": "contact",
         "product.template": "product",
+        "hr.employee": "employee",
+    }
+
+    # Which Dashboard Role(s) a given activity type_key is relevant to,
+    # for the Recent Activity widget only (see _get_recent_activity) -
+    # the full Activity Log tab ignores this entirely and shows a
+    # non-admin every type of their own activity, unfiltered by role,
+    # since that tab is a personal audit trail, not department content.
+    # A type_key not listed here (there currently are none) would be
+    # admin-only in Recent Activity.
+    _ACTIVITY_TYPE_ROLES = {
+        "sale_order": {"sales"},
+        "invoice": {"accounting"},
+        "bill": {"accounting"},
+        "purchase_order": {"purchase"},
+        "manufacturing_order": {"manufacturing"},
+        "stock_picking": {"inventory", "manufacturing"},
+        "contact": {"sales", "purchase"},
+        "product": {"sales", "inventory", "purchase"},
+        "employee": {"hr"},
     }
 
     def _tracking_field_value(self, tv, old):
@@ -867,56 +1194,106 @@ class BingetDashboard(models.AbstractModel):
 
     def _get_activity_updates(self, models, scope_user, start, end, company_id, search_l, matches):
         """'Updated' rows: one per write (mail.message), covering every
-        field changed in that write, across the given models."""
+        field changed in that write, across the given models.
+
+        Deliberately two explicit queries (mail.message first, then
+        mail.tracking.value filtered by those message ids) rather than
+        one dotted-path domain like [("mail_message_id.create_uid",
+        "=", scope_user)] on mail.tracking.value directly. Functionally
+        the same result, but this way each step is independently
+        loggable - when a non-admin's activity log comes back missing
+        rows an admin can clearly see, this tells you exactly where it
+        drops out: no matching messages at all (points at create_uid on
+        the message itself, e.g. a write done through an automation/
+        different technical user), or messages found but no tracking
+        values attached (points at the field not being marked
+        tracking=True, or a write that didn't actually change a
+        tracked field's stored value)."""
         cap = self._ACTIVITY_PER_TYPE_CAP
         rows = []
         for model in models:
             if model not in self.env:
                 continue
-            domain = [("mail_message_id.model", "=", model)]
-            if scope_user:
-                domain.append(("mail_message_id.create_uid", "=", scope_user))
-            if start:
-                domain.append(("mail_message_id.create_date", ">=", start))
-            if end:
-                domain.append(("mail_message_id.create_date", "<=", end))
-            tvs = self.env["mail.tracking.value"].sudo().search(domain, order="mail_message_id desc", limit=cap * 3)
-            if not tvs:
-                continue
-
-            by_message = {}
-            for tv in tvs:
-                by_message.setdefault(tv.mail_message_id, self.env["mail.tracking.value"])
-                by_message[tv.mail_message_id] |= tv
-
-            count = 0
-            for message, message_tvs in by_message.items():
-                if count >= cap:
-                    break
-                if company_id and self._record_company_id(model, message.res_id) not in (None, int(company_id)):
-                    continue
-                change_text = self._tracking_message_change_text(message_tvs)
-                if not change_text:
-                    continue
-                label = message.record_name or ""
-                if not matches(label, change_text):
+            try:
+                msg_domain = [("model", "=", model)]
+                if scope_user:
+                    msg_domain.append(("create_uid", "=", scope_user))
+                if start:
+                    msg_domain.append(("create_date", ">=", start))
+                if end:
+                    msg_domain.append(("create_date", "<=", end))
+                messages = self.env["mail.message"].sudo().search(msg_domain, order="create_date desc", limit=cap * 3)
+                if not messages:
+                    if scope_user:
+                        _logger.info(
+                            "binget_dashboard: 0 mail.message rows for scope_user=%s model=%s in %s..%s (domain=%s) "
+                            "- no matching message at all, so no tracking values to even look for. If this user "
+                            "definitely edited a %s in this window, check who create_uid is on that record's "
+                            "actual mail.message (Settings > Technical > Messages, filtered by model/res_id) - if "
+                            "it's not this uid, the edit was recorded under a different account (e.g. an "
+                            "automation, a related write, or a stale login session).",
+                            scope_user, model, start, end, msg_domain, model,
+                        )
                     continue
 
-                type_key = self._ACTIVITY_TRACKED_MODELS.get(model)
-                type_label = self._model_label(model)
-                if model == "account.move":
-                    move = self.env["account.move"].sudo().browse(message.res_id)
-                    is_bill = move.move_type == "in_invoice"
-                    type_key = "bill" if is_bill else "invoice"
-                    type_label = "Bill" if is_bill else "Invoice"
+                tvs = self.env["mail.tracking.value"].sudo().search(
+                    [("mail_message_id", "in", messages.ids)], order="mail_message_id desc", limit=cap * 3
+                )
+                if not tvs:
+                    if scope_user:
+                        _logger.info(
+                            "binget_dashboard: %d matching mail.message rows for scope_user=%s model=%s, but 0 "
+                            "mail.tracking.value rows attached to any of them - the message(s) exist (e.g. a "
+                            "chatter note or a plain 'created' log) but no tracked field's value actually "
+                            "changed, or the field that changed isn't marked tracking=True on this model.",
+                            len(messages), scope_user, model,
+                        )
+                    continue
 
-                rows.append({
-                    "action": "updated", "type": type_label, "type_key": type_key, "label": label,
-                    "partner": "", "amount": 0, "change": change_text,
-                    "date": message.create_date and message.create_date.isoformat(),
-                    "res_id": message.res_id, "model": model, "user": message.create_uid.name or "",
-                })
-                count += 1
+                if scope_user:
+                    _logger.debug(
+                        "binget_dashboard: %d messages / %d tracking values for scope_user=%s model=%s",
+                        len(messages), len(tvs), scope_user, model,
+                    )
+
+                by_message = {}
+                for tv in tvs:
+                    by_message.setdefault(tv.mail_message_id, self.env["mail.tracking.value"])
+                    by_message[tv.mail_message_id] |= tv
+
+                count = 0
+                for message, message_tvs in by_message.items():
+                    if count >= cap:
+                        break
+                    if company_id and self._record_company_id(model, message.res_id) not in (None, int(company_id)):
+                        continue
+                    change_text = self._tracking_message_change_text(message_tvs)
+                    if not change_text:
+                        continue
+                    label = message.record_name or ""
+                    if not matches(label, change_text):
+                        continue
+
+                    type_key = self._ACTIVITY_TRACKED_MODELS.get(model)
+                    type_label = self._model_label(model)
+                    if model == "account.move":
+                        move = self.env["account.move"].sudo().browse(message.res_id)
+                        is_bill = move.move_type == "in_invoice"
+                        type_key = "bill" if is_bill else "invoice"
+                        type_label = "Bill" if is_bill else "Invoice"
+
+                    rows.append({
+                        "action": "updated", "type": type_label, "type_key": type_key, "label": label,
+                        "partner": "", "amount": 0, "change": change_text,
+                        "date": message.create_date and message.create_date.isoformat(),
+                        "res_id": message.res_id, "model": model, "user": message.create_uid.name or "",
+                    })
+                    count += 1
+            except Exception:
+                # One model's tracking data (e.g. a field type this
+                # method doesn't expect) no longer takes every other
+                # model down with it - see _tracking_field_value.
+                _logger.exception("binget_dashboard: activity 'updated' rows failed for model %s", model)
         return rows
 
     _MODEL_LABEL_CACHE = {}
@@ -937,6 +1314,103 @@ class BingetDashboard(models.AbstractModel):
         return {"rows": [{"id": u.id, "name": u.name} for u in users]}
 
     @api.model
+    def get_activity_debug(self, user_id, date_from=None, date_to=None, company_id=None):
+        """Admin-only, on-screen version of the server-log diagnostic
+        added alongside this: for the given user, shows exactly how
+        many mail.message / mail.tracking.value rows exist per tracked
+        model, with create_uid on the single most recent one of each -
+        so 'the dashboard doesn't know who did it' can be checked
+        directly on screen instead of needing server log access.
+
+        date_from/date_to/company_id are OPTIONAL and used only for
+        the second live-method column below (run with your actual
+        current dashboard filters) - every other number in this method
+        deliberately ignores them, to answer 'does the data exist for
+        this user at all' before even asking whether today's filters
+        happen to exclude it."""
+        if not self._get_role_profile()["is_admin"]:
+            raise AccessError("Admins only.")
+        target = self.env["res.users"].sudo().browse(int(user_id))
+        if not target.exists():
+            raise AccessError("That user no longer exists.")
+
+        end_bound = f"{date_to} 23:59:59" if date_to else None
+
+        results = []
+        for model in self._ACTIVITY_TRACKED_MODELS:
+            if model not in self.env:
+                continue
+            created_count = self.env[model].sudo().search_count([("create_uid", "=", target.id)])
+
+            own_messages = self.env["mail.message"].sudo().search(
+                [("model", "=", model), ("create_uid", "=", target.id)], order="create_date desc", limit=1
+            )
+            own_message_count = self.env["mail.message"].sudo().search_count(
+                [("model", "=", model), ("create_uid", "=", target.id)]
+            )
+            all_messages_this_model = self.env["mail.message"].sudo().search_count([("model", "=", model)])
+
+            own_tv_count = 0
+            latest_tv_message_creator = ""
+            if own_message_count:
+                own_tv_count = self.env["mail.tracking.value"].sudo().search_count(
+                    [("mail_message_id.model", "=", model), ("mail_message_id.create_uid", "=", target.id)]
+                )
+            latest_any_tv = self.env["mail.tracking.value"].sudo().search(
+                [("mail_message_id.model", "=", model)], order="mail_message_id desc", limit=1
+            )
+            if latest_any_tv:
+                latest_tv_message_creator = latest_any_tv.mail_message_id.create_uid.name or ""
+
+            # Two calls into the EXACT method the real Activity Log
+            # uses (_get_activity_updates): one with no date/company
+            # narrowing at all ("does the code path work on this data,
+            # period"), one with whatever filters your dashboard is
+            # actually showing right now ("does it work under today's
+            # actual conditions"). Any exception either hits is
+            # surfaced here instead of silently logged-and-swallowed
+            # the way it is in the real call (see _build_activity_rows).
+            live_rows_unfiltered = live_error_unfiltered = None
+            try:
+                live_rows_unfiltered = len(self._get_activity_updates(
+                    [model], target.id, None, None, None, "", lambda *texts: True,
+                ))
+            except Exception as exc:
+                live_error_unfiltered = f"{type(exc).__name__}: {exc}"
+
+            live_rows_current = live_error_current = None
+            if date_from or date_to or company_id:
+                try:
+                    live_rows_current = len(self._get_activity_updates(
+                        [model], target.id, date_from, end_bound, company_id, "", lambda *texts: True,
+                    ))
+                except Exception as exc:
+                    live_error_current = f"{type(exc).__name__}: {exc}"
+
+            results.append({
+                "model": model,
+                "label": self._model_label(model),
+                "created_by_user": created_count,
+                "messages_by_user": own_message_count,
+                "messages_total_this_model": all_messages_this_model,
+                "tracking_values_by_user": own_tv_count,
+                "live_rows_from_real_method": live_rows_unfiltered,
+                "live_error": live_error_unfiltered,
+                "live_rows_current_filters": live_rows_current,
+                "live_error_current_filters": live_error_current,
+                "latest_message_sample": {
+                    "res_id": own_messages.res_id if own_messages else None,
+                    "date": own_messages.create_date.isoformat() if own_messages else None,
+                } if own_messages else None,
+                "latest_tracking_value_creator_anywhere": latest_tv_message_creator,
+            })
+
+        return {
+            "user": target.name, "user_id": target.id, "results": results,
+            "filters_used": {"date_from": date_from, "date_to": date_to, "company_id": company_id},
+        }
+
+    @api.model
     def get_activity_log(self, type_filter=None, user_id=None, search=None,
                           date_from=None, date_to=None, company_id=None, limit=25, offset=0):
         is_admin = self._get_role_profile()["is_admin"]
@@ -946,6 +1420,37 @@ class BingetDashboard(models.AbstractModel):
         # client sends as user_id.
         scope_user = self.env.uid if not is_admin else (int(user_id) if user_id else None)
 
+        rows = self._build_activity_rows(
+            scope_user=scope_user, company_id=company_id,
+            date_from=date_from, date_to=date_to,
+            type_filter=type_filter, search=search,
+        )
+        rows.sort(key=lambda r: r["date"] or "", reverse=True)
+        total = len(rows)
+        return {"rows": rows[offset:offset + limit], "total": total}
+
+    def _build_activity_rows(self, scope_user, company_id, date_from, date_to,
+                              type_filter=None, search=None, include_updates=True):
+        """The single source of truth for 'what did this user do' -
+        both get_activity_log (the full, paginated Activity Log tab)
+        and _get_recent_activity (the small Overview widget) build
+        their rows from this SAME method, so the two can never again
+        silently drift apart the way they used to (Recent Activity only
+        covering 4 of the 7+ tracked types, its own separate domain
+        construction, etc.) - Recent Activity is now, structurally, a
+        role-filtered slice of exactly what this returns, not a
+        parallel implementation of its own. Unsorted, uncapped-by-
+        pagination - callers sort/paginate/role-filter as they need.
+
+        scope_user=None means "everyone" (admin only, ever - callers
+        are responsible for never passing None for a non-admin).
+
+        include_updates=False skips the chatter/tracking-based
+        "updated" rows entirely (the more expensive half of this
+        method, scanning mail.message/mail.tracking.value) - used by
+        the Overview widget, which reloads on every dashboard visit and
+        has no business carrying that cost just to show a handful of
+        recent rows; the full Activity Log tab always wants it."""
         domain = []
         if scope_user:
             domain.append(("create_uid", "=", scope_user))
@@ -966,72 +1471,153 @@ class BingetDashboard(models.AbstractModel):
         rows = []
         cap = self._ACTIVITY_PER_TYPE_CAP
 
+        # Each block below is independently wrapped: previously a single
+        # bad record (e.g. a partner with a broken related field, or a
+        # model quirk on one company's data) raised out of this whole
+        # method and get_activity_log came back empty with NO error
+        # surfaced anywhere the user could see - it just looked exactly
+        # like "no activity", indistinguishable from a genuinely empty
+        # result, even though Recent Activity (a separate, narrower
+        # query) kept working fine. Logging + skipping the one broken
+        # type means the other 7 still show up, and the log line gives
+        # an admin something to actually search for instead of a user
+        # reporting "activity log is broken" with no lead at all.
         if type_filter in (None, "all", "sale_order"):
-            for so in self.env["sale.order"].sudo().search(domain, order="create_date desc", limit=cap):
-                if matches(so.name, so.partner_id.name):
-                    rows.append({"action": "created", "change": "Created", "type": "Sales Order", "type_key": "sale_order", "label": so.name,
-                                 "partner": so.partner_id.name or "", "amount": so.amount_total,
-                                 "date": so.create_date and so.create_date.isoformat(),
-                                 "res_id": so.id, "model": "sale.order", "user": so.create_uid.name or ""})
+            try:
+                for so in self.env["sale.order"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(so.name, so.partner_id.name):
+                        rows.append({"action": "created", "change": "Created", "type": "Sales Order", "type_key": "sale_order", "label": so.name,
+                                     "partner": so.partner_id.name or "", "amount": so.amount_total,
+                                     "date": so.create_date and so.create_date.isoformat(),
+                                     "res_id": so.id, "model": "sale.order", "user": so.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'sale.order' rows")
 
         if type_filter in (None, "all", "invoice", "bill"):
-            move_types = {"invoice": ["out_invoice"], "bill": ["in_invoice"]}.get(type_filter, ["out_invoice", "in_invoice"])
-            for inv in self.env["account.move"].sudo().search(domain + [("move_type", "in", move_types)], order="create_date desc", limit=cap):
-                is_bill = inv.move_type == "in_invoice"
-                if matches(inv.name, inv.partner_id.name):
-                    rows.append({"action": "created", "change": "Created", "type": "Bill" if is_bill else "Invoice", "type_key": "bill" if is_bill else "invoice",
-                                 "label": inv.name, "partner": inv.partner_id.name or "", "amount": inv.amount_total,
-                                 "date": inv.create_date and inv.create_date.isoformat(),
-                                 "res_id": inv.id, "model": "account.move", "user": inv.create_uid.name or ""})
+            try:
+                move_types = {"invoice": ["out_invoice"], "bill": ["in_invoice"]}.get(type_filter, ["out_invoice", "in_invoice"])
+                for inv in self.env["account.move"].sudo().search(domain + [("move_type", "in", move_types)], order="create_date desc", limit=cap):
+                    is_bill = inv.move_type == "in_invoice"
+                    if matches(inv.name, inv.partner_id.name):
+                        rows.append({"action": "created", "change": "Created", "type": "Bill" if is_bill else "Invoice", "type_key": "bill" if is_bill else "invoice",
+                                     "label": inv.name, "partner": inv.partner_id.name or "", "amount": inv.amount_total,
+                                     "date": inv.create_date and inv.create_date.isoformat(),
+                                     "res_id": inv.id, "model": "account.move", "user": inv.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'account.move' rows")
 
         if type_filter in (None, "all", "purchase_order"):
-            for po in self.env["purchase.order"].sudo().search(domain, order="create_date desc", limit=cap):
-                if matches(po.name, po.partner_id.name):
-                    rows.append({"action": "created", "change": "Created", "type": "Purchase Order", "type_key": "purchase_order", "label": po.name,
-                                 "partner": po.partner_id.name or "", "amount": po.amount_total,
-                                 "date": po.create_date and po.create_date.isoformat(),
-                                 "res_id": po.id, "model": "purchase.order", "user": po.create_uid.name or ""})
+            try:
+                for po in self.env["purchase.order"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(po.name, po.partner_id.name):
+                        rows.append({"action": "created", "change": "Created", "type": "Purchase Order", "type_key": "purchase_order", "label": po.name,
+                                     "partner": po.partner_id.name or "", "amount": po.amount_total,
+                                     "date": po.create_date and po.create_date.isoformat(),
+                                     "res_id": po.id, "model": "purchase.order", "user": po.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'purchase.order' rows")
 
         if type_filter in (None, "all", "manufacturing_order") and "mrp.production" in self.env:
-            for mo in self.env["mrp.production"].sudo().search(domain, order="create_date desc", limit=cap):
-                if matches(mo.name, ""):
-                    rows.append({"action": "created", "change": "Created", "type": "Manufacturing Order", "type_key": "manufacturing_order", "label": mo.name,
-                                 "partner": "", "amount": 0,
-                                 "date": mo.create_date and mo.create_date.isoformat(),
-                                 "res_id": mo.id, "model": "mrp.production", "user": mo.create_uid.name or ""})
+            try:
+                for mo in self.env["mrp.production"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(mo.name, ""):
+                        rows.append({"action": "created", "change": "Created", "type": "Manufacturing Order", "type_key": "manufacturing_order", "label": mo.name,
+                                     "partner": "", "amount": 0,
+                                     "date": mo.create_date and mo.create_date.isoformat(),
+                                     "res_id": mo.id, "model": "mrp.production", "user": mo.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'mrp.production' rows")
 
         if type_filter in (None, "all", "stock_picking") and "stock.picking" in self.env:
-            for pk in self.env["stock.picking"].sudo().search(domain, order="create_date desc", limit=cap):
-                if matches(pk.name, pk.partner_id.name):
-                    rows.append({"action": "created", "change": "Created", "type": "Transfer", "type_key": "stock_picking", "label": pk.name,
-                                 "partner": pk.partner_id.name or "", "amount": 0,
-                                 "date": pk.create_date and pk.create_date.isoformat(),
-                                 "res_id": pk.id, "model": "stock.picking", "user": pk.create_uid.name or ""})
+            try:
+                for pk in self.env["stock.picking"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(pk.name, pk.partner_id.name):
+                        rows.append({"action": "created", "change": "Created", "type": "Transfer", "type_key": "stock_picking", "label": pk.name,
+                                     "partner": pk.partner_id.name or "", "amount": 0,
+                                     "date": pk.create_date and pk.create_date.isoformat(),
+                                     "res_id": pk.id, "model": "stock.picking", "user": pk.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'stock.picking' rows")
 
         if type_filter in (None, "all", "contact"):
-            for p in self.env["res.partner"].sudo().search(domain, order="create_date desc", limit=cap):
-                if matches(p.name, ""):
-                    rows.append({"action": "created", "change": "Created", "type": "Contact", "type_key": "contact", "label": p.name or "",
-                                 "partner": "", "amount": 0,
-                                 "date": p.create_date and p.create_date.isoformat(),
-                                 "res_id": p.id, "model": "res.partner", "user": p.create_uid.name or ""})
+            try:
+                for p in self.env["res.partner"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(p.name, ""):
+                        rows.append({"action": "created", "change": "Created", "type": "Contact", "type_key": "contact", "label": p.name or "",
+                                     "partner": "", "amount": 0,
+                                     "date": p.create_date and p.create_date.isoformat(),
+                                     "res_id": p.id, "model": "res.partner", "user": p.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'res.partner' rows")
 
         if type_filter in (None, "all", "product"):
-            for pt in self.env["product.template"].sudo().search(domain, order="create_date desc", limit=cap):
-                if matches(pt.name, ""):
-                    rows.append({"action": "created", "change": "Created", "type": "Product", "type_key": "product", "label": pt.name or "",
-                                 "partner": "", "amount": 0,
-                                 "date": pt.create_date and pt.create_date.isoformat(),
-                                 "res_id": pt.id, "model": "product.template", "user": pt.create_uid.name or ""})
+            try:
+                for pt in self.env["product.template"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(pt.name, ""):
+                        rows.append({"action": "created", "change": "Created", "type": "Product", "type_key": "product", "label": pt.name or "",
+                                     "partner": "", "amount": 0,
+                                     "date": pt.create_date and pt.create_date.isoformat(),
+                                     "res_id": pt.id, "model": "product.template", "user": pt.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'product.template' rows")
+
+        # "Employee" - added specifically because plain hr.employee
+        # creation (e.g. onboarding someone through the Employees app)
+        # previously had no "created" row anywhere at all, admin or not
+        # - res.partner alone only covers the case where a bare Contact
+        # is created directly, not an Employee record.
+        if type_filter in (None, "all", "employee") and "hr.employee" in self.env:
+            try:
+                for emp in self.env["hr.employee"].sudo().search(domain, order="create_date desc", limit=cap):
+                    if matches(emp.name, ""):
+                        rows.append({"action": "created", "change": "Created", "type": "Employee", "type_key": "employee", "label": emp.name or "",
+                                     "partner": "", "amount": 0,
+                                     "date": emp.create_date and emp.create_date.isoformat(),
+                                     "res_id": emp.id, "model": "hr.employee", "user": emp.create_uid.name or ""})
+            except Exception:
+                _logger.exception("binget_dashboard: activity log failed building 'hr.employee' rows")
 
         # "Updated" rows — every field change (not just the initial
         # creation) on the same set of business models, sourced from
         # Odoo's own chatter tracking. This is what makes the log "every
         # change made by that user", not only the documents they started.
+        # "Deleted" rows - the one action type that can't come from
+        # chatter (a removed record has no chatter left to scan), so it
+        # reads the standalone deletion log instead. Included regardless
+        # of include_updates - deletions are cheap to query (one simple
+        # table, no mail.tracking.value join) and, unlike edits, are
+        # exactly the kind of thing Recent Activity should surface too.
+        try:
+            del_domain = []
+            if scope_user:
+                del_domain.append(("user_id", "=", scope_user))
+            if company_id:
+                del_domain.append(("company_id", "=", int(company_id)))
+            if date_from:
+                del_domain.append(("delete_date", ">=", date_from))
+            if date_to:
+                del_domain.append(("delete_date", "<=", f"{date_to} 23:59:59"))
+            if type_filter not in (None, "all"):
+                del_domain.append(("type_key", "=", type_filter))
+            for d in self.env["binget.dashboard.activity.deletion"].sudo().search(del_domain, order="delete_date desc", limit=cap):
+                if matches(d.label, d.partner):
+                    rows.append({
+                        "action": "deleted", "change": "Deleted", "type": d.type_label, "type_key": d.type_key,
+                        "label": d.label or "", "partner": d.partner or "", "amount": d.amount,
+                        "date": d.delete_date and d.delete_date.isoformat(),
+                        "res_id": d.res_id, "model": d.res_model, "user": d.user_id.name or "",
+                    })
+        except Exception:
+            _logger.exception("binget_dashboard: activity log failed building 'deleted' rows")
+
+        if not include_updates:
+            return rows
+
         filter_to_models = {
             "sale_order": ["sale.order"], "invoice": ["account.move"], "bill": ["account.move"],
             "purchase_order": ["purchase.order"], "manufacturing_order": ["mrp.production"],
             "stock_picking": ["stock.picking"], "contact": ["res.partner"], "product": ["product.template"],
+            "employee": ["hr.employee"],
         }
         if type_filter in (None, "all"):
             update_models = list(self._ACTIVITY_TRACKED_MODELS.keys())
@@ -1040,28 +1626,44 @@ class BingetDashboard(models.AbstractModel):
         update_models = [m for m in update_models if m in self.env]
 
         end_bound = f"{date_to} 23:59:59" if date_to else None
-        rows.extend(self._get_activity_updates(update_models, scope_user, date_from, end_bound, company_id, search_l, matches))
+        try:
+            rows.extend(self._get_activity_updates(update_models, scope_user, date_from, end_bound, company_id, search_l, matches))
+        except Exception:
+            # Same reasoning as the try/except blocks above: the
+            # "created" rows gathered so far are still returned even if
+            # the (more expensive, chatter-scanning) "updated" half
+            # blows up on some record.
+            _logger.exception("binget_dashboard: activity log failed building 'updated' rows")
 
-        rows.sort(key=lambda r: r["date"] or "", reverse=True)
-        total = len(rows)
-        return {"rows": rows[offset:offset + limit], "total": total}
+        return rows
 
     # ------------------------------------------------------------
     # ACTIVITY LOG PDF EXPORT — admin only, enforced here (not just
-    # hidden in the UI) since _get_report_values is the actual data
-    # source the PDF renders from. Reads whichever filters were active
-    # in the Activity Log at export time via the action context (see
-    # dashboard.js's exportActivityPdf), re-runs the exact same query
-    # get_activity_log uses (uncapped, up to a generous ceiling) so the
-    # PDF matches what was on screen.
+    # hidden in the UI) since this is the actual data source the PDF
+    # renders from. Reads whichever filters were active in the Activity
+    # Log at export time via the action context (see dashboard.js's
+    # exportActivityPdf), re-runs the exact same query get_activity_log
+    # uses (uncapped, up to a generous ceiling) so the PDF matches what
+    # was on screen.
+    #
+    # NOTE: this is named _activity_report_values, not Odoo's magic
+    # _get_report_values — that magic name only gets picked up by the
+    # report engine on a model literally called
+    # "report.<module>.<template_id>" (here: report.binget_dashboard.
+    # activity_report_document). Defining it directly on binget.dashboard
+    # would silently never be called, and the PDF would render with
+    # every field blank - which is exactly the bug this split avoids.
+    # See BingetDashboardActivityReport below, which is that model and
+    # just delegates back to this method.
     # ------------------------------------------------------------
     _ACTIVITY_TYPE_LABELS = {
         "all": "All Types", "sale_order": "Sales Orders", "invoice": "Invoices",
         "bill": "Bills", "purchase_order": "Purchase Orders", "manufacturing_order": "Manufacturing Orders",
         "stock_picking": "Inventory Transfers", "contact": "Contacts", "product": "Products",
+        "employee": "Employees",
     }
 
-    def _get_report_values(self, docids, data=None):
+    def _activity_report_values(self, docids, data=None):
         if not self._get_role_profile()["is_admin"]:
             raise AccessError("Only administrators can export the Activity Log.")
 
@@ -1121,7 +1723,7 @@ class BingetDashboard(models.AbstractModel):
             cutoff = date.today() - timedelta(days=grace_days)
             overdue = self.env["account.move"].sudo().search([
                 ("move_type", "=", "out_invoice"), ("state", "=", "posted"),
-                ("payment_state", "not in", ["paid", "in_payment"]),
+                ("payment_state", "not in", ["paid", "in_payment", "reversed"]),
                 ("invoice_date_due", "<", cutoff),
             ])
             if overdue:
@@ -1151,6 +1753,36 @@ class BingetDashboard(models.AbstractModel):
                     "title": f"{pending} purchase order(s) awaiting approval",
                     "description": "Review the procurement queue",
                     "action": "openPendingPurchases",
+                })
+
+        # Sales Orders confirmed and awaiting an invoice - Accounting's
+        # side of the accounting_so_invoice_bridge module's Sales <->
+        # Accounting handoff (see that module for the full flow: a
+        # confirmed order, optionally with a submitted payment-proof
+        # file attached, sitting in invoice_status "to invoice" until
+        # someone in Accounting creates the invoice). Soft integration
+        # only - accounting_so_invoice_bridge is not a hard dependency
+        # of this module, so the extra "payment proof submitted" filter
+        # (and the corresponding wording) is only applied when that
+        # module's field is actually present; without it, this still
+        # works as a plain "confirmed, not yet invoiced" count.
+        if (is_admin or "accounting" in role_set) and "sale.order" in self.env and flag("notify_orders_ready_to_invoice"):
+            so_fields = self.env["sale.order"]._fields
+            domain = [("state", "=", "sale"), ("invoice_status", "=", "to invoice")]
+            proof_aware = "x_has_submitted_payment_proof" in so_fields
+            if proof_aware:
+                domain.append(("x_has_submitted_payment_proof", "=", True))
+            ready = self.env["sale.order"].sudo().search_count(domain)
+            if ready:
+                notifications.append({
+                    "id": "orders_ready_to_invoice", "severity": "info", "notif_type": "system",
+                    "title": f"{ready} sales order(s) confirmed and ready to invoice",
+                    "description": (
+                        "Payment proof submitted - create the invoice when ready"
+                        if proof_aware else
+                        "Confirmed and awaiting invoicing"
+                    ),
+                    "action": "openOrdersReadyToInvoice",
                 })
 
         if (is_admin or "hr" in role_set) and "hr.leave" in self.env:
@@ -1371,3 +2003,19 @@ class BingetDashboard(models.AbstractModel):
             raise AccessError("Only administrators can change dashboard settings.")
         self.env["ir.config_parameter"].sudo().set_param(f"binget_dashboard.{key}", str(value))
         return True
+
+
+class BingetDashboardActivityReport(models.AbstractModel):
+    # Odoo's QWeb report engine looks specifically for a model named
+    # "report.<report_name>" (report_name being the template's xml id,
+    # "binget_dashboard.activity_report_document") and calls
+    # _get_report_values on THAT model - it does not matter that the
+    # ir.actions.report record's own `model` field says binget.dashboard.
+    # This class exists purely to satisfy that convention; all the real
+    # logic lives in binget.dashboard._activity_report_values so it stays
+    # next to get_activity_log, which it mirrors.
+    _name = "report.binget_dashboard.activity_report_document"
+    _description = "Binget Dashboard – Activity Log PDF"
+
+    def _get_report_values(self, docids, data=None):
+        return self.env["binget.dashboard"]._activity_report_values(docids, data=data)

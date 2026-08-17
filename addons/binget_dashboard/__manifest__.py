@@ -4,7 +4,7 @@
     "summary": "Role-based ERP dashboard (Sales / Inventory / Finance / "
                 "Operations) that replaces the default Dashboards app, "
                 "styled to match the Binget sidebar theme.",
-    "version": "18.0.10.0.0",
+    "version": "18.0.19.0.0",
     "category": "Reporting",
     "author": "Binget Holding plc",
     "license": "LGPL-3",

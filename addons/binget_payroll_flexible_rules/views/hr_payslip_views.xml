@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="hr_payslip_view_form_flexible_rules" model="ir.ui.view">
+        <field name="name">hr.payslip.form.flexible.rules</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="payroll.hr_payslip_view_form" />
+        <field name="arch" type="xml">
+            <!-- Step 1: only "Get Salary Rules" shows, while still draft and
+                 no rules have been picked yet -->
+            <button name="compute_sheet" position="before">
+                <button
+                    string="Get Salary Rules"
+                    name="action_get_salary_rules"
+                    type="object"
+                    class="oe_highlight"
+                    invisible="state != 'draft' or rule_ids"
+                />
+            </button>
+
+            <!-- Step 2: "Compute Sheet" only shows once rules have been
+                 picked, and hides again once computed (state moves to
+                 verify, where "Confirm" takes over) -->
+            <button name="compute_sheet" position="attributes">
+                <attribute name="invisible">state != 'draft' or not rule_ids</attribute>
+            </button>
+
+            <!-- New tab to review/trim the rules that will actually compute -->
+            <page name="input" position="after">
+                <page name="flexible_rules" string="Salary Rules">
+                    <p class="text-muted">
+                        Click "Get Salary Rules" to load every rule from
+                        this payslip's salary structure, then remove any
+                        rule below that does not apply to this employee.
+                        Leaving this list empty uses every rule of the
+                        structure, as usual.
+                    </p>
+                    <field name="rule_ids" readonly="state != 'draft'">
+                        <list editable="bottom">
+                            <field name="code" />
+                            <field name="category_id" />
+                            <field name="name" />
+                            <field name="sequence" column_invisible="True" />
+                        </list>
+                    </field>
+                </page>
+            </page>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="binget_stock_dashboard.ProductsGallery">
+    <div class="o_binget_products" t-ref="root">
+
+        <div class="o_bp_header">
+            <div>
+                <h2>Products</h2>
+                <p class="o_bp_subtitle">Manage and browse all your products in one place</p>
+            </div>
+            <button class="btn o_bp_btn_primary" t-on-click="openNewProduct">
+                <i class="fa fa-plus"/> New Product
+            </button>
+        </div>
+
+        <div class="o_bp_kpis">
+            <div class="o_bp_kpi o_bp_kpi_products o_bp_anim" style="--i:0">
+                <div class="o_bp_kpi_icon"><i class="fa fa-cube"/></div>
+                <div class="o_bp_kpi_body">
+                    <div class="o_bp_kpi_label">Total Products</div>
+                    <div class="o_bp_kpi_value" t-esc="state.counts.all"/>
+                    <div class="o_bp_kpi_hint">All active products</div>
+                </div>
+            </div>
+            <div class="o_bp_kpi o_bp_kpi_value_card o_bp_anim" style="--i:1">
+                <div class="o_bp_kpi_icon"><i class="fa fa-diamond"/></div>
+                <div class="o_bp_kpi_body">
+                    <div class="o_bp_kpi_label">Total Value</div>
+                    <div class="o_bp_kpi_value" t-esc="fmtMoney(state.totalValue)"/>
+                    <div class="o_bp_kpi_hint">Inventory value</div>
+                </div>
+            </div>
+            <div class="o_bp_kpi o_bp_kpi_onhand o_bp_anim" style="--i:2">
+                <div class="o_bp_kpi_icon"><i class="fa fa-th-large"/></div>
+                <div class="o_bp_kpi_body">
+                    <div class="o_bp_kpi_label">Total On Hand</div>
+                    <div class="o_bp_kpi_value" t-esc="fmtNumber(state.totalOnHand)"/>
+                    <div class="o_bp_kpi_hint">Across all products</div>
+                </div>
+            </div>
+            <div class="o_bp_kpi o_bp_kpi_low o_bp_anim" style="--i:3">
+                <div class="o_bp_kpi_icon"><i class="fa fa-exclamation-triangle"/></div>
+                <div class="o_bp_kpi_body">
+                    <div class="o_bp_kpi_label">Low Stock Items</div>
+                    <div class="o_bp_kpi_value" t-esc="state.counts.low_stock"/>
+                    <div class="o_bp_kpi_hint">Stock alerts</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="o_bp_toolbar">
+            <div class="o_bp_tabs">
+                <button t-att-class="getTabClass('all')" t-on-click="() => this.setStatus('all')">All Products</button>
+                <button t-att-class="getTabClass('in_stock')" t-on-click="() => this.setStatus('in_stock')">In Stock</button>
+                <button t-att-class="getTabClass('low_stock')" t-on-click="() => this.setStatus('low_stock')">Low Stock</button>
+                <button t-att-class="getTabClass('out_of_stock')" t-on-click="() => this.setStatus('out_of_stock')">Out of Stock</button>
+                <button t-att-class="getFavoriteTabClass()" t-on-click="toggleFavoriteFilter" title="Favorites">
+                    <i class="fa fa-heart"/> Favorites
+                </button>
+            </div>
+            <div class="o_bp_filters">
+                <div class="o_bp_search">
+                    <i class="fa fa-search"/>
+                    <input type="text" placeholder="Search products, SKU or barcode…"
+                           t-att-value="state.search" t-on-input="onSearchInput"/>
+                </div>
+                <select class="o_bp_select" t-on-change="onCategoryChange">
+                    <option value="">All Categories</option>
+                    <t t-foreach="state.categories" t-as="cat" t-key="cat.id">
+                        <option t-att-value="cat.id" t-esc="cat.name"
+                                t-att-selected="state.categoryId === cat.id"/>
+                    </t>
+                </select>
+            </div>
+        </div>
+
+        <div class="o_bp_main">
+            <div t-if="state.loading" class="o_bp_loading">
+                <div class="o_bp_spinner"/> Loading products…
+            </div>
+
+            <div t-elif="!state.rows.length" class="o_bp_empty">
+                <i class="fa fa-cube"/>
+                <h3>No products found</h3>
+                <p>Try another filter or create a product.</p>
+                <button class="btn o_bp_btn_primary" t-on-click="openNewProduct">New Product</button>
+            </div>
+
+            <div t-else="" class="o_bp_grid" t-att-key="state.animKey">
+                <div t-foreach="state.rows" t-as="p" t-key="p.id"
+                     class="o_bp_card"
+                     t-att-style="'--i:' + p_index"
+                     t-att-class="{
+                        'o_bp_card_accent_a': p_index % 3 === 0,
+                        'o_bp_card_accent_b': p_index % 3 === 1,
+                        'o_bp_card_accent_c': p_index % 3 === 2,
+                        'o_bp_card_fav': p.is_favorite,
+                     }">
+
+                    <div class="o_bp_card_media" t-on-click="() => this.openProduct(p.id)">
+                        <div class="o_bp_media_bg"/>
+                        <div class="o_bp_media_orb"/>
+                        <div class="o_bp_shine"/>
+                        <img t-att-src="p.image_url" t-att-alt="p.name"/>
+                        <span t-att-class="'o_bp_stock_pill o_pill_' + p.status" t-esc="statusLabel(p.status)"/>
+                        <button type="button"
+                                t-att-class="p.is_favorite ? 'o_bp_fav o_bp_fav_on' : 'o_bp_fav'"
+                                t-on-click="(ev) => this.onFavoriteClick(ev, p)"
+                                title="Favorite">
+                            <i t-att-class="p.is_favorite ? 'fa fa-heart' : 'fa fa-heart-o'"/>
+                        </button>
+                    </div>
+
+                    <div class="o_bp_card_body">
+                        <div class="o_bp_card_tags">
+                            <span t-if="p.default_code" class="o_bp_sku" t-esc="p.default_code"/>
+                            <span t-if="p.model_code" class="o_bp_model" t-esc="p.model_code"/>
+                            <span class="o_bp_cat" t-esc="p.category"/>
+                            <span t-if="p.is_tracked" class="o_bp_track" t-esc="p.tracking === 'serial' ? 'Serial' : 'Lot'"/>
+                        </div>
+
+                        <h3 class="o_bp_title" t-on-click="() => this.openProduct(p.id)" t-esc="p.name"/>
+                        <p t-if="p.description" class="o_bp_desc" t-esc="p.description"/>
+
+                        <div class="o_bp_detail_panel">
+                            <div class="o_bp_detail_cell">
+                                <span class="o_bp_detail_label">Unit Price</span>
+                                <span class="o_bp_detail_value" t-esc="fmtMoney(p.list_price)"/>
+                            </div>
+                            <div class="o_bp_detail_cell">
+                                <span class="o_bp_detail_label">On Hand</span>
+                                <span t-att-class="'o_bp_detail_value o_qty_' + p.status" t-esc="fmtNumber(p.on_hand)"/>
+                            </div>
+                            <div class="o_bp_detail_cell">
+                                <span class="o_bp_detail_label">Reserved</span>
+                                <span class="o_bp_detail_value" t-esc="fmtNumber(p.reserved)"/>
+                            </div>
+                            <div class="o_bp_detail_cell">
+                                <span class="o_bp_detail_label">Available</span>
+                                <span class="o_bp_detail_value o_qty_good_stock" t-esc="fmtNumber(p.free)"/>
+                            </div>
+                        </div>
+
+                        <button class="o_bp_details" t-on-click="() => this.openProduct(p.id)">
+                            View Details
+                            <i class="fa fa-arrow-right o_bp_arrow"/>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="o_bp_pagination" t-if="!state.loading and state.total > state.pageSize">
+                <button class="o_bp_page_btn" t-on-click="prevPage" t-att-disabled="state.page === 1">
+                    <i class="fa fa-chevron-left"/>
+                </button>
+                <span>Page <t t-esc="state.page"/> of <t t-esc="pageCount"/> · <t t-esc="state.total"/> products</span>
+                <button class="o_bp_page_btn" t-on-click="nextPage" t-att-disabled="state.page >= pageCount">
+                    <i class="fa fa-chevron-right"/>
+                </button>
+            </div>
+        </div>
+
+        <div class="o_bp_banner">
+            <div class="o_bp_banner_left">
+                <div class="o_bp_banner_icon"><i class="fa fa-trophy"/></div>
+                <div class="o_bp_banner_copy">
+                    <strong>Smart Inventory Management</strong>
+                    <span>Track, manage and optimize inventory across all locations in real-time</span>
+                </div>
+            </div>
+            <button class="o_bp_banner_btn" t-on-click="openStockList">
+                <i class="fa fa-bar-chart"/> View Inventory Analytics
+            </button>
+        </div>
+    </div>
+</t>
+
+</templates>

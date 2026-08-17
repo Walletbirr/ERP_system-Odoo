@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_watermark" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.test.watermark</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Test Watermark" string="Test Watermark"
+                     name="test_watermark" groups="base.group_system">
+                    <block title="Test / UAT Watermark">
+                        <setting string="Show Watermark"
+                                 help="Displays a repeating watermark across the whole system (backend and website). Use this on UAT/Test only.">
+                            <field name="test_watermark_enabled"/>
+                        </setting>
+                        <setting string="Text" invisible="not test_watermark_enabled">
+                            <field name="test_watermark_text" placeholder="TEST"/>
+                        </setting>
+                        <setting string="Color (hex)" invisible="not test_watermark_enabled">
+                            <field name="test_watermark_color" placeholder="#FF0000"/>
+                        </setting>
+                        <setting string="Opacity (0 - 1)" invisible="not test_watermark_enabled">
+                            <field name="test_watermark_opacity"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

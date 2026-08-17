@@ -82,32 +82,14 @@
                         </div>
                     </div>
 
-                    <div class="o_binget_dashboard_notif_wrap" t-ref="notifWrap">
-                        <button class="o_binget_dashboard_icon_btn" t-on-click="toggleNotifications" title="Notifications">
-                            <i class="fa fa-bell-o"/>
-                            <span t-if="notificationBadgeCount" class="o_binget_dashboard_notif_badge o_binget_dashboard_pulse" t-esc="notificationBadgeCount"/>
-                        </button>
-                        <div t-if="state.showNotifications" class="o_binget_dashboard_notif_panel">
-                            <div class="o_binget_dashboard_notif_panel_header">
-                                <span>Notifications</span>
-                                <span t-if="visibleNotifications.some((r) => r.is_new)" class="o_binget_dashboard_notif_mark_seen" t-on-click="markNotificationsSeen">Mark all as seen</span>
-                            </div>
-                            <div t-if="!visibleNotifications.length" class="o_binget_dashboard_empty">You're all caught up.</div>
-                            <t t-foreach="visibleNotifications" t-as="n" t-key="n.id">
-                                <div t-att-class="'o_binget_dashboard_notif_row severity_' + n.severity + (n.is_new ? ' is_new' : '')" t-on-click="() => this.onNotificationClick(n)">
-                                    <i t-att-class="n.severity === 'critical' ? 'fa fa-exclamation-circle' : (n.severity === 'warning' ? 'fa fa-exclamation-triangle' : 'fa fa-info-circle')"/>
-                                    <div>
-                                        <div class="o_binget_dashboard_notif_title" t-esc="n.title"/>
-                                        <div class="o_binget_dashboard_notif_desc" t-esc="n.description"/>
-                                        <div t-if="n.notif_type === 'request'" class="o_binget_dashboard_notif_persist_hint">Stays until you resolve it — seeing it just clears your count</div>
-                                    </div>
-                                    <i t-if="n.is_new" class="fa fa-check o_binget_dashboard_notif_dismiss" title="Mark as seen"
-                                       t-on-click="(ev) => this.markNotificationSeen(n, ev)"/>
-                                    <span t-else="" class="o_binget_dashboard_notif_spacer"/>
-                                </div>
-                            </t>
-                        </div>
-                    </div>
+                    <!-- Notification bell now lives in theme_shell's sidebar header
+                         (visible on every page, not just while this dashboard is
+                         open) — see Sidebar in theme_shell/static/src/sidebar/.
+                         The underlying data/actions it reads (get_notifications,
+                         mark_notifications_seen, mark_notification_seen on
+                         binget.dashboard) are untouched here since LC Management
+                         and other modules still feed into that same model; only
+                         this module's own bell UI was removed. -->
 
                     <button t-if="state.roleProfile.is_admin" class="o_binget_dashboard_icon_btn" t-on-click="toggleConfig" title="Settings">
                         <i class="fa fa-cog"/>
@@ -148,22 +130,21 @@
                 <!-- ============================================ -->
                 <t t-if="state.activeTab === 'overview'">
 
-                    <div class="o_binget_dashboard_kpi_strip" t-attf-style="grid-template-columns: repeat({{ kpiStripColumns }}, 1fr);">
-                        <div t-if="state.roleProfile.visible_kpis.includes('revenue')" class="o_binget_dashboard_kpi kpi-green">
+                    <div t-if="state.roleProfile.visible_kpis.length" class="o_binget_dashboard_kpi_strip" t-attf-style="grid-template-columns: repeat({{ kpiStripColumns }}, 1fr);">
+                        <div t-if="state.roleProfile.visible_kpis.includes('revenue')" class="o_binget_dashboard_kpi kpi-green o_binget_dashboard_kpi_clickable" t-on-click="openRevenueReport">
                             <div class="o_binget_dashboard_kpi_head">
                                 <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-money"/></div>
-                                <span class="o_binget_dashboard_kpi_label">Revenue</span>
+                                <span class="o_binget_dashboard_kpi_label">Total Revenue</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
                             </div>
                             <span class="o_binget_dashboard_kpi_value" t-esc="formatCompact(state.data.kpis.revenue)"/>
-                            <span t-att-class="'o_binget_dashboard_delta ' + (state.data.kpis.revenue_delta_pct >= 0 ? 'up' : 'down')">
-                                <i t-att-class="state.data.kpis.revenue_delta_pct >= 0 ? 'fa fa-arrow-up' : 'fa fa-arrow-down'"/>
-                                <t t-esc="Math.abs(state.data.kpis.revenue_delta_pct || 0)"/>% vs previous period
-                            </span>
+                            <span class="o_binget_dashboard_kpi_hint">View full report →</span>
                         </div>
                         <div t-if="state.roleProfile.visible_kpis.includes('open_orders_count')" class="o_binget_dashboard_kpi kpi-teal o_binget_dashboard_kpi_clickable" t-on-click="openOpenOrders">
                             <div class="o_binget_dashboard_kpi_head">
                                 <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-shopping-cart"/></div>
-                                <span class="o_binget_dashboard_kpi_label">Open Orders</span>
+                                <span class="o_binget_dashboard_kpi_label">Total Orders</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
                             </div>
                             <span class="o_binget_dashboard_kpi_value" t-esc="state.data.kpis.open_orders_count || 0"/>
                             <span class="o_binget_dashboard_kpi_hint">Draft &amp; sent quotations →</span>
@@ -172,14 +153,25 @@
                             <div class="o_binget_dashboard_kpi_head">
                                 <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-file-text-o"/></div>
                                 <span class="o_binget_dashboard_kpi_label">Receivables</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
                             </div>
                             <span class="o_binget_dashboard_kpi_value" t-esc="formatCompact(state.data.kpis.outstanding_receivables)"/>
-                            <span class="o_binget_dashboard_kpi_hint">Unpaid customer invoices →</span>
+                            <span class="o_binget_dashboard_kpi_hint">View full report →</span>
+                        </div>
+                        <div t-if="state.roleProfile.visible_kpis.includes('inventory_value')" class="o_binget_dashboard_kpi kpi-amber o_binget_dashboard_kpi_clickable" t-on-click="openExplorerAll">
+                            <div class="o_binget_dashboard_kpi_head">
+                                <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-archive"/></div>
+                                <span class="o_binget_dashboard_kpi_label">Inventory Value</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
+                            </div>
+                            <span class="o_binget_dashboard_kpi_value" t-esc="formatCompact(state.data.kpis.inventory_value)"/>
+                            <span class="o_binget_dashboard_kpi_hint">View inventory →</span>
                         </div>
                         <div t-if="state.roleProfile.visible_kpis.includes('outstanding_payables')" class="o_binget_dashboard_kpi kpi-gray o_binget_dashboard_kpi_clickable" t-on-click="openOutstandingPayables">
                             <div class="o_binget_dashboard_kpi_head">
                                 <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-credit-card"/></div>
                                 <span class="o_binget_dashboard_kpi_label">Payables</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
                             </div>
                             <span class="o_binget_dashboard_kpi_value" t-esc="formatCompact(state.data.kpis.outstanding_payables)"/>
                             <span class="o_binget_dashboard_kpi_hint">Unpaid vendor bills →</span>
@@ -188,17 +180,46 @@
                             <div class="o_binget_dashboard_kpi_head">
                                 <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-exclamation-triangle"/></div>
                                 <span class="o_binget_dashboard_kpi_label">Overdue Invoices</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
                             </div>
-                            <span class="o_binget_dashboard_kpi_value" t-esc="state.data.kpis.overdue_invoices_count || 0"/>
-                            <span class="o_binget_dashboard_kpi_hint" t-esc="formatCompact(state.data.kpis.overdue_invoices_amount) + ' past due →'"/>
+                            <span class="o_binget_dashboard_kpi_value" t-esc="formatCompact(state.data.kpis.overdue_invoices_amount)"/>
+                            <span class="o_binget_dashboard_kpi_hint">View overdue →</span>
                         </div>
                         <div t-if="state.roleProfile.visible_kpis.includes('open_purchase_orders')" class="o_binget_dashboard_kpi kpi-teal o_binget_dashboard_kpi_clickable" t-on-click="() => this.openProcurement(['draft', 'sent', 'to approve'])">
                             <div class="o_binget_dashboard_kpi_head">
                                 <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-truck"/></div>
                                 <span class="o_binget_dashboard_kpi_label">Open Purchase Orders</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
                             </div>
                             <span class="o_binget_dashboard_kpi_value" t-esc="state.data.kpis.open_purchase_orders || 0"/>
                             <span class="o_binget_dashboard_kpi_hint">Awaiting receipt or approval →</span>
+                        </div>
+                        <div t-if="state.roleProfile.visible_kpis.includes('active_employees')" class="o_binget_dashboard_kpi kpi-blue o_binget_dashboard_kpi_clickable" t-on-click="openEmployees">
+                            <div class="o_binget_dashboard_kpi_head">
+                                <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-users"/></div>
+                                <span class="o_binget_dashboard_kpi_label">Active Employees</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
+                            </div>
+                            <span class="o_binget_dashboard_kpi_value" t-esc="state.data.kpis.active_employees || 0"/>
+                            <span class="o_binget_dashboard_kpi_hint">Current headcount →</span>
+                        </div>
+                        <div t-if="state.roleProfile.visible_kpis.includes('new_hires_count')" class="o_binget_dashboard_kpi kpi-green o_binget_dashboard_kpi_clickable" t-on-click="openEmployees">
+                            <div class="o_binget_dashboard_kpi_head">
+                                <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-user-plus"/></div>
+                                <span class="o_binget_dashboard_kpi_label">New Hires</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
+                            </div>
+                            <span class="o_binget_dashboard_kpi_value" t-esc="state.data.kpis.new_hires_count || 0"/>
+                            <span class="o_binget_dashboard_kpi_hint">View workforce →</span>
+                        </div>
+                        <div t-if="state.roleProfile.visible_kpis.includes('pending_time_off_count')" class="o_binget_dashboard_kpi kpi-gray o_binget_dashboard_kpi_clickable" t-on-click="openTimeOff">
+                            <div class="o_binget_dashboard_kpi_head">
+                                <div class="o_binget_dashboard_kpi_icon"><i class="fa fa-calendar"/></div>
+                                <span class="o_binget_dashboard_kpi_label">Pending Time Off</span>
+                                <i class="fa fa-ellipsis-v o_binget_dashboard_kpi_kebab"/>
+                            </div>
+                            <span class="o_binget_dashboard_kpi_value" t-esc="state.data.kpis.pending_time_off_count || 0"/>
+                            <span class="o_binget_dashboard_kpi_hint">Awaiting approval →</span>
                         </div>
                     </div>
 
@@ -327,6 +348,45 @@
 
                     <t t-if="state.roleProfile.is_admin or state.roleProfile.roles.includes('accounting')">
                     <div class="o_binget_dashboard_row">
+                        <div class="o_binget_dashboard_card o_binget_dashboard_card_wide" t-ref="revenueOverviewCard">
+                            <div class="o_binget_dashboard_card_header">
+                                <h3>Revenue Overview <i class="fa fa-info-circle o_binget_dashboard_info_icon" title="Posted customer invoices vs. posted vendor bills, by month"/></h3>
+                            </div>
+                            <p t-if="!state.data.revenue_overview.labels.length" class="o_binget_dashboard_empty">No posted invoices or bills for this period</p>
+                            <t t-else="">
+                                <div class="o_binget_dashboard_chart_legend">
+                                    <span class="o_binget_dashboard_chart_legend_item"><i class="o_binget_dashboard_legend_dot" style="background: #8a93a3"/>Expenses</span>
+                                    <span class="o_binget_dashboard_chart_legend_item"><i class="o_binget_dashboard_legend_dot" style="background: var(--accent)"/>Revenue</span>
+                                </div>
+                                <div class="o_binget_dashboard_chart_wrap o_binget_dashboard_chart_wrap_tall"><canvas t-ref="revenueOverviewChart"/></div>
+                            </t>
+                        </div>
+
+                        <div class="o_binget_dashboard_card">
+                            <div class="o_binget_dashboard_card_header"><h3>Revenue Snapshot</h3></div>
+                            <div class="o_binget_dashboard_snapshot_grid">
+                                <div class="o_binget_dashboard_snapshot_item">
+                                    <span class="o_binget_dashboard_snapshot_label">Total Revenue</span>
+                                    <span class="o_binget_dashboard_snapshot_value" t-esc="formatCompact(state.data.revenue_overview.total_revenue)"/>
+                                </div>
+                                <div class="o_binget_dashboard_snapshot_item">
+                                    <span class="o_binget_dashboard_snapshot_label">Total Expenses</span>
+                                    <span class="o_binget_dashboard_snapshot_value" t-esc="formatCompact(state.data.revenue_overview.total_expenses)"/>
+                                </div>
+                                <div class="o_binget_dashboard_snapshot_item">
+                                    <span class="o_binget_dashboard_snapshot_label">Net Amount</span>
+                                    <span t-att-class="'o_binget_dashboard_snapshot_value ' + (state.data.revenue_overview.net_amount >= 0 ? 'positive' : 'negative')" t-esc="formatCompact(state.data.revenue_overview.net_amount)"/>
+                                </div>
+                                <div class="o_binget_dashboard_snapshot_item">
+                                    <span class="o_binget_dashboard_snapshot_label">Net Margin</span>
+                                    <span t-att-class="'o_binget_dashboard_snapshot_value ' + (state.data.revenue_overview.net_margin_pct >= 0 ? 'positive' : 'negative')" t-esc="state.data.revenue_overview.net_margin_pct + '%'"/>
+                                </div>
+                            </div>
+                            <p class="o_binget_dashboard_snapshot_hint">For the period selected above</p>
+                        </div>
+                    </div>
+
+                    <div class="o_binget_dashboard_row">
                         <div class="o_binget_dashboard_card o_binget_dashboard_card_wide">
                             <div class="o_binget_dashboard_card_header"><h3>Receivables Aging</h3></div>
                             <div class="o_binget_dashboard_chart_wrap"><canvas t-ref="agingChart"/></div>
@@ -350,10 +410,21 @@
                     </div>
                     </t>
 
-                    <p t-if="!state.roleProfile.is_admin and !state.roleProfile.roles.includes('sales') and !state.roleProfile.roles.includes('accounting') and !state.roleProfile.roles.includes('purchase')"
-                       class="o_binget_dashboard_role_note">
-                        Sales, Finance, and Purchase figures aren't part of your current dashboard role. Check the Inventory tab, or your Recent Activity below, for what's relevant to you.
-                    </p>
+                    <t t-if="(state.roleProfile.is_admin or state.roleProfile.roles.includes('hr')) and state.data.workforce.installed">
+                    <div class="o_binget_dashboard_row">
+                        <div class="o_binget_dashboard_card o_binget_dashboard_card_wide">
+                            <div class="o_binget_dashboard_card_header"><h3>Employee Growth</h3></div>
+                            <p t-if="!(state.data.workforce.employee_growth or []).length" class="o_binget_dashboard_empty">No headcount data yet</p>
+                            <div t-else="" class="o_binget_dashboard_chart_wrap"><canvas t-ref="employeeGrowthChart"/></div>
+                        </div>
+
+                        <div class="o_binget_dashboard_card">
+                            <div class="o_binget_dashboard_card_header"><h3>Department Distribution</h3></div>
+                            <p t-if="!(state.data.workforce.department_distribution or []).length" class="o_binget_dashboard_empty">No employees yet</p>
+                            <div t-else="" class="o_binget_dashboard_chart_wrap o_binget_dashboard_chart_wrap_pie"><canvas t-ref="departmentPieChart"/></div>
+                        </div>
+                    </div>
+                    </t>
 
                     <div class="o_binget_dashboard_card">
                         <div class="o_binget_dashboard_card_header"><h3>Recent Activity</h3></div>
@@ -509,12 +580,18 @@
 
                             <div t-if="state.explorer.loading" class="o_binget_dashboard_loading">Loading…</div>
                             <table t-else="" class="o_binget_dashboard_table">
-                                <thead><tr><th>Product</th><th>Branch / Warehouse</th><th>Location</th><th>Quantity</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Product</th><th>Branch / Warehouse</th><th>Quantity</th><th>Status</th></tr></thead>
                                 <tbody>
-                                    <tr t-if="!state.explorer.rows.length"><td colspan="5" class="o_binget_dashboard_empty">No matching stock.</td></tr>
-                                    <t t-foreach="state.explorer.rows" t-as="row" t-key="row.product_id + row.location">
+                                    <tr t-if="!state.explorer.rows.length"><td colspan="4" class="o_binget_dashboard_empty">No matching stock.</td></tr>
+                                    <t t-foreach="state.explorer.rows" t-as="row" t-key="row.product_id">
                                         <tr t-on-click="() => this.openProduct(row.product_id)" class="o_binget_dashboard_clickable_row">
-                                            <td t-esc="row.product"/><td t-esc="row.warehouse"/><td t-esc="row.location"/><td t-esc="row.quantity"/>
+                                            <td>
+                                                <span class="o_binget_dashboard_product_cell">
+                                                    <span t-esc="row.product"/>
+                                                    <span t-att-class="'o_binget_dashboard_velocity_badge velocity_' + row.velocity_tier" t-esc="row.velocity_label"/>
+                                                </span>
+                                            </td>
+                                            <td t-esc="row.warehouse"/><td t-esc="row.quantity"/>
                                             <td><span t-att-class="'o_binget_dashboard_status_badge status_' + row.status" t-esc="row.status"/></td>
                                         </tr>
                                     </t>
@@ -651,6 +728,12 @@
                                     <option t-att-value="u.id" t-esc="u.name"/>
                                 </t>
                             </select>
+                            <button t-if="state.roleProfile.is_admin" class="o_binget_dashboard_link_btn"
+                                    t-att-disabled="!state.activityLog.userId"
+                                    t-att-title="!state.activityLog.userId ? 'Pick a user above first' : ''"
+                                    t-on-click="runActivityDebug">
+                                Debug tracking for this user
+                            </button>
                         </div>
                         <div t-if="state.roleProfile.is_admin" class="o_binget_dashboard_status_group o_binget_dashboard_activity_types">
                             <button t-att-class="{ active: state.activityLog.typeFilter === 'all' }" t-on-click="() => this.setActivityType('all')">All</button>
@@ -662,9 +745,15 @@
                             <button t-att-class="{ active: state.activityLog.typeFilter === 'stock_picking' }" t-on-click="() => this.setActivityType('stock_picking')">Transfers</button>
                             <button t-att-class="{ active: state.activityLog.typeFilter === 'contact' }" t-on-click="() => this.setActivityType('contact')">Contacts</button>
                             <button t-att-class="{ active: state.activityLog.typeFilter === 'product' }" t-on-click="() => this.setActivityType('product')">Products</button>
+                            <button t-att-class="{ active: state.activityLog.typeFilter === 'employee' }" t-on-click="() => this.setActivityType('employee')">Employees</button>
                         </div>
 
                         <div t-if="state.activityLog.loading" class="o_binget_dashboard_loading">Loading…</div>
+                        <div t-elif="state.activityLog.error" class="o_binget_dashboard_empty o_binget_dashboard_activity_error">
+                            Couldn't load the activity log — this isn't just an empty result, something went wrong.
+                            <span t-if="state.roleProfile.is_admin"> Check the server log for a "binget_dashboard: activity log failed" entry.</span>
+                            <button class="o_binget_dashboard_link_btn" t-on-click="() => this.loadActivityLog()">Try again</button>
+                        </div>
                         <table t-else="" class="o_binget_dashboard_table">
                             <thead>
                                 <tr>
@@ -682,7 +771,7 @@
                                         <td><span class="o_binget_dashboard_badge" t-esc="row.type"/></td>
                                         <td t-esc="row.label"/>
                                         <td>
-                                            <span t-att-class="'o_binget_dashboard_activity_change' + (row.action === 'created' ? ' is_created' : ' is_updated')" t-att-title="row.change" t-esc="row.change"/>
+                                            <span t-att-class="'o_binget_dashboard_activity_change' + (row.action === 'created' ? ' is_created' : (row.action === 'deleted' ? ' is_deleted' : ' is_updated'))" t-att-title="row.change" t-esc="row.change"/>
                                         </td>
                                         <td t-esc="row.partner"/>
                                         <td t-esc="row.amount ? formatCompact(row.amount) : ''"/>
@@ -759,7 +848,10 @@
                         <p t-if="!state.branchDetail.data.attention_rows.length" class="o_binget_dashboard_empty">Nothing low or out of stock at this branch.</p>
                         <t t-foreach="state.branchDetail.data.attention_rows" t-as="row" t-key="row.product_id">
                             <div class="o_binget_dashboard_clickable_row o_binget_dashboard_attention_row" t-on-click="() => this.openProduct(row.product_id)">
-                                <span t-esc="row.product"/>
+                                <span class="o_binget_dashboard_product_cell">
+                                    <span t-esc="row.product"/>
+                                    <span t-att-class="'o_binget_dashboard_velocity_badge velocity_' + row.velocity_tier" t-esc="row.velocity_label"/>
+                                </span>
                                 <span class="o_binget_dashboard_attention_qty">
                                     <t t-esc="row.quantity"/>
                                     <span t-att-class="'o_binget_dashboard_status_badge status_' + row.status" t-esc="row.status"/>
@@ -792,12 +884,18 @@
 
                             <div t-if="state.branchDetail.explorer.loading" class="o_binget_dashboard_loading">Loading…</div>
                             <table t-else="" class="o_binget_dashboard_table">
-                                <thead><tr><th>Product</th><th>Location</th><th>Quantity</th><th>Status</th></tr></thead>
+                                <thead><tr><th>Product</th><th>Quantity</th><th>Status</th></tr></thead>
                                 <tbody>
-                                    <tr t-if="!state.branchDetail.explorer.rows.length"><td colspan="4" class="o_binget_dashboard_empty">No matching stock.</td></tr>
-                                    <t t-foreach="state.branchDetail.explorer.rows" t-as="row" t-key="row.product_id + row.location">
+                                    <tr t-if="!state.branchDetail.explorer.rows.length"><td colspan="3" class="o_binget_dashboard_empty">No matching stock.</td></tr>
+                                    <t t-foreach="state.branchDetail.explorer.rows" t-as="row" t-key="row.product_id">
                                         <tr t-on-click="() => this.openProduct(row.product_id)" class="o_binget_dashboard_clickable_row">
-                                            <td t-esc="row.product"/><td t-esc="row.location"/><td t-esc="row.quantity"/>
+                                            <td>
+                                                <span class="o_binget_dashboard_product_cell">
+                                                    <span t-esc="row.product"/>
+                                                    <span t-att-class="'o_binget_dashboard_velocity_badge velocity_' + row.velocity_tier" t-esc="row.velocity_label"/>
+                                                </span>
+                                            </td>
+                                            <td t-esc="row.quantity"/>
                                             <td><span t-att-class="'o_binget_dashboard_status_badge status_' + row.status" t-esc="row.status"/></td>
                                         </tr>
                                     </t>
@@ -828,7 +926,7 @@
                     <t t-if="state.activityDetail.row">
                         <div class="o_binget_dashboard_activity_modal_top">
                             <span class="o_binget_dashboard_badge" t-esc="state.activityDetail.row.type"/>
-                            <span t-att-class="'o_binget_dashboard_activity_change' + (state.activityDetail.row.action === 'created' ? ' is_created' : ' is_updated')"
+                            <span t-att-class="'o_binget_dashboard_activity_change' + (state.activityDetail.row.action === 'created' ? ' is_created' : (state.activityDetail.row.action === 'deleted' ? ' is_deleted' : ' is_updated'))"
                                   t-esc="state.activityDetail.row.change"/>
                         </div>
                         <div class="o_binget_dashboard_activity_modal_ref" t-esc="state.activityDetail.row.label"/>
@@ -851,10 +949,69 @@
                             </div>
                         </div>
                         <div class="o_binget_dashboard_activity_modal_footer">
-                            <button class="o_binget_dashboard_link_btn" t-on-click="openActivityDetailRecord">
+                            <button t-if="state.activityDetail.row.action !== 'deleted'" class="o_binget_dashboard_link_btn" t-on-click="openActivityDetailRecord">
                                 <i class="fa fa-external-link"/> Open record
                             </button>
+                            <span t-else="" class="o_binget_dashboard_activity_modal_deleted_note">This record no longer exists.</span>
                         </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- ============ ACTIVITY TRACKING DEBUG (admin-only) ============ -->
+            <div t-if="state.activityDebug.open" class="o_binget_dashboard_modal_overlay" t-on-click="closeActivityDebug">
+                <div class="o_binget_dashboard_modal_panel o_binget_dashboard_activity_modal o_binget_dashboard_debug_modal" t-on-click.stop="() => {}">
+                    <div class="o_binget_dashboard_modal_header">
+                        <h3>Tracking debug — <t t-esc="state.activityDebug.data and state.activityDebug.data.user"/></h3>
+                        <i class="fa fa-times" t-on-click="closeActivityDebug"/>
+                    </div>
+                    <div t-if="state.activityDebug.loading" class="o_binget_dashboard_loading">Checking…</div>
+                    <t t-if="!state.activityDebug.loading and state.activityDebug.data">
+                        <p class="o_binget_dashboard_activity_debug_note">
+                            The first four columns ignore date/company filters entirely — they check whether the
+                            data exists for this user at all. The last two run the real code with no filter, and
+                            then again with whatever date/company you currently have selected up top
+                            (<t t-esc="state.activityDebug.data.filters_used.date_from || 'no date_from'"/> →
+                             <t t-esc="state.activityDebug.data.filters_used.date_to || 'no date_to'"/><t
+                             t-if="state.activityDebug.data.filters_used.company_id"> · company <t
+                             t-esc="state.activityDebug.data.filters_used.company_id"/></t>)
+                            — this second run is what should match what actually shows on their own page.
+                        </p>
+                        <table class="o_binget_dashboard_table o_binget_dashboard_activity_debug_table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th><th>Created by them</th><th>Their edit messages</th>
+                                    <th>...with tracked changes</th><th>Real method, no filter</th>
+                                    <th>Real method, current filters</th><th>Latest edit anywhere by</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="state.activityDebug.data.results" t-as="r" t-key="r.model">
+                                    <td t-esc="r.label"/>
+                                    <td t-esc="r.created_by_user"/>
+                                    <td t-esc="r.messages_by_user"/>
+                                    <td t-att-class="r.messages_by_user &amp;&amp; !r.tracking_values_by_user ? 'o_binget_dashboard_debug_flag' : ''"
+                                        t-esc="r.tracking_values_by_user"/>
+                                    <td t-att-class="r.live_error ? 'o_binget_dashboard_debug_flag' : (r.tracking_values_by_user &amp;&amp; !r.live_rows_from_real_method ? 'o_binget_dashboard_debug_flag' : '')"
+                                        t-att-title="r.live_error"
+                                        t-esc="r.live_error ? 'ERROR — hover' : r.live_rows_from_real_method"/>
+                                    <td t-att-class="r.live_error_current_filters ? 'o_binget_dashboard_debug_flag' : (r.live_rows_from_real_method &amp;&amp; !r.live_rows_current_filters ? 'o_binget_dashboard_debug_flag' : '')"
+                                        t-att-title="r.live_error_current_filters"
+                                        t-esc="r.live_error_current_filters ? 'ERROR — hover' : (r.live_rows_current_filters === null ? '(no filters set)' : r.live_rows_current_filters)"/>
+                                    <td t-esc="r.latest_tracking_value_creator_anywhere || '—'"/>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="o_binget_dashboard_activity_debug_note">
+                            "Created by them" &gt; 0 but "Their edit messages" = 0 for a type they've definitely
+                            edited → the edit isn't being attributed to their account at write time.
+                            "Their edit messages" &gt; 0 but "...with tracked changes" = 0 (highlighted) →
+                            the message exists but no tracked field's value actually changed, or that field
+                            isn't marked as tracked on this model.
+                            "Real method, no filter" &gt; 0 but "Real method, current filters" is 0 or an
+                            error (highlighted) → the data is there and the code works, but today's date or
+                            company filter is excluding it — that's the one to send me.
+                        </p>
                     </t>
                 </div>
             </div>
@@ -873,16 +1030,28 @@
                     <label class="o_binget_dashboard_config_field">
                         <span>Low stock threshold (units)</span>
                         <input type="number" min="0" t-att-value="state.config.low_stock_threshold" t-att-disabled="!state.config.is_admin"
-                               t-on-change="(ev) => this.saveConfigValue('low_stock_threshold', parseFloat(ev.target.value) || 0)"/>
+                               t-on-change="(ev) => this.saveConfigNumber('low_stock_threshold', ev.target.value, 0)"/>
                     </label>
                     <p class="o_binget_dashboard_config_hint">Products at or below this quantity are flagged "Low Stock" across the dashboard.</p>
 
                     <label class="o_binget_dashboard_config_field">
                         <span>Receivables grace period (days)</span>
                         <input type="number" min="0" t-att-value="state.config.receivables_grace_days" t-att-disabled="!state.config.is_admin"
-                               t-on-change="(ev) => this.saveConfigValue('receivables_grace_days', parseFloat(ev.target.value) || 0)"/>
+                               t-on-change="(ev) => this.saveConfigNumber('receivables_grace_days', ev.target.value, 0)"/>
                     </label>
                     <p class="o_binget_dashboard_config_hint">Invoices aren't counted "overdue" until this many days past their due date.</p>
+
+                    <label class="o_binget_dashboard_config_field">
+                        <span>Product movement window (days)</span>
+                        <input type="number" min="1" t-att-value="state.config.velocity_window_days" t-att-disabled="!state.config.is_admin"
+                               t-on-change="(ev) => this.saveConfigNumber('velocity_window_days', ev.target.value, 90)"/>
+                    </label>
+                    <p class="o_binget_dashboard_config_hint">
+                        How far back to look when ranking products into Fast/Medium/Slow-Moving. Products are
+                        ranked against each other by units sold in this window and split into thirds, so there's
+                        no separate amount to set — a shorter window reacts faster to recent sales, a longer one
+                        smooths out one-off spikes. A product with zero sales in the window is always Slow-Moving.
+                    </p>
 
                     <div class="o_binget_dashboard_config_section">Sections</div>
                     <label class="o_binget_dashboard_config_toggle">

@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         Standard Sales Order form - used by Salespeople in Sales >
+         Orders/Quotations. Keeps every native action button
+         (Confirm, Create Invoice, Send by Email, Preview, Cancel);
+         only adds the credit-approval fields, buttons, banners and
+         trail. For orders that require credit approval, status tracking
+         uses two single-label badges - order stage, then approval
+         status (see below) - the exact same fields/widgets/decorations
+         used on the Credit-Approval screen, so both audiences see
+         status presented identically. -->
+    <record id="view_order_form_credit_approval" model="ir.ui.view">
+        <field name="name">sale.order.form.credit.approval</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Hidden helper fields needed for invisible= expressions below -->
+            <xpath expr="//header" position="inside">
+                <field name="can_approve_credit" invisible="1"/>
+                <field name="requires_credit_approval" invisible="1"/>
+
+                <!-- Replaces the salesperson's "Confirm" click with an
+                     explicit, correctly-labelled action while a request
+                     still needs to go out. -->
+                <button name="action_request_approval" type="object"
+                        string="Request Approval" class="btn-primary"
+                        invisible="not requires_credit_approval or approval_state not in ('not_required','rejected')"
+                        data-hotkey="q"/>
+
+                <button name="action_approve_credit_order" type="object"
+                        string="Approve Order" class="btn-success"
+                        invisible="not can_approve_credit"/>
+                <button name="action_reject_credit_order" type="object"
+                        string="Reject Order" class="btn-danger"
+                        invisible="not can_approve_credit"/>
+            </xpath>
+
+            <!-- Confirm exists as TWO separate buttons in the base view -
+                 one for state=sent (id="action_confirm"), one for
+                 state=draft (same name, no id). Each keeps its own
+                 original state condition, with our credit-approval guard
+                 ORed in: an order pending/awaiting approval can't be
+                 confirmed by anyone until the manager decides. -->
+            <xpath expr="//button[@id='action_confirm']" position="attributes">
+                <attribute name="invisible">state != 'sent' or (requires_credit_approval and approval_state != 'approved')</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_confirm'][not(@id)]" position="attributes">
+                <attribute name="invisible">state != 'draft' or (requires_credit_approval and approval_state != 'approved')</attribute>
+            </xpath>
+
+            <!-- Status tracking for Credit-Approval orders - TWO badges,
+                 shown together, each a single current label (never a
+                 multi-stage breadcrumb):
+
+                 1. The order's own stage - Quotation / Quotation Sent /
+                    Sales Order / Cancelled - always shown first, so it's
+                    never hidden behind the approval status.
+                 2. The Approval status - Pending Approval / Approved /
+                    Rejected - shown right after it, once the order
+                    actually requires credit approval.
+
+                 The native 3-segment statusbar is hidden for these
+                 orders (left untouched for every other order) so it
+                 doesn't compete with these two. Both badges share the
+                 same widget/class, so the salesperson's Sales Order form
+                 and the manager's Credit-Approval screen render status
+                 identically. -->
+            <xpath expr="//header/field[@name='state']" position="attributes">
+                <attribute name="invisible">requires_credit_approval</attribute>
+            </xpath>
+            <xpath expr="//header/field[@name='state']" position="after">
+                <div class="o_credit_approval_status_group" invisible="not requires_credit_approval">
+                    <field name="state" widget="badge"
+                           class="o_credit_approval_status"
+                           decoration-info="state == 'draft'"
+                           decoration-warning="state == 'sent'"
+                           decoration-success="state == 'sale'"
+                           decoration-danger="state == 'cancel'"/>
+                    <field name="approval_state" widget="badge"
+                           class="o_credit_approval_status"
+                           invisible="approval_state == 'not_required'"
+                           decoration-warning="approval_state == 'to_approve'"
+                           decoration-success="approval_state == 'approved'"
+                           decoration-danger="approval_state == 'rejected'"/>
+                </div>
+            </xpath>
+
+            <!-- Explanatory banners -->
+            <xpath expr="//div[hasclass('oe_title')]" position="before">
+                <div class="alert alert-info" role="alert"
+                     invisible="approval_state != 'to_approve'">
+                    Waiting for approval from
+                    <field name="high_level_manager_id" readonly="1" nolabel="1"/>
+                    before this order can be confirmed.
+                </div>
+                <div class="alert alert-danger" role="alert"
+                     invisible="approval_state != 'rejected'">
+                    This order was rejected by the High-Level Manager. Review it,
+                    then click "Request Approval" again to resubmit.
+                </div>
+            </xpath>
+
+            <!-- Approvals trail -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Approvals" name="credit_approvals"
+                      invisible="not requires_credit_approval">
+                    <field name="approval_ids" readonly="1">
+                        <list>
+                            <field name="role"/>
+                            <field name="user_id"/>
+                            <field name="status" widget="badge"
+                                   decoration-success="status == 'approved'"
+                                   decoration-danger="status == 'rejected'"
+                                   decoration-warning="status == 'pending'"/>
+                            <field name="date"/>
+                            <field name="note"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ================================================================
+         Credit-Approval screen - dedicated, standalone ("primary") form
+         view used ONLY by the Credit Approvals action below. It starts
+         from the fully-resolved Sales Order form (native buttons +
+         everything added above: Approve/Reject, the status badge, the
+         banners, the Approvals tab) and then unconditionally strips the
+         sales-side action buttons that have no place on an
+         approve/reject screen.
+
+         Deliberately NOT done with a "groups=" restriction on the
+         buttons in the view above: that ties visibility to who the
+         viewing user is (fragile - an Administrator, or any user
+         without the exact executive group, would still see every
+         button, as happened before). A dedicated view tied to this one
+         action is correct regardless of who opens it, and keeps the
+         standard Sales > Orders form completely untouched for
+         salespeople. -->
+    <record id="view_order_form_credit_approval_readonly" model="ir.ui.view">
+        <field name="name">sale.order.form.credit.approval.readonly</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="mode">primary</field>
+        <field name="arch" type="xml">
+
+            <!-- Not this screen's job: reviewing/approving, not
+                 (re)submitting, invoicing, emailing, previewing or
+                 cancelling. -->
+            <xpath expr="//button[@name='action_request_approval']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='action_confirm']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_confirm'][not(@id)]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='create_invoice']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='create_invoice_percentage']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='send_by_email_primary']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@id='send_by_email']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_preview_sale_order']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_cancel']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Let salespeople see the approval status of their own submissions
+         without opening each order (column is opt-in via the list's
+         column-selector so it doesn't clutter existing lists by default). -->
+    <record id="view_quotation_tree_credit_approval" model="ir.ui.view">
+        <field name="name">sale.order.list.credit.approval.quotation</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_quotation_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="approval_state" widget="badge" optional="show"
+                       invisible="approval_state == 'not_required'"
+                       decoration-success="approval_state == 'approved'"
+                       decoration-warning="approval_state == 'to_approve'"
+                       decoration-danger="approval_state == 'rejected'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_tree_credit_approval" model="ir.ui.view">
+        <field name="name">sale.order.list.credit.approval.order</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="approval_state" widget="badge" optional="show"
+                       invisible="approval_state == 'not_required'"
+                       decoration-success="approval_state == 'approved'"
+                       decoration-warning="approval_state == 'to_approve'"
+                       decoration-danger="approval_state == 'rejected'"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

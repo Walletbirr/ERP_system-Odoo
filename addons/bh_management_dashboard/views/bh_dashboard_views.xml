@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Main Dashboard Client Action -->
+        <record id="action_bh_management_dashboard" model="ir.actions.client">
+            <field name="name">Executive Dashboard</field>
+            <field name="tag">bh_management_dashboard</field>
+            <field name="target">main</field>
+        </record>
+
+    </data>
+</odoo>

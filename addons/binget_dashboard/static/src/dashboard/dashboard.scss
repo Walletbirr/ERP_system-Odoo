@@ -27,6 +27,8 @@
   --bad-tint: rgba(209, 72, 63, 0.12);
   --warn: #c9862a;
   --warn-tint: rgba(201, 134, 42, 0.14);
+  --neutral: #4f5b6b;
+  --neutral-tint: rgba(79, 91, 107, 0.16);
   --shadow-xs: 0 1px 2px rgba(30, 22, 10, 0.05);
   --shadow-sm: 0 1px 3px rgba(30, 22, 10, 0.05), 0 6px 16px rgba(30, 22, 10, 0.04);
   --shadow-md: 0 3px 10px rgba(30, 22, 10, 0.06), 0 14px 32px rgba(30, 22, 10, 0.06);
@@ -281,59 +283,9 @@
     }
   }
 
-  // ---- Notification bell ----
-  &_notif_wrap { position: relative; }
-  &_notif_badge {
-    position: absolute; top: -4px; right: -4px;
-    min-width: 17px; height: 17px; padding: 0 4px;
-    background: linear-gradient(135deg, var(--bad), #b53a32); color: #ffffff;
-    border-radius: 10px; font-size: 10px; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-    line-height: 1;
-    box-shadow: 0 0 0 2px var(--surface);
-  }
-  &_notif_panel {
-    position: absolute; top: 44px; right: 0; z-index: 1400;
-    width: 336px; max-height: 400px; overflow-y: auto;
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
-    box-shadow: var(--shadow-lg);
-    padding: 8px;
-    animation: bingetPopIn 0.18s var(--ease);
-  }
-  &_notif_panel_header {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--ink-dim); padding: 9px 11px 8px;
-  }
-  &_notif_mark_seen {
-    font-size: 10.5px; font-weight: 700; text-transform: none; letter-spacing: normal;
-    color: var(--accent); cursor: pointer;
-    &:hover { text-decoration: underline; }
-  }
-  &_notif_row {
-    display: flex; gap: 11px; align-items: flex-start; position: relative;
-    padding: 10px 11px; border-radius: 10px; cursor: pointer;
-    transition: background .15s var(--ease);
-    &:hover { background: var(--accent-08); }
-    &.is_new { background: var(--accent-08); }
-    &.is_new:hover { background: var(--accent-18); }
-
-    i { margin-top: 2px; font-size: 13px; }
-    &.severity_critical i { color: var(--bad); }
-    &.severity_warning i { color: var(--warn); }
-    &.severity_info i { color: var(--accent); }
-  }
-  &_notif_dismiss {
-    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--accent); font-size: 11px;
-    transition: background .15s var(--ease), color .15s var(--ease);
-    &:hover { background: var(--accent); color: #fff; }
-  }
-  &_notif_spacer { width: 22px; flex-shrink: 0; }
-  &_notif_persist_hint { font-size: 10.5px; color: var(--ink-dim); font-style: italic; margin-top: 3px; }
-  &_notif_title { font-size: 12.5px; font-weight: 700; }
-  &_notif_desc { font-size: 11.5px; color: var(--ink-dim); margin-top: 1px; line-height: 1.4; }
+  // NOTE: the notification bell (badge/panel/rows) that used to live
+  // here now renders from theme_shell's sidebar.scss instead — see
+  // that module for the equivalent o_theme_sidebar_notif_* rules.
 
   &_loading_full { text-align: center; padding: 90px 0; color: var(--ink-dim); font-size: 13.5px; }
   &_loading { text-align: center; padding: 32px; color: var(--ink-dim); font-size: 13px; }
@@ -355,7 +307,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r-md);
-    padding: 18px 20px;
+    padding: 18px 20px 18px 22px;
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -367,7 +319,7 @@
     --kpi-tint: var(--accent-12);
 
     &::before {
-      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      content: ""; position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
       background: var(--kpi-color);
       opacity: 0.85;
     }
@@ -395,6 +347,23 @@
     background: var(--kpi-tint); color: var(--kpi-color);
     font-size: 13px;
     transition: transform .22s var(--ease);
+  }
+  &_kpi_kebab {
+    margin-left: auto; color: var(--ink-dim); opacity: 0.55; font-size: 12px;
+    padding: 3px; flex-shrink: 0;
+  }
+  &_kpi_spark {
+    width: 100%; height: 32px; margin-top: 6px; position: relative; z-index: 1;
+    overflow: visible;
+    // The fill is a top-to-bottom fade (see the per-card <linearGradient>
+    // in the template — each stop just points at this same --kpi-color
+    // custom property, since it inherits down from that card's .kpi-*
+    // class) rather than a flat translucent tint, so the area under the
+    // curve reads as a soft glow instead of a solid block.
+    &_area { stroke: none; }
+    &_line { fill: none; stroke: var(--kpi-color); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    &_stop_start { stop-color: var(--kpi-color); stop-opacity: 0.34; }
+    &_stop_end { stop-color: var(--kpi-color); stop-opacity: 0; }
   }
 
   &_kpi_clickable {
@@ -458,10 +427,44 @@
     transition: background .15s var(--ease), transform .12s var(--ease);
     &:hover { background: var(--accent-08); }
     &:active { transform: scale(0.96); }
+    &:disabled { color: var(--ink-dim); cursor: not-allowed; opacity: .6; }
+    &:disabled:hover { background: transparent; }
   }
+
+  &_activity_debug_note { font-size: 12px; color: var(--ink-dim); padding: 0 20px; margin: 10px 0; }
+  &_activity_debug_table { margin: 0 20px; width: calc(100% - 40px); }
+  &_debug_flag { color: var(--bad); font-weight: 700; }
 
   &_chart_wrap { position: relative; height: 240px; }
   &_chart_wrap_small { height: 220px; margin-top: 4px; }
+  &_chart_wrap_pie { height: 220px; }
+  &_chart_wrap_tall { height: 300px; }
+
+  // ---- Custom chart legend (Revenue Overview) — a plain flex row
+  // gives us control Chart.js's built-in legend doesn't: real spacing
+  // between the dot and its label, centered, wider gap between items.
+  &_chart_legend { display: flex; align-items: center; justify-content: center; gap: 28px; padding: 4px 0 14px; }
+  &_chart_legend_item { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--ink-dim); }
+  &_legend_dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+  // ---- Revenue Snapshot (companion stat card beside Revenue Overview) ----
+  &_snapshot_grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 14px; margin-top: 6px; }
+  &_snapshot_item { display: flex; flex-direction: column; gap: 6px; }
+  &_snapshot_label { font-size: 11px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; color: var(--ink-dim); }
+  &_snapshot_value {
+    font-size: 20px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums;
+    &.positive { color: var(--good); }
+    &.negative { color: var(--bad); }
+  }
+  &_snapshot_hint { margin: 18px 0 0; font-size: 11.5px; color: var(--ink-faint); }
+
+  &_card_header_tags { display: flex; align-items: center; gap: 8px; }
+  &_tag {
+    font-size: 11.5px; font-weight: 700; color: var(--ink-dim);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 20px;
+    padding: 4px 11px;
+  }
+  &_info_icon { color: var(--ink-dim); opacity: 0.6; font-size: 12px; margin-left: 5px; font-weight: 400; cursor: help; }
 
   // ---- Mini tables ----
   &_mini_table {
@@ -641,7 +644,22 @@
   &_toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
   &_activity_toolbar { align-items: center; }
   &_activity_header_right { display: flex; align-items: center; gap: 14px; }
-  &_activity_search { max-width: 320px; margin-bottom: 0; }
+  // Forced explicit and !important on all three: this row kept
+  // rendering as three stacked lines even after a clean reinstall, so
+  // rather than rely on rule ordering/specificity working out, every
+  // sizing property each element needs is now pinned directly and
+  // can't lose to anything else in this file.
+  &_activity_toolbar {
+    .o_binget_dashboard_search_input.o_binget_dashboard_activity_search {
+      width: auto !important; flex: 1 1 240px !important; max-width: 320px !important; margin-bottom: 0 !important;
+    }
+    select {
+      width: auto !important; flex: 0 0 auto !important;
+    }
+    button {
+      flex: 0 0 auto !important; white-space: nowrap;
+    }
+  }
   &_activity_types { margin-bottom: 16px; flex-wrap: wrap; height: auto; }
 
   &_status_badge {
@@ -650,6 +668,17 @@
     &.status_ok { background: var(--good-tint); color: var(--good); &::before { background: var(--good); } }
     &.status_low { background: var(--warn-tint); color: var(--warn); &::before { background: var(--warn); } }
     &.status_out { background: var(--bad-tint); color: var(--bad); &::before { background: var(--bad); } }
+  }
+
+  // ---- Product cell: name + movement (sales-velocity) badge ----
+  &_product_cell { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  &_velocity_badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;
+    &::before { content: ""; width: 6px; height: 6px; border-radius: 50%; flex: none; }
+    &.velocity_fast { background: var(--good-tint); color: var(--good); &::before { background: var(--good); } }
+    &.velocity_medium { background: var(--warn-tint); color: var(--warn); &::before { background: var(--warn); } }
+    &.velocity_slow { background: var(--neutral-tint); color: var(--neutral); &::before { background: var(--neutral); } }
   }
 
   &_pagination {
@@ -692,7 +721,10 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom;
     &.is_created { color: var(--good); font-weight: 700; }
     &.is_updated { color: var(--ink-dim); font-weight: 500; }
+    &.is_deleted { color: var(--bad); font-weight: 700; }
   }
+
+  &_activity_modal_deleted_note { color: var(--ink-dim); font-size: 12.5px; font-style: italic; }
 
   &_empty { text-align: center; color: var(--ink-dim); padding: 28px !important; font-size: 13px; }
 
@@ -706,6 +738,9 @@
     background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-lg);
     padding: 22px; animation: bingetPopIn 0.18s var(--ease);
   }
+  // A bit wider than the standard 420px modal - this one holds a
+  // 6-column table (the plain activity-detail modal doesn't need it).
+  &_debug_modal { width: 620px; }
   &_modal_header {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
     h3 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
@@ -749,10 +784,6 @@
 }
 
 .o_binget_dashboard_fade_in { animation: bingetFadeIn 0.24s var(--ease, ease-out); }
-.o_binget_dashboard_role_note {
-  font-size: 12.5px; font-weight: 500; color: var(--ink-dim); background: var(--accent-08);
-  border-radius: var(--r-sm); padding: 11px 15px; margin: -6px 0 18px;
-}
 
 .o_binget_dashboard_card_header_count {
   font-size: 11.5px; color: var(--ink-dim); font-weight: 600;
@@ -834,12 +865,6 @@
   100% { transform: translateX(100%); }
 }
 
-.o_binget_dashboard_pulse { animation: bingetPulse 1.8s ease-in-out infinite; }
-@keyframes bingetPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(209, 72, 63, 0.5); }
-  50% { box-shadow: 0 0 0 5px rgba(209, 72, 63, 0); }
-}
-
 @keyframes bingetConfigSlideIn {
   from { transform: translateX(20px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
@@ -858,6 +883,5 @@
   .o_binget_dashboard { padding: 0 16px 48px; }
   .o_binget_dashboard_sticky_head { margin: 0 -16px; padding: 16px 16px 0; }
   .o_binget_dashboard_tabs { overflow-x: auto; white-space: nowrap; max-width: 100%; }
-  .o_binget_dashboard_notif_panel { width: 280px; right: -60px; }
   .o_binget_dashboard_kpi_strip { grid-template-columns: 1fr !important; }
 }

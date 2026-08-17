@@ -222,8 +222,91 @@
         // the real form entirely, which login.scss forces back visible.
 
         // ---- Floating-label email / password fields ----
-        setupFloatingField(form.querySelector('input[name="login"]'), "fa-envelope", false);
-        setupFloatingField(form.querySelector('input[name="password"]'), "fa-lock", true);
+        var loginInput = form.querySelector('input[name="login"]');
+        var passwordInput = form.querySelector('input[name="password"]');
+        setupFloatingField(loginInput, "fa-envelope", false);
+        setupFloatingField(passwordInput, "fa-lock", true);
+
+        // ---- Email-format validation (reject phone numbers / free text) ----
+        // Odoo ships the login field as type="text" so phones & logins are
+        // accepted. We keep type="text" for compatibility but enforce a
+        // real email structure via pattern + a submit guard that shows a
+        // compact, design-matching message instead of the browser's
+        // native tooltip.
+        if (loginInput) {
+            loginInput.setAttribute(
+                "pattern",
+                "[^@\\s]+@[^@\\s]+\\.[^@\\s]+"
+            );
+            loginInput.setAttribute(
+                "title",
+                "Please enter a valid email address (e.g. name@company.com)"
+            );
+            // Clear any previous custom error when the user starts typing again.
+            loginInput.addEventListener("input", function () {
+                loginInput.setCustomValidity("");
+                var existing = form.querySelector(".o_custom_login_client_error");
+                if (existing) {
+                    existing.remove();
+                }
+            });
+        }
+
+        function showClientError(message) {
+            var existing = form.querySelector(".o_custom_login_client_error");
+            if (existing) {
+                existing.remove();
+            }
+            var err = document.createElement("div");
+            err.className = "o_custom_login_client_error";
+            err.setAttribute("role", "alert");
+            err.textContent = message;
+            // Place it just above the submit button so layout matches the
+            // server-side "Wrong login/password" alert position.
+            var submitBtn = form.querySelector(
+                'button[type="submit"], input[type="submit"], .btn-primary'
+            );
+            if (submitBtn) {
+                submitBtn.parentNode.insertBefore(err, submitBtn);
+            } else {
+                form.appendChild(err);
+            }
+        }
+
+        form.addEventListener("submit", function (e) {
+            if (!loginInput) {
+                return;
+            }
+            var value = (loginInput.value || "").trim();
+            // Simple, robust email check (same idea as the pattern attribute).
+            var emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+            if (!emailOk) {
+                e.preventDefault();
+                e.stopPropagation();
+                loginInput.setCustomValidity(
+                    "Please enter a valid email address"
+                );
+                loginInput.reportValidity();
+                showClientError("Please enter a valid email address");
+                loginInput.focus();
+                return false;
+            }
+            loginInput.setCustomValidity("");
+        });
+
+        // ---- Normalize Odoo's server-side error alert so it sits in the
+        // same visual slot as our client error and does not force the
+        // card to scroll. ----
+        // Odoo typically injects <p class="alert alert-danger"> (or a
+        // close relative) between the password field and the submit
+        // button after a failed login. We just ensure it is visible and
+        // leave the heavy lifting to the CSS rules in login.scss.
+        var serverAlerts = stage.querySelectorAll(
+            ".alert, .alert-danger, p[role='alert'], .o_error"
+        );
+        serverAlerts.forEach(function (el) {
+            el.classList.add("o_custom_login_server_error");
+        });
 
         // Everything Odoo renders after the submit button inside the
         // form (e.g. "Log in as superuser") and everything after the
@@ -231,10 +314,21 @@
         // Databases | Powered by Odoo" footer) isn't part of this
         // redesign — hide it all rather than trying to guess every
         // individual element's markup.
-        var submitBtn = form.querySelector('button[type="submit"], input[type="submit"], .btn-primary');
+        var submitBtn = form.querySelector(
+            'button[type="submit"], input[type="submit"], .btn-primary'
+        );
         if (submitBtn) {
             var afterBtn = submitBtn.nextElementSibling;
             while (afterBtn) {
+                // Never hide the error alerts we just normalized.
+                if (
+                    afterBtn.classList.contains("o_custom_login_server_error") ||
+                    afterBtn.classList.contains("o_custom_login_client_error") ||
+                    afterBtn.classList.contains("alert")
+                ) {
+                    afterBtn = afterBtn.nextElementSibling;
+                    continue;
+                }
                 hide(afterBtn);
                 afterBtn = afterBtn.nextElementSibling;
             }

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Pure viewer list, opened in a popup (target=new) from the header
+        stat button on the Sales Order form. Always create=False/
+        edit=False/delete=False for EVERYONE who opens it, regardless of
+        role - this is only meant to give a quick glance + download
+        without leaving the order's form context. Real editing (Sales
+        adding/submitting a line, or a self-service Reopen) still only
+        happens in the "Payment Proofs" tab on the order form itself,
+        governed by payment_proof_editable and the ir.rule's in
+        security.xml - nothing about that changes here.
+    -->
+    <record id="view_sale_order_payment_proof_popup_list" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.popup.list</field>
+        <field name="model">sale.order.payment.proof</field>
+        <field name="arch" type="xml">
+            <list string="Payment Proofs" create="false" edit="false" delete="false">
+                <field name="uploaded_date" string="Uploaded"/>
+                <field name="uploaded_by"/>
+                <field name="download_link" widget="html" string="File"/>
+                <field name="notes"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'pending'"
+                       decoration-success="state == 'submitted'"/>
+            </list>
+        </field>
+    </record>
+
+</odoo>

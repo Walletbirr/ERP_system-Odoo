@@ -47,9 +47,11 @@ body:has(#wrapwrap.o_custom_login_bg) {
   box-shadow: 0 1px 2px rgba(20, 18, 15, 0.04), 0 8px 24px rgba(20, 18, 15, 0.06),
     0 30px 60px rgba(20, 18, 15, 0.1), 0 0 0 1px rgba(20, 18, 15, 0.03);
   animation: customLoginCardIn 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  // Never show a scrollbar on the card itself. The design is sized so
+  // that logo + fields + one compact error + button always fit; if
+  // something extreme happens the page body can scroll, not the card.
   overflow: hidden;
-  max-height: 92vh;
-  overflow-y: auto; // safety fallback only — normal sizing shouldn't ever need this
+  max-height: none;
 }
 
 // Consolidates all vertical spacing to our own margin-bottom system
@@ -181,6 +183,22 @@ body:has(#wrapwrap.o_custom_login_bg) {
   outline: none;
 }
 
+// Keep the floating-field look identical even when Odoo / Bootstrap
+// marks the control as invalid after a failed login. We never want
+// the pink "is-invalid" border or different background.
+.o_custom_login_field input.is-invalid,
+.o_custom_login_field input:invalid {
+  border-color: $field-border;
+  background: $field-bg;
+  box-shadow: none;
+}
+.o_custom_login_field input.is-invalid:focus,
+.o_custom_login_field input:invalid:focus {
+  border-color: $accent;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(186, 117, 23, 0.12), 0 4px 14px rgba(186, 117, 23, 0.1);
+}
+
 .o_custom_login_field_icon {
   position: absolute;
   left: 16px;
@@ -254,6 +272,47 @@ body:has(#wrapwrap.o_custom_login_bg) {
 .o_custom_login_toggle_visibility:focus {
   color: $accent;
   outline: none;
+}
+
+// ---- Error messages (server "Wrong login/password" + client email check) ----
+// Keep the exact same field look whether an error is present or not.
+// One compact, design-matched bar that sits between the password field
+// and the LOG IN button — no extra Bootstrap padding that forces the
+// card to grow and show a scrollbar.
+.o_custom_login_stage .alert,
+.o_custom_login_stage .alert-danger,
+.o_custom_login_stage .o_custom_login_server_error,
+.o_custom_login_stage .o_custom_login_client_error {
+  display: block;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #f0c4bc;
+  background: #fdf4f2;
+  color: #9b2c2c;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  box-shadow: none;
+  // Kill Bootstrap's default alert extras that add height / margins
+  &::before,
+  &::after {
+    display: none !important;
+  }
+  .btn-close,
+  .close {
+    display: none !important;
+  }
+}
+
+// When Odoo puts the alert higher in the form (before the fields),
+// still force consistent spacing so the card never gains a scrollbar.
+.o_custom_login_stage form > .alert,
+.o_custom_login_stage form > .alert-danger,
+.o_custom_login_stage form > .o_custom_login_server_error {
+  margin-bottom: 14px;
 }
 
 // ---- Button, pill-shaped, with a light sweep on hover ----
@@ -389,6 +448,19 @@ body:has(#wrapwrap.o_custom_login_bg) form.oe_login_form.d-none {
   }
   .o_custom_login_field input {
     padding: 20px 16px 6px 44px !important;
+  }
+  // Keep error + button compact so the card still never scrolls
+  .o_custom_login_stage .alert,
+  .o_custom_login_stage .alert-danger,
+  .o_custom_login_stage .o_custom_login_server_error,
+  .o_custom_login_stage .o_custom_login_client_error {
+    margin-bottom: 10px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+  }
+  .o_custom_login_stage .btn-primary {
+    margin-top: 4px;
+    padding: 11px 0;
   }
 }
 

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <template id="report_hr_payslip_summary">
+        <t t-call="web.html_container">
+            <div class="page" style="max-width: none; width: 100%;">
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <div
+                        style="font-size: 20px; font-weight: bold;"
+                        t-esc="company.name"
+                    />
+                    <div
+                        style="color: #8B5E02; font-size: 13px; margin-top: 2px; font-weight: bold;"
+                    >
+                        Payroll Summary
+                    </div>
+                    <div style="border-bottom: 2px solid #8B5E02; width: 120px; margin: 6px auto 0;" />
+                </div>
+
+                <table style="width: 100%; margin-bottom: 10px; font-size: 10px;">
+                    <tr>
+                        <td>
+                            <strong>Batches:</strong>
+                            <span t-esc="batches_label" />
+                        </td>
+                        <td>
+                            <strong>Period:</strong>
+                            <span t-esc="period_from" />
+                            -
+                            <span t-esc="period_to" />
+                        </td>
+                        <td style="text-align: right;">
+                            <strong>Generated:</strong>
+                            <span t-esc="generated_on.strftime('%Y-%m-%d %H:%M')" />
+                        </td>
+                    </tr>
+                </table>
+
+                <table
+                    class="table table-sm table-bordered"
+                    style="font-size: 9px; width: 100%;"
+                >
+                    <thead>
+                        <tr style="background-color: #8B5E02; color: white;">
+                            <th>Employee</th>
+                            <th>Reference</th>
+                            <t t-foreach="columns" t-as="col">
+                                <th class="text-end" t-esc="col['name']" />
+                            </t>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="rows" t-as="row">
+                            <tr
+                                t-att-style="'background-color: #FBF3E3;' if row_index % 2 else ''"
+                            >
+                                <td t-esc="row['employee']" />
+                                <td t-esc="row['reference']" />
+                                <t t-foreach="columns" t-as="col">
+                                    <td
+                                        class="text-end"
+                                        t-esc="'%.2f' % row['values'].get(col['code'], 0.0)"
+                                    />
+                                </t>
+                            </tr>
+                        </t>
+                    </tbody>
+                    <tfoot>
+                        <tr style="background-color: #F0DDB3; font-weight: bold; color: #5C3D01;">
+                            <th>Total</th>
+                            <th />
+                            <t t-foreach="columns" t-as="col">
+                                <th
+                                    class="text-end"
+                                    t-esc="'%.2f' % totals.get(col['code'], 0.0)"
+                                />
+                            </t>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <p style="font-size: 8px; color: #6c757d; margin-top: 10px;">
+                    Figures reflect confirmed payslip amounts as posted to
+                    accounting. Negative values are deductions.
+                </p>
+            </div>
+        </t>
+    </template>
+</odoo>

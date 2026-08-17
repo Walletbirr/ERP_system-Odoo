@@ -1,26 +1,17 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Custom Login Page",
-    "summary": "Standalone split-screen redesign of the /web/login page only.",
+    "summary": "Standalone redesign of the /web/login page only.",
     "description": """
-Restyles the Odoo login page (/web/login) with a split-screen layout:
-a dark branded panel on one side, the actual login form on the other.
+Restyles the Odoo login page (/web/login) with a branded card layout.
+Also prevents the browser Back button from restoring internal views
+after logout (no more "Odoo Session Expired" dialog).
 
-Deliberately standalone — independent of theme_shell (or any other
-theme module), no shared assets, no shared bundle, no dependency on
-it. Installing/uninstalling this has zero effect on the backend UI.
-
-Deliberately does NOT modify Odoo's login QWeb template or the login
-form's own markup at all: it only loads a CSS file and a small JS file
-into the existing "web.assets_frontend" bundle. The JS repositions
-elements at runtime (wraps them, adds classes) rather than touching
-the authentication form's inputs/structure, and does nothing at all if
-its selector guesses don't match your Odoo version — worst case is
-"looks like stock Odoo login", never a broken login page. See the
-VERIFY comments in login.js / login.scss for exactly which selectors
-are assumptions vs. guaranteed-stable.
+Deliberately does NOT modify Odoo's login QWeb template: it only loads
+CSS/JS into the frontend bundle and a small session guard into the
+backend bundle. See VERIFY comments in login.js for selector assumptions.
 """,
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.2.0",
     "category": "Theme",
     "author": "Binget Holding plc",
     "license": "LGPL-3",
@@ -29,6 +20,9 @@ are assumptions vs. guaranteed-stable.
         "web.assets_frontend": [
             "custom_login/static/src/login/login.js",
             "custom_login/static/src/login/login.scss",
+        ],
+        "web.assets_backend": [
+            "custom_login/static/src/session/session_guard.js",
         ],
     },
     "installable": True,

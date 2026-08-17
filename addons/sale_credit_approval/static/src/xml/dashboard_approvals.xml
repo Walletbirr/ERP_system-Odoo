@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Extends bh_management_dashboard's Owl template (now a named
+         template - see that module's static/src/xml/dashboard.xml) to add
+         an "Approvals" tab and a "Requests Needing Your Action" panel on
+         the Sales tab, the same way sale_order_views.xml extends the Sales
+         Order form: via xpath, without touching the base file. -->
+    <t t-inherit="bh_management_dashboard.Dashboard" t-inherit-mode="extension">
+
+        <!-- 1) Nav item, appended after the existing Sales/Inventory/.../HR
+                items in the left sidebar. -->
+        <xpath expr="//nav[hasclass('bh-topnav-menu')]" position="inside">
+            <div t-att-class="'bh-nav-item' + (state.activeTab === 'approvals' ? ' active' : '')"
+                 t-on-click="setTabApprovals">
+                <i class="fa fa-check-square-o bh-nav-icon"/>
+                <span class="bh-nav-label">Approvals</span>
+            </div>
+        </xpath>
+
+        <!-- 2) Top-bar title shown while the Approvals tab is active. -->
+        <xpath expr="//div[hasclass('bh-topbar-title')]/t[last()]" position="after">
+            <t t-elif="state.activeTab === 'approvals'">
+                <i class="fa fa-check-square-o bh-title-icon"/>
+                Credit Approvals
+            </t>
+        </xpath>
+
+        <!-- 2b) Notification bell, replacing the static "BINGET HOLDING PLC
+                / Higher Management Reporting" text that used to sit at the
+                far right of the top navbar. Visible on every tab (it's in
+                the navbar, not inside a tab body), so a manager sees new
+                credit-approval requests the moment they open the Executive
+                Dashboard, regardless of which tab they land on. Reuses the
+                exact same action_required data as the Sales-tab panel, so
+                the count/list is always in sync with it. -->
+        <xpath expr="//div[hasclass('bh-topnav-footer')]" position="replace">
+            <div class="bh-topnav-notif">
+                <button class="bh-notif-bell" t-on-click="onToggleNotifDropdown"
+                        t-att-title="_actionRequiredList().length ?
+                            _actionRequiredList().length + ' request(s) need your action' :
+                            'No pending requests'">
+                    <i class="fa fa-bell"/>
+                    <span t-if="_actionRequiredList().length" class="bh-notif-badge"
+                          t-esc="_actionRequiredList().length &gt; 9 ? '9+' : _actionRequiredList().length"/>
+                </button>
+
+                <div t-if="state.notifOpen" class="bh-notif-dropdown">
+                    <div class="bh-notif-dropdown-header">
+                        <span>Pending Approvals</span>
+                        <!-- <span class="bh-notif-count-pill" t-esc="_actionRequiredList().length"/> -->
+                    </div>
+
+                    <div t-if="!_actionRequiredList().length" class="bh-notif-empty">
+                        <i class="fa fa-check-circle"/> You're all caught up.
+                    </div>
+
+                    <div t-else="" class="bh-notif-list">
+                        <t t-foreach="notifPreviewList()" t-as="o" t-key="o.id">
+                            <div class="bh-notif-item" t-on-click="() => this.onNotifItemClick(o.id)">
+                                <div class="bh-notif-item-top">
+                                    <span class="bh-notif-order" t-esc="o.name"/>
+                                    <span class="bh-notif-amount" t-esc="o.currency + ' ' + fmt(o.amount_total, 2)"/>
+                                </div>
+                                <div class="bh-notif-item-sub">
+                                    <t t-esc="o.customer"/> · <t t-esc="o.payment_term"/>
+                                </div>
+                                <div class="bh-notif-item-time" t-esc="o.submitted"/>
+                            </div>
+                        </t>
+                        <div t-if="notifOverflowCount()" class="bh-notif-overflow">
+                            + <t t-esc="notifOverflowCount()"/> more
+                        </div>
+                    </div>
+
+                    <div class="bh-notif-dropdown-footer">
+                        <a href="#" t-on-click.prevent="onViewAllNotifs">View all in Approvals tab</a>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+
+        <!-- 3) "Requests Needing Your Action" panel, on the SALES tab -
+                placed immediately after the top KPI cards row (before any
+                charts), instead of after the Revenue &amp; Orders Trend
+                chart - only shown at all if there's actually something for
+                this user to act on. Clicking a row opens that Sales Order
+                directly. -->
+        <xpath expr="//div[@t-if=&quot;state.activeTab === 'sales'&quot;]/div[contains(@class,'bh-kpi-row')]" position="after">
+            <div t-if="state.data.approvals.action_required.length" class="bh-charts-row">
+                <div class="bh-chart-panel full-width bh-actions-needed-panel">
+                    <div class="bh-panel-title">
+                        <i class="fa fa-exclamation-circle"/>
+                        Pending Approvals
+                        <!-- (<t t-esc="state.data.approvals.action_required.length"/>) -->
+                    </div>
+                    <div class="bh-table-wrap">
+                        <table class="bh-table bh-approvals-table">
+                            <thead>
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Customer</th>
+                                    <th>Salesperson</th>
+                                    <th>Submitted</th>
+                                    <th>Amount</th>
+                                    <th>Payment Terms</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="actionsPage()" t-as="o" t-key="o.id">
+                                    <tr class="bh-clickable-row" t-on-click="() => this.onOpenOrder(o.id)">
+                                        <td t-esc="o.name"/>
+                                        <td t-esc="o.customer"/>
+                                        <td t-esc="o.salesperson"/>
+                                        <td t-esc="o.submitted"/>
+                                        <td t-esc="o.currency + ' ' + fmt(o.amount_total, 2)"/>
+                                        <td t-esc="o.payment_term"/>
+                                        <td>
+                                            <span t-att-class="'bh-badge ' + (
+                                                    o.state === 'approved' ? 'success' :
+                                                    o.state === 'rejected' ? 'danger'  :
+                                                    o.state === 'to_approve' ? 'warning' : 'info')"
+                                                  t-esc="o.state === 'to_approve' ? 'PENDING' : o.state.toUpperCase()"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bh-actions-pager">
+                        <button class="bh-pager-btn" t-att-disabled="state.actionsPage === 0"
+                                t-on-click="onActionsPrev">
+                            <i class="fa fa-chevron-left"/> Previous
+                        </button>
+                        <span class="bh-pager-info">
+                            Page <t t-esc="state.actionsPage + 1"/> of <t t-esc="actionsPageCount()"/>
+                        </span>
+                        <button class="bh-pager-btn" t-att-disabled="state.actionsPage + 1 >= actionsPageCount()"
+                                t-on-click="onActionsNext">
+                            Next <i class="fa fa-chevron-right"/>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+
+        <!-- 4) Approvals tab body, appended right after the HR tab's
+                content so it lands inside the same "bh-content" wrapper as
+                every other tab. Read-only summary table - the "Requests
+                Needing Your Action" panel above (Sales tab) is where
+                actionable items now live, and the full Credit Approvals
+                list (Executive Dashboard > Credit Approvals) still has the
+                real Approve/Reject workflow. -->
+        <xpath expr="//div[@t-if=&quot;state.activeTab === &apos;hr&apos;&quot;]" position="after">
+            <!-- APPROVALS TAB -->
+            <div t-if="state.activeTab === 'approvals'">
+                <div t-if="state.data.approvals.summary.total == 0" class="bh-info-banner">
+                    <i class="fa fa-info-circle"/> No Credit Sales orders require approval yet.
+                </div>
+                <div class="bh-kpi-row">
+                    <div class="bh-kpi-card orange">
+                        <div class="bh-kpi-icon"><i class="fa fa-hourglass-half"/></div>
+                        <div class="bh-kpi-label">Pending Approval</div>
+                        <div class="bh-kpi-value" t-esc="state.data.approvals.summary.pending"/>
+                    </div>
+                    <div class="bh-kpi-card green">
+                        <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
+                        <div class="bh-kpi-label">Approved</div>
+                        <div class="bh-kpi-value" t-esc="state.data.approvals.summary.approved"/>
+                    </div>
+                    <div class="bh-kpi-card red">
+                        <div class="bh-kpi-icon"><i class="fa fa-times-circle"/></div>
+                        <div class="bh-kpi-label">Rejected</div>
+                        <div class="bh-kpi-value" t-esc="state.data.approvals.summary.rejected"/>
+                    </div>
+                    <div class="bh-kpi-card purple">
+                        <div class="bh-kpi-icon"><i class="fa fa-list-alt"/></div>
+                        <div class="bh-kpi-label">Total Credit Orders</div>
+                        <div class="bh-kpi-value" t-esc="state.data.approvals.summary.total"/>
+                    </div>
+                </div>
+                <div class="bh-charts-row">
+                    <div class="bh-chart-panel full-width">
+                        <div class="bh-panel-title-row">
+                            <div class="bh-panel-title">Recent Credit Approval Requests</div>
+                            <div class="bh-table-filters">
+                                <div class="bh-filter-group">
+                                    <label class="bh-filter-label">Filter</label>
+                                    <select class="bh-table-status-filter" t-on-change="onRecentStatusFilterChange">
+                                        <option value="all" t-att-selected="state.recentStatusFilter === 'all'">All Statuses</option>
+                                        <option value="to_approve" t-att-selected="state.recentStatusFilter === 'to_approve'">Pending</option>
+                                        <option value="approved" t-att-selected="state.recentStatusFilter === 'approved'">Approved</option>
+                                        <option value="rejected" t-att-selected="state.recentStatusFilter === 'rejected'">Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="bh-filter-group">
+                                    <label class="bh-filter-label">Search</label>
+                                    <input type="text" class="bh-table-search"
+                                           placeholder="Order, customer, salesperson, payment term..."
+                                           t-att-value="state.recentSearch"
+                                           t-on-input="onRecentSearchInput"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bh-table-wrap">
+                            <table class="bh-table bh-approvals-table">
+                                <thead>
+                                    <tr>
+                                        <th>Order</th>
+                                        <th>Customer</th>
+                                        <th>Salesperson</th>
+                                        <th>Submitted</th>
+                                        <th>Amount</th>
+                                        <th>Payment Term</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="recentPageItems()" t-as="o" t-key="o.id">
+                                        <tr class="bh-clickable-row" t-on-click="() => this.onOpenOrder(o.id)">
+                                            <td t-esc="o.name"/>
+                                            <td t-esc="o.customer"/>
+                                            <td t-esc="o.salesperson"/>
+                                            <td t-esc="o.submitted"/>
+                                            <td t-esc="o.currency + ' ' + fmt(o.amount_total, 2)"/>
+                                            <td t-esc="o.payment_term"/>
+                                            <td>
+                                                <span t-att-class="'bh-badge ' + (
+                                                        o.state === 'approved' ? 'success' :
+                                                        o.state === 'rejected' ? 'danger'  :
+                                                        o.state === 'to_approve' ? 'warning' : 'info')"
+                                                      t-esc="o.state === 'to_approve' ? 'PENDING' : o.state.toUpperCase()"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                    <tr t-if="!recentPageItems().length">
+                                        <td colspan="7" class="bh-table-empty">No matching requests.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="bh-actions-pager">
+                            <button class="bh-pager-btn" t-att-disabled="state.recentPage === 0"
+                                    t-on-click="onRecentPrev">
+                                <i class="fa fa-chevron-left"/> Previous
+                            </button>
+                            <span class="bh-pager-info">
+                                Page <t t-esc="state.recentPage + 1"/> of <t t-esc="recentPageCount()"/>
+                                (<t t-esc="_recentList().length"/> requests)
+                            </span>
+                            <button class="bh-pager-btn" t-att-disabled="state.recentPage + 1 >= recentPageCount()"
+                                    t-on-click="onRecentNext">
+                                Next <i class="fa fa-chevron-right"/>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+
+    </t>
+
+</templates>

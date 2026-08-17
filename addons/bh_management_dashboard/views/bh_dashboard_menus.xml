@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Root Menu -->
+        <menuitem
+            id="menu_bh_dashboard_root"
+            name="Executive Dashboard"
+            sequence="1"
+            web_icon="bh_management_dashboard,static/src/img/icon.png"
+            groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
+
+        <!-- Main Dashboard -->
+        <menuitem
+            id="menu_bh_dashboard_main"
+            name="Management Overview"
+            parent="menu_bh_dashboard_root"
+            action="action_bh_management_dashboard"
+            sequence="1"
+            groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
+
+    </data>
+</odoo>

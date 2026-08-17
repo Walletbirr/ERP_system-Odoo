@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_sale_order_approval_user,sale.order.approval user,model_sale_order_approval,base.group_user,1,1,1,0
+access_sale_order_approval_admin,sale.order.approval admin,model_sale_order_approval,base.group_system,1,1,1,1
+access_bh_approval_config_user,bh.approval.config read,model_bh_approval_config,base.group_user,1,0,0,0
+access_bh_approval_config_executive,bh.approval.config executive,model_bh_approval_config,bh_management_dashboard.group_bh_executive,1,1,0,0
+access_bh_approval_config_admin,bh.approval.config admin,model_bh_approval_config,base.group_system,1,1,1,1

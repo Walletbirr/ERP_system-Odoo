@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_hr_job_form_portal_apply" model="ir.ui.view">
+        <field name="name">hr.job.form.portal.apply</field>
+        <field name="model">hr.job</field>
+        <field name="inherit_id" ref="hr.view_hr_job_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Informational tab: the portal reuses the standard "Job
+                 Summary" description, so no duplicate field is added here. -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Careers Portal" name="careers_portal">
+                    <div class="alert alert-info" role="alert">
+                        The description shown to candidates on the public
+                        Careers Portal apply page (<code>/careers/apply/&lt;job_id&gt;</code>)
+                        is pulled automatically from the standard
+                        <strong>Job Summary</strong> tab on this form — no
+                        separate portal description is needed.
+                        <br/>
+                        Use the <strong>Publish on Careers Portal?</strong>
+                        option at the bottom of this form to control whether
+                        this job is listed on <code>/careers</code>.
+                    </div>
+                </page>
+            </xpath>
+
+            <!-- Publish toggle + application deadline, moved out of a tab
+                 and onto the footer of every Job Position form so it's
+                 always visible at a glance. -->
+            <xpath expr="//sheet" position="inside">
+                <group string="Careers Portal Visibility" name="careers_portal_footer" col="1">
+                    <field name="portal_is_deadline_passed" invisible="1"/>
+                    <field name="portal_publish_state" widget="radio"
+                           options="{'horizontal': true}" nolabel="1"/>
+                    <label for="portal_application_deadline"/>
+                    <div class="d-flex align-items-center gap-2">
+                        <field name="portal_application_deadline"
+                               placeholder="No deadline - stays open indefinitely"/>
+                        <span class="badge text-bg-danger"
+                              invisible="not portal_is_deadline_passed">
+                            Deadline passed - auto-unpublished
+                        </span>
+                    </div>
+                    <div class="text-muted small" invisible="not portal_application_deadline">
+                        Once this date passes, the job is automatically
+                        unpublished from the Careers Portal, even if
+                        "Published" is still selected above.
+                    </div>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+
+    <record id="view_hr_job_kanban_portal_apply" model="ir.ui.view">
+        <field name="name">hr.job.kanban.portal.apply</field>
+        <field name="model">hr.job</field>
+        <field name="inherit_id" ref="hr_recruitment.view_hr_job_kanban"/>
+        <field name="arch" type="xml">
+
+            <!-- Fields used by the footer below need to be declared on the
+                 kanban root so their values are fetched for every card. -->
+            <xpath expr="//kanban/field[@name='allowed_user_ids']" position="after">
+                <field name="portal_publish_state"/>
+                <field name="portal_is_published"/>
+                <field name="portal_application_deadline"/>
+                <field name="portal_application_deadline_display"/>
+                <field name="portal_is_deadline_passed"/>
+            </xpath>
+
+            <!-- Deadline row (only when a deadline is set), then the
+                 Careers Portal footer: publish toggle on the left,
+                 "See job" link to the public posting on the right. -->
+            <xpath expr="//t[@t-name='card']/div[@name='kanban_boxes']" position="after">
+                <div t-if="record.portal_application_deadline.raw_value" class="px-2 pt-1">
+                    <t t-if="record.portal_is_deadline_passed.raw_value">
+                        <span class="small text-danger fw-bold">
+                            <i class="fa fa-clock-o me-1" role="img" aria-label="Deadline" title="Deadline"></i>
+                            Deadline passed
+                        </span>
+                    </t>
+                    <t t-else="">
+                        <span class="small text-muted">
+                            <i class="fa fa-clock-o me-1" role="img" aria-label="Deadline" title="Deadline"></i>
+                            Apply by <t t-esc="record.portal_application_deadline_display.value"/>
+                        </span>
+                    </t>
+                </div>
+                <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2 px-2 pb-1">
+                    <div class="d-flex align-items-center gap-1">
+                        <field name="portal_is_published" widget="boolean_toggle" nolabel="1"
+                               groups="hr_recruitment.group_hr_recruitment_user"/>
+                        <span t-attf-class="small {{ record.portal_is_published.raw_value ? 'text-success fw-bold' : 'text-muted' }}">
+                            <t t-if="record.portal_is_published.raw_value">Published</t>
+                            <t t-else="">Unpublished</t>
+                        </span>
+                    </div>
+                    <a t-if="record.portal_is_published.raw_value"
+                       t-attf-href="/careers/apply/#{record.id.raw_value}"
+                       target="_blank"
+                       class="small"
+                       title="Open this job on the public Careers Portal">
+                        <i class="fa fa-external-link me-1" role="img" aria-label="Open" title="Open"></i>See job
+                    </a>
+                    <span t-else="" class="small text-muted" title="Publish this job to make it visible on the Careers Portal">
+                        <i class="fa fa-external-link me-1" role="img" aria-label="Open" title="Open"></i>See job
+                    </span>
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
