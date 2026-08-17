@@ -6,8 +6,45 @@
 
             <!-- Sticky header: does NOT live inside the scrollable area below -->
             <div class="o_theme_sidebar_header">
-                <span class="o_theme_sidebar_brand" t-esc="companyName"/>
+                <div class="o_theme_sidebar_brand_wrap">
+                    <div class="o_theme_sidebar_logo_badge">
+                        <img src="/theme_shell/static/src/img/logo.png" alt="Binget"/>
+                    </div>
+                    <div class="o_theme_sidebar_brand">
+                        <span class="o_theme_sidebar_brand_main" t-esc="brandName.main"/>
+                        <span t-if="brandName.sub" class="o_theme_sidebar_brand_sub" t-esc="brandName.sub"/>
+                    </div>
+                </div>
                 <div class="o_theme_sidebar_header_actions">
+                    <div class="o_theme_sidebar_notif_wrap" t-ref="notifWrap">
+                        <button class="o_theme_sidebar_notif_btn" t-on-click="toggleNotifications" title="Notifications">
+                            <i class="fa fa-bell-o"/>
+                            <span t-if="notificationBadgeCount" class="o_theme_sidebar_notif_badge" t-esc="notificationBadgeCount"/>
+                        </button>
+                        <div t-if="state.showNotifications" class="o_theme_sidebar_notif_panel">
+                            <div class="o_theme_sidebar_notif_panel_header">
+                                <span>Notifications</span>
+                                <span t-if="visibleNotifications.some((r) => r.is_new)"
+                                      class="o_theme_sidebar_notif_mark_seen"
+                                      t-on-click="markNotificationsSeen">Mark all as seen</span>
+                            </div>
+                            <div t-if="!visibleNotifications.length" class="o_theme_sidebar_notif_empty">You're all caught up.</div>
+                            <t t-foreach="visibleNotifications" t-as="n" t-key="n.id">
+                                <div t-att-class="'o_theme_sidebar_notif_row severity_' + n.severity + (n.is_new ? ' is_new' : '')"
+                                     t-on-click="() => this.onNotificationClick(n)">
+                                    <i t-att-class="n.severity === 'critical' ? 'fa fa-exclamation-circle' : (n.severity === 'warning' ? 'fa fa-exclamation-triangle' : 'fa fa-info-circle')"/>
+                                    <div class="o_theme_sidebar_notif_body">
+                                        <div class="o_theme_sidebar_notif_title" t-esc="n.title"/>
+                                        <div class="o_theme_sidebar_notif_desc" t-esc="n.description"/>
+                                        <div t-if="n.notif_type === 'request'" class="o_theme_sidebar_notif_persist_hint">Stays until you resolve it — seeing it just clears your count</div>
+                                    </div>
+                                    <i t-if="n.is_new" class="fa fa-check o_theme_sidebar_notif_dismiss" title="Mark as seen"
+                                       t-on-click="(ev) => this.markNotificationSeen(n, ev)"/>
+                                    <span t-else="" class="o_theme_sidebar_notif_spacer"/>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
                     <button class="o_theme_sidebar_theme_toggle"
                             t-on-click="toggleTheme"
                             t-att-title="state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'">
