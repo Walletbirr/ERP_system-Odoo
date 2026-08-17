@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState, onWillStart, useRef, useExternalListener } from "@odoo/owl";
+import { Component, useState, onWillStart, onWillUnmount, useRef, useExternalListener } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { usePopover } from "@web/core/popover/popover_hook";
 import { registry } from "@web/core/registry";
@@ -153,13 +153,6 @@ export class Sidebar extends Component {
         this.orm = useService("orm");
         this.userService = user;
 
-        this.companyService = null;
-        try {
-            this.companyService = useService("company");
-        } catch (e) {
-            console.warn("theme_shell: 'company' service unavailable", e);
-        }
-
         // Read saved theme preference. Wrapped in try/catch since
         // localStorage can throw in some contexts (e.g. private
         // browsing on Safari, or if third-party storage is blocked).
@@ -181,6 +174,8 @@ export class Sidebar extends Component {
             theme: savedTheme,       // 'light' (default) or 'dark'
             searchQuery: "",
             highlightedIndex: -1,    // for arrow-key navigation through results
+            showNotifications: false,
+            notifications: { rows: [] },
             // Flat list built once at startup so search covers every app
             // AND every nested menu item, not just what's currently
             // expanded/visible. See buildSearchIndex() below.
@@ -195,11 +190,35 @@ export class Sidebar extends Component {
 
         this.profileRef = useRef("profileContainer");
         this.searchInputRef = useRef("searchInput");
+        this.notifRef = useRef("notifWrap");
 
         useExternalListener(document, "click", (ev) => {
             if (this.state.profileOpen && this.profileRef.el && !this.profileRef.el.contains(ev.target)) {
                 this.state.profileOpen = false;
             }
+            if (this.state.showNotifications && this.notifRef.el && !this.notifRef.el.contains(ev.target)) {
+                this.state.showNotifications = false;
+            }
+        });
+
+        // ---- Notification bell ----
+        // Ported over from binget_dashboard's own header (see that
+        // module's dashboard.js/.xml before this change) — the data and
+        // the underlying binget.dashboard model methods it calls
+        // (get_notifications / mark_notifications_seen / etc.) are
+        // untouched and still live there, since LC Management and other
+        // modules feed into that same model. Only the display moved:
+        // the dashboard no longer renders its own bell/panel, this
+        // sidebar does instead, so it's visible on every page, not just
+        // while the dashboard itself is open.
+        onWillStart(() => this.loadNotifications());
+        const NOTIF_POLL_MS = 5 * 60 * 1000; // same cadence as the original
+        this._notifPollTimer = setInterval(() => {
+            if (!document.hidden) this.loadNotifications();
+        }, NOTIF_POLL_MS);
+        onWillUnmount(() => clearInterval(this._notifPollTimer));
+        useExternalListener(document, "visibilitychange", () => {
+            if (!document.hidden) this.loadNotifications();
         });
 
         onWillStart(async () => {
@@ -367,8 +386,17 @@ export class Sidebar extends Component {
         this.menuService.selectMenu(result.menuItem);
     }
 
-    get companyName() {
-        return this.companyService?.currentCompany?.name || "";
+    // Deliberately hardcoded rather than derived from the company
+    // record's name field: the wordmark is a fixed brand asset (see
+    // the reference logo — "BINGET" bold on top, "Group" tracked-out
+    // underneath), not a live reflection of res.company.name. Reading
+    // it off the company record meant it silently changed shape any
+    // time that record was renamed/re-lettered ("Binget Holding plc"
+    // -> "BINGET" / "Holding plc"), which drifted away from the actual
+    // logo. Edit BRAND_MAIN / BRAND_SUB below directly if the brand
+    // wordmark itself ever needs to change.
+    get brandName() {
+        return { main: "BINGET", sub: "HOLDING" };
     }
 
     get userName() {
@@ -399,6 +427,123 @@ export class Sidebar extends Component {
 
     toggleProfileMenu() {
         this.state.profileOpen = !this.state.profileOpen;
+    }
+
+    // ------------------------------------------------------------
+    // NOTIFICATIONS — logic mirrors binget_dashboard's original
+    // Dashboard component 1:1 (same RPC calls, same seen/unseen
+    // rules), just hosted here instead. See the comment on the
+    // constructor's notification block above for why.
+    // ------------------------------------------------------------
+    async loadNotifications() {
+        try {
+            this.state.notifications = await this.orm.call("binget.dashboard", "get_notifications", []);
+        } catch (e) {
+            console.error("theme_shell: failed to load notifications", e);
+        }
+    }
+
+    async markNotificationsSeen() {
+        this.state.notifications.rows = this.state.notifications.rows.map((r) => ({ ...r, is_new: false }));
+        try {
+            await this.orm.call("binget.dashboard", "mark_notifications_seen", []);
+        } catch (e) {
+            console.error("theme_shell: failed to mark notifications seen", e);
+        }
+    }
+
+    async markNotificationSeen(row, ev) {
+        if (ev) {
+            ev.stopPropagation();
+        }
+        row.is_new = false;
+        try {
+            await this.orm.call("binget.dashboard", "mark_notification_seen", [], {
+                notif_id: row.id, notif_title: row.title,
+            });
+        } catch (e) {
+            console.error("theme_shell: failed to mark notification seen", e);
+        }
+    }
+
+    // System-level alerts hide once acknowledged; request notifications
+    // (assigned specifically to this user) stay listed until actually
+    // resolved — "seen" only stops them counting toward the badge.
+    get visibleNotifications() {
+        return this.state.notifications.rows.filter((r) => r.notif_type === "request" || r.is_new);
+    }
+
+    get notificationBadgeCount() {
+        return this.state.notifications.rows.filter((r) => r.is_new).length;
+    }
+
+    toggleNotifications() {
+        this.state.showNotifications = !this.state.showNotifications;
+        if (this.state.showNotifications) {
+            this.state.profileOpen = false;
+        }
+    }
+
+    onNotificationClick(row) {
+        this.state.showNotifications = false;
+        if (typeof this[row.action] === "function") {
+            this[row.action]();
+        }
+    }
+
+    _openList(resModel, name, domain) {
+        this.actionService.doAction({
+            type: "ir.actions.act_window", name, res_model: resModel,
+            views: [[false, "list"], [false, "form"]], domain, target: "current",
+        });
+    }
+
+    // The one notification action that isn't a plain list view — it
+    // used to scroll to and pre-filter the dashboard's own Inventory
+    // Explorer in place. From outside the dashboard, the equivalent is
+    // opening the dashboard itself with that filter as a startup param;
+    // see the `_applyDeepLink` addition in binget_dashboard's
+    // dashboard.js, which reads `explorerStatus` off the client
+    // action's params and calls its own openInventoryStatus() with it.
+    openLowStock() {
+        this.actionService.doAction({
+            type: "ir.actions.client", tag: "binget_dashboard",
+            params: { explorerStatus: "low" },
+        });
+    }
+
+    openOverdueInvoices() {
+        this._openList("account.move", "Overdue Invoices", [
+            ["move_type", "=", "out_invoice"], ["state", "=", "posted"],
+            ["payment_state", "not in", ["paid", "in_payment", "reversed"]],
+            ["invoice_date_due", "<", new Date().toISOString().slice(0, 10)],
+        ]);
+    }
+
+    openPendingPurchases() {
+        this._openList("purchase.order", "Purchase Orders", [["state", "in", ["sent", "to approve"]]]);
+    }
+
+    openOrdersReadyToInvoice() {
+        this._openList("sale.order", "Sales Orders Ready to Invoice", [
+            ["state", "=", "sale"], ["invoice_status", "=", "to invoice"],
+        ]);
+    }
+
+    openTimeOff() {
+        this._openList("hr.leave", "Pending Time Off", [["state", "in", ["confirm", "validate1"]]]);
+    }
+
+    openLCAccountRequests() {
+        this._openList("lc.account.setup.request", "LC Account Setup Requests", [["state", "!=", "completed"]]);
+    }
+
+    openLCPaymentRequests() {
+        this._openList("lc.settlement.line", "LC Payment Requests", [["state", "=", "submitted"]]);
+    }
+
+    openLCOpeningRequests() {
+        this._openList("lc.management", "LC Opening Requests", [["state", "=", "pending_approval"]]);
     }
 
     // Opens the same "Change My Preferences" dialog Odoo's own default

@@ -10,6 +10,20 @@
     "category": "Theme",
     "author": "Binget Holding plc",
     "license": "LGPL-3",
+    # This does NOT depend on "binget_dashboard", even though the
+    # sidebar's notification bell calls straight into that module's
+    # binget.dashboard model (get_notifications / mark_notifications_seen
+    # / etc., see sidebar.js) and opens its "binget_dashboard" client
+    # action for the low-stock drill-down. That's deliberate: those are
+    # plain RPC calls by model/action *name*, not a Python import, so no
+    # manifest dependency is required for them to work — and
+    # binget_dashboard already depends on THIS module (for the sidebar's
+    # CSS custom properties, --sb-bg/--sb-accent/etc.). Adding the
+    # reverse dependency here previously created A-depends-B-depends-A,
+    # which Odoo refuses to install ("Recursion error in modules
+    # dependencies!"). If binget_dashboard isn't installed, the bell's
+    # RPC calls just fail silently (caught in loadNotifications, etc.)
+    # and it shows empty — it doesn't break the sidebar itself.
     "depends": ["web"],
     "assets": {
         "web.assets_backend": [

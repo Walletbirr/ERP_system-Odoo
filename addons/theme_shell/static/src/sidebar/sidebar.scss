@@ -108,8 +108,8 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
 .o_theme_sidebar {
   display: flex;
   flex-direction: column;
-  width: 244px;
-  min-width: 244px;
+  width: 284px;
+  min-width: 284px;
   height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -171,11 +171,72 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
     background: linear-gradient(180deg, var(--sb-accent-08), transparent 75%);
   }
 
+  // Two-line wordmark: bold caps word on top, a slim gold-tracked word
+  // underneath, anchored by a short gold rule — same visual language
+  // as the reference logo (BINGET / Group), just built to sit crisply
+  // at sidebar scale rather than as a large standalone lockup.
+  &_brand_wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  &_logo_badge {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--sb-accent-12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
   &_brand {
-    font-weight: 700;
-    font-size: 14.5px;
-    letter-spacing: 0.2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0; // required for the ellipsis rules below to actually kick in inside a flex row
+    overflow: hidden;
+  }
+
+  &_brand_main {
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
     color: var(--sb-text);
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &_brand_sub {
+    // Indented rather than flush-left under "B" — lines up closer to
+    // the "N" in BINGET, echoing the reference logo's optical balance
+    // (bold word on top, smaller word tucked in from the left edge,
+    // not dead-aligned with it). This is the same 18px the old gold
+    // dash + its gap used to take up before that accent was removed —
+    // kept here as plain spacing so the alignment stays put without
+    // the dash itself.
+    margin-left: 9px;
+    font-weight: 600;
+    font-size: 10.5px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--sb-accent);
+    line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -297,6 +358,193 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
     }
   }
 
+  // ---- Notification bell ----
+  // Ported over from binget_dashboard's own header — same rows/badge/
+  // panel behavior, re-themed onto the sidebar's own --sb-* palette
+  // instead of the dashboard's --accent/--surface/etc. variables so it
+  // follows light/dark here the same way everything else in the
+  // sidebar does. This is a fixed, always-visible slot we own — unlike
+  // the native control panel's top-right area, which is a different
+  // width/layout on every view type (list pager vs. form vs. dashboard
+  // vs. kanban stat tiles), so there's no single "gap after search"
+  // that stays stable across modules to dock into.
+  &_notif_wrap {
+    position: relative;
+  }
+
+  &_notif_btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: transparent;
+    border: none;
+    color: var(--sb-text-dim);
+    cursor: pointer;
+    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+    transition: background 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
+
+    &:hover {
+      background: var(--sb-accent-12);
+      color: var(--sb-accent);
+      transform: scale(1.08);
+    }
+  }
+
+  &_notif_badge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: linear-gradient(135deg, #e35d4f, #b53a32);
+    color: #ffffff;
+    border-radius: 10px;
+    font-size: 9.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 0 0 2px var(--sb-bg);
+  }
+
+  &_notif_panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    z-index: 2000;
+    width: 320px;
+    max-height: 420px;
+    overflow-y: auto;
+    background: var(--sb-bg);
+    border: 1px solid var(--sb-accent-border);
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 6px;
+    animation: sidebarFlyoutIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &_notif_panel_header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--sb-text-dim);
+    padding: 8px 8px 6px;
+  }
+
+  &_notif_mark_seen {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--sb-accent);
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &_notif_empty {
+    padding: 20px 12px;
+    font-size: 12.5px;
+    color: var(--sb-text-dim);
+    text-align: center;
+  }
+
+  &_notif_row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 9px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease-out;
+
+    &:hover {
+      background: var(--sb-accent-08);
+    }
+    &.is_new {
+      background: var(--sb-accent-08);
+    }
+    &.is_new:hover {
+      background: var(--sb-accent-18);
+    }
+
+    i {
+      margin-top: 2px;
+      font-size: 13px;
+    }
+    &.severity_critical i {
+      color: #c0392b;
+    }
+    &.severity_warning i {
+      color: #b3791b;
+    }
+    &.severity_info i {
+      color: var(--sb-accent);
+    }
+  }
+
+  &_notif_body {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &_notif_dismiss {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sb-accent);
+    font-size: 11px;
+    transition: background 0.15s ease-out, color 0.15s ease-out;
+
+    &:hover {
+      background: var(--sb-accent);
+      color: #ffffff;
+    }
+  }
+
+  &_notif_spacer {
+    width: 22px;
+    flex-shrink: 0;
+  }
+
+  &_notif_persist_hint {
+    font-size: 10.5px;
+    color: var(--sb-text-dim);
+    font-style: italic;
+    margin-top: 3px;
+  }
+
+  &_notif_title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--sb-text-bright);
+  }
+
+  &_notif_desc {
+    font-size: 11.5px;
+    color: var(--sb-text-dim);
+    margin-top: 1px;
+    line-height: 1.4;
+  }
+
   // ---- Scrollable app list (the ONLY part that scrolls) ----
   &_apps {
     flex: 1 1 auto;
@@ -379,6 +627,24 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
     width: 18px;
     height: 18px;
     object-fit: contain;
+  }
+
+  // The <img> case above is sized correctly via width/height, but when
+  // an app has no webIconData and falls back to the plain <i class="fa
+  // fa-th-large"> glyph in sidebar.xml, width/height do nothing for a
+  // font icon — its visual size is controlled by font-size, which
+  // wasn't set anywhere, so it rendered at whatever size it inherited
+  // from .o_theme_sidebar_app (13.5px) instead of filling the same
+  // 18px slot every other app's icon fills. That's almost certainly
+  // the "Sales/Purchase icon looks smaller" you're seeing — those are
+  // likely the two apps currently hitting this fallback (no
+  // webIconData resolved for them) rather than something specific to
+  // those modules. This explicitly sizes the font-icon case to match.
+  &_app_icon_wrap i.o_theme_sidebar_app_icon {
+    width: auto;
+    height: auto;
+    font-size: 18px;
+    line-height: 1;
   }
 
   &_app_label {

@@ -388,6 +388,22 @@ a:not(.btn):not(.dropdown-item):not(.o_theme_sidebar_app):not(.o_theme_sidebar_s
   line-height: 1.2 !important;
 }
 
+// Second, more robust attempt at the same fix: rather than guessing
+// which HTML tag wraps the title (h1 vs span vs div — this can differ
+// per model, e.g. sale.order/purchase.order may not use an actual <h1>
+// the way other forms do), this targets Odoo's own stable convention
+// instead — every field widget carries class "o_field_widget" plus a
+// "name" attribute matching its technical field name, regardless of
+// which tag wraps it. This is what was actually missing on Sales/
+// Purchase order forms specifically ("New" still showing small) —
+// those forms apparently don't wrap the title in a literal <h1>, so
+// only this rule (not the h1 one above) reaches them.
+.oe_title .o_field_widget[name="name"] {
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+}
+
 // ---- "Load more" pagination control (e.g. bottom of a kanban card
 // grid) — was rendering with low opacity/low contrast text. Only
 // opacity/color touched here, zero layout risk.
