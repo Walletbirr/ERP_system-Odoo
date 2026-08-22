@@ -1,0 +1,918 @@
+/* Employee Profile Custom UI — card layout inspired by the reference design.
+   All classes are scoped under .o_employee_profile_root so nothing else in
+   the backend is affected. */
+
+.o_employee_profile_root {
+  background: #f7f8fa;
+  padding: 8px 4px 4px 4px;
+}
+
+/* ---- New profile header card: two halves split by a vertical divider,
+   left = photo/name/title/contact, right = quick identification info ---- */
+.o_employee_profile_header {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  background: #ffffff;
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin: 4px 4px 16px 4px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.o_employee_profile_header_left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1 1 50%;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.o_employee_profile_header .o_employee_profile_avatar {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+}
+
+.o_employee_profile_header .o_employee_profile_avatar img {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow:
+    0 0 0 3px #ffffff,
+    0 0 0 4px #e5e7eb;
+}
+
+.o_employee_profile_header_text {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.o_employee_profile_header_name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.o_employee_profile_header_name .o_field_widget {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.o_employee_profile_header_jobtitle {
+  font-size: 13px;
+  color: #8a93a3;
+  margin-top: 3px;
+  line-height: 1.2;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.o_employee_profile_header_jobtitle .o_field_widget {
+  font-size: 13px;
+  color: #8a93a3;
+}
+
+/* ---- Quick contact row (work email / work phone) under the job title ----
+   Same per-row rhythm (min-height + gap) as .o_employee_profile_header_right
+   below, so the left column's lines line up with the right column's lines
+   instead of drifting apart. ---- */
+.o_employee_profile_header_contact {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 4px;
+}
+
+.o_employee_profile_header_contact_item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  min-height: 18px;
+  line-height: 1.2;
+}
+
+.o_employee_profile_header_contact_item .fa {
+  width: 14px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.o_employee_profile_header_contact_item .o_field_widget {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.o_employee_profile_header_contact_item .o_field_widget:empty::before {
+  content: "Not set";
+  color: #c1c6cf;
+  font-style: italic;
+}
+
+/* ---- Vertical divider at the center of the header card ---- */
+.o_employee_profile_header_divider {
+  width: 1px;
+  align-self: stretch;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+/* ---- Right half: quick identification summary.
+   Single column, each row label-left / value-right ("left-right"),
+   matching the reference design instead of stacking label above
+   value ("top-down"). ---- */
+.o_employee_profile_header_right {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1 1 50%;
+  justify-content: flex-start;
+  min-width: 0;
+  padding-top: 4px;
+  position: relative;
+}
+
+.o_employee_profile_header_info_item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 18px;
+  line-height: 1.2;
+}
+
+.o_employee_profile_header_info_label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  flex-shrink: 0;
+  min-width: 110px;
+  line-height: 1.2;
+}
+
+.o_employee_profile_header_info_item .o_field_widget {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.o_employee_profile_header_info_item .o_field_widget:empty::before {
+  content: "—";
+  color: #c1c6cf;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .o_employee_profile_header {
+    flex-direction: column;
+  }
+  .o_employee_profile_header_divider {
+    width: auto;
+    height: 1px;
+    margin: 16px 0;
+  }
+  .o_employee_profile_header_right {
+    gap: 8px;
+  }
+}
+
+/* ---- Top tab bar (the notebook) — modern professional style ---- */
+.o_employee_profile_root .o_notebook {
+  margin-top: 12px;
+}
+
+.o_employee_profile_root .o_notebook .nav-tabs {
+  border-bottom: none;
+  gap: 6px;
+  background: #f1f3f6;
+  border-radius: 12px;
+  padding: 5px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.o_employee_profile_root .o_notebook .nav-item {
+  margin: 0;
+}
+
+.o_employee_profile_root .o_notebook .nav-link {
+  color: #6b7280;
+  font-weight: 550;
+  font-size: 13.5px;
+  border: none !important;
+  border-radius: 9px !important;
+  padding: 9px 16px;
+  background: transparent !important;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.o_employee_profile_root .o_notebook .nav-link:hover {
+  color: #a06e03;
+  background: rgba(255, 255, 255, 0.7) !important;
+}
+
+.o_employee_profile_root .o_notebook .nav-link.active {
+  color: #a06e03 !important;
+  font-weight: 650;
+  background: #ffffff !important;
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.1),
+    0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+/* ---- Card grid ---- */
+.o_employee_profile_grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.o_employee_profile_grid.o_single_col {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 1100px) {
+  .o_employee_profile_grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Card ---- */
+.o_employee_profile_card {
+  background: #ffffff;
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.o_employee_profile_card_header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.o_employee_profile_card_title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: 0.01em;
+}
+
+.o_employee_profile_card_edit,
+.o_employee_profile_card_done {
+  font-size: 13px;
+  color: #9aa1ac;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+}
+
+.o_employee_profile_card_edit:hover {
+  color: #a06e03;
+}
+
+.o_employee_profile_card_done {
+  color: #16a34a;
+}
+
+/* ---- Field rows inside a card (label left, value left, like the reference).
+   Uses a fixed two-column grid so the label and value sit in exactly the
+   same horizontal position whether the card is locked (read-only text) or
+   unlocked (editable inputs) - only the grid columns decide the layout,
+   never text-align or widget-specific default spacing. ---- */
+.o_employee_profile_card .o_employee_profile_row {
+  display: grid;
+  grid-template-columns: 40% 1fr;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 34px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f4f5f7;
+  font-size: 13px;
+}
+
+.o_employee_profile_card .o_employee_profile_row:last-child {
+  border-bottom: none;
+}
+
+.o_employee_profile_card .o_employee_profile_row .o_employee_profile_label {
+  color: #8a93a3;
+}
+
+.o_employee_profile_card .o_employee_profile_row .o_field_widget {
+  color: #111827;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+}
+
+/* Strip the default Bootstrap-style input/select padding, border and
+   background so an editable field renders at the exact same x-position and
+   line-height as the read-only text - the only visual change on unlock is
+   the text becoming clickable, not a layout shift. */
+.o_employee_profile_card .o_employee_profile_row .o_field_widget input,
+.o_employee_profile_card .o_employee_profile_row .o_field_widget select,
+.o_employee_profile_card .o_employee_profile_row .o_field_widget textarea {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  line-height: 1.3;
+  height: auto !important;
+  min-height: 0 !important;
+  width: 100%;
+}
+
+/* Subtle affordance on focus so it's still clear the field is editable,
+   without disturbing the alignment. */
+.o_employee_profile_card .o_employee_profile_row .o_field_widget input:focus,
+.o_employee_profile_card .o_employee_profile_row .o_field_widget select:focus,
+.o_employee_profile_card
+  .o_employee_profile_row
+  .o_field_widget
+  textarea:focus {
+  border-bottom: 1px solid #a06e03 !important;
+  outline: none !important;
+}
+
+/* Many2one / date widgets wrap the input in an extra container with its own
+   padding - strip that too so it doesn't add a second offset on top of the
+   input's own (already stripped) padding. */
+.o_employee_profile_card
+  .o_employee_profile_row
+  .o_field_widget
+  .o_input_dropdown,
+.o_employee_profile_card .o_employee_profile_row .o_field_widget .o_datepicker {
+  width: 100%;
+}
+
+/* ---- List-based tabs (Education, Experience, Allowance, Commitment) ---- */
+.o_employee_profile_root .o_employee_profile_list_card {
+  background: #ffffff;
+  border: 1px solid #eceef1;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  margin-top: 16px;
+}
+
+/* ---- Resume timeline list (Education, Certification) ----
+   A plain non-editable list (editable="false") restyled to look like a
+   stack of clean cards instead of a dense spreadsheet grid. Clicking a
+   row - or the "New" link below the list - opens the paired <form> as a
+   popup dialog for full-detail, one-entry-at-a-time entry. This only
+   styles the list's own table/row elements (never the .o_list_view
+   wrapper's layout mode), so it can't collide with how Odoo positions
+   or groups the view internally. */
+.o_employee_profile_resume_list.o_list_renderer {
+  border: none;
+  background: transparent;
+}
+
+.o_employee_profile_resume_list table.o_list_table {
+  border-collapse: separate;
+  border-spacing: 0 10px;
+}
+
+/* Default: hide headers (legacy card-only look) */
+.o_employee_profile_resume_list thead {
+  display: none;
+}
+
+/* When we want column names visible */
+.o_employee_profile_resume_list.o_employee_profile_list_with_header thead {
+  display: table-header-group;
+}
+
+.o_employee_profile_resume_list.o_employee_profile_list_with_header thead th {
+  border: none !important;
+  background: transparent !important;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 16px 8px 16px !important;
+}
+
+.o_employee_profile_resume_list.o_employee_profile_list_with_header
+  table.o_list_table {
+  border-spacing: 0 8px;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row {
+  background: #fafbfc;
+  border: 1px solid #eceef1;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row:hover {
+  border-color: #c7d2e0;
+  box-shadow: 0 3px 8px rgba(16, 24, 40, 0.07);
+  cursor: pointer;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row td {
+  border: none;
+  padding: 14px 16px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row td:first-child {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row td:last-child {
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row td:not(:first-child) {
+  color: #6b7280;
+}
+
+.o_employee_profile_resume_list tbody tr.o_data_row td.o_list_record_remove {
+  width: 36px;
+}
+
+/* ---- "Add a line" control (Education / Certification / Experience /
+   Allowance / Commitment) - turned into a proper button with background
+   and border + a small plus icon, instead of a plain text link.
+   Covers BOTH shapes Odoo can render this in:
+     1) a <td class="o_field_x2many_list_row_add"> table-row control cell
+        (inline-editable lists, e.g. Allowance / Commitment)
+     2) a stand-alone link under the list (modal-dialog create lists,
+        e.g. Education / Certification / Experience)
+   so we style the actual <a> everywhere inside .o_employee_profile_root,
+   and just neutralise whatever container it happens to sit in. ---- */
+.o_employee_profile_root .o_field_x2many_list_row_add {
+  background: transparent !important;
+  border: none !important;
+  padding: 10px 0 2px 0 !important;
+  text-align: left !important;
+}
+
+.o_employee_profile_root .o_field_x2many_list_row_add a {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1.5px solid #e3b341;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #a06e03;
+  background: #fff8ea;
+  text-decoration: none !important;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.o_employee_profile_root .o_field_x2many_list_row_add a::before {
+  font-family: "FontAwesome";
+  content: "\f067";
+  font-size: 11px;
+}
+
+.o_employee_profile_root .o_field_x2many_list_row_add a:hover,
+.o_employee_profile_root .o_field_x2many_list_row_add a:focus {
+  background: #fbecc4;
+  border-color: #a06e03;
+  color: #7a5300;
+  box-shadow: 0 2px 6px rgba(160, 110, 3, 0.18);
+  transform: translateY(-1px);
+  text-decoration: none !important;
+}
+
+.o_employee_profile_root .o_field_x2many_list_row_add a.ml16 {
+  margin-left: 10px !important;
+}
+
+/* ---- Row-level Edit affordance, placed right before the delete/remove
+   icon, for EVERY list inside our custom tabs (Education, Certification,
+   Experience, Allowance, Commitment - and any future one, since this is
+   scoped generically to .o_employee_profile_root rather than to a single
+   list's class).
+   Clicking anywhere in a data row already opens/edits that record in
+   Odoo (the dialog form for Education/Certification/Experience, inline
+   edition for Allowance/Commitment) - this just makes that obvious with
+   a pencil icon instead of relying on the row being guessed as clickable.
+   :has() lets us target "whichever cell sits right before the delete
+   icon" without caring how many columns a given list has. ---- */
+.o_employee_profile_root
+  .o_list_table
+  tbody
+  tr.o_data_row
+  td.o_data_cell:has(+ .o_list_record_remove) {
+  position: relative;
+  padding-right: 34px !important;
+}
+
+.o_employee_profile_root
+  .o_list_table
+  tbody
+  tr.o_data_row
+  td.o_data_cell:has(+ .o_list_record_remove)::after {
+  font-family: "FontAwesome";
+  content: "\f040";
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #9aa1ac;
+  border-radius: 6px;
+  pointer-events: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.o_employee_profile_root
+  .o_list_table
+  tbody
+  tr.o_data_row:hover
+  td.o_data_cell:has(+ .o_list_record_remove)::after {
+  color: #a06e03;
+  background: #eaf0fe;
+}
+
+.o_employee_profile_root
+  .o_list_table
+  tbody
+  tr.o_data_row
+  td.o_data_cell:has(+ .o_list_record_remove):hover::after {
+  color: #ffffff;
+  background: #a06e03;
+}
+
+/* ============================================================
+   Education + Certification merged tab improvements
+   ============================================================ */
+
+/* Section cards stacked inside the same tab */
+.o_employee_profile_section {
+  margin-bottom: 8px;
+}
+
+.o_employee_profile_section_title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.o_employee_profile_section_title .fa {
+  color: #a06e03;
+  font-size: 15px;
+}
+
+.o_employee_profile_section_title .o_employee_profile_card_title {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+/* ---- Attractive modal form styling ---- */
+.o_employee_profile_modal_form .o_employee_profile_modal_header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 650;
+  color: #111827;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eceef1;
+}
+
+.o_employee_profile_modal_form .o_employee_profile_modal_header .fa {
+  color: #a06e03;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eff6ff;
+  border-radius: 8px;
+}
+
+.o_employee_profile_modal_form .o_group .o_horizontal_separator,
+.o_employee_profile_modal_form .o_inner_group .o_horizontal_separator {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.o_employee_profile_modal_form .o_row.o_employee_profile_duration_row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Make binary upload buttons stand out more in the modal */
+.o_employee_profile_modal_form .o_field_binary .o_select_file_button {
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 6px 14px;
+}
+
+/* Slightly tighter vertical rhythm inside the modal */
+.o_employee_profile_modal_form .o_group {
+  margin-bottom: 4px;
+}
+
+/* Visual separation between the two stacked sections */
+.o_employee_profile_section + .o_employee_profile_section {
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 4px;
+}
+
+/* ============================================================
+   Presence / Attendance indicator in header
+   ============================================================ */
+
+.o_employee_profile_avatar_wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Small colored dot on the bottom-right of the avatar */
+.o_employee_profile_avatar_wrap .o_employee_profile_presence_on_avatar,
+.o_employee_profile_avatar_wrap .o_field_hr_presence_status,
+.o_employee_profile_avatar_wrap .o_presence_indicator,
+.o_employee_profile_avatar_wrap .o_status {
+  position: absolute !important;
+  bottom: 2px;
+  right: 2px;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50%;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  z-index: 2;
+}
+
+/* Top-right badge inside the header card */
+.o_employee_profile_presence_badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.o_employee_profile_presence_badge .badge,
+.o_employee_profile_presence_badge .o_field_badge {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Hide the default floating presence dot that Odoo places near the form */
+.o_form_view .o_employee_form .o_employee_availability,
+.o_form_view .oe_title .o_status,
+.o_form_view .o_hr_employee_form_status,
+.o_form_view
+  .o_presence_status:not(.o_employee_profile_presence_on_avatar):not(
+    .o_employee_profile_presence_badge *
+  ) {
+  display: none !important;
+}
+
+/* Extra polish: make header slightly more refined */
+.o_employee_profile_header {
+  position: relative;
+}
+
+/* Soft gradient accent on the left edge of header for premium feel */
+.o_employee_profile_header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, #a06e03, #a06e03);
+}
+
+/* Notebook content area breathing room */
+.o_employee_profile_root .o_notebook .tab-content {
+  padding-top: 16px;
+}
+
+/* Card hover subtle lift */
+.o_employee_profile_list_card,
+.o_employee_profile_card {
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.o_employee_profile_list_card:hover,
+.o_employee_profile_card:hover {
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.06);
+  border-color: #e0e4ea;
+}
+
+/* ============================================================
+   Presence status DOT on avatar (bottom-right corner)
+   ============================================================ */
+
+.o_employee_profile_avatar_wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+}
+
+.o_employee_profile_presence_dot_wrap {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  z-index: 5;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+/* Turn the hr_presence_state field into a pure colored circle */
+.o_employee_profile_presence_dot_wrap .o_field_widget,
+.o_employee_profile_presence_dot_wrap .o_employee_profile_presence_field,
+.o_employee_profile_presence_dot_wrap span,
+.o_employee_profile_presence_dot_wrap div {
+  display: block !important;
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  border-radius: 50% !important;
+  border: 2.5px solid #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-indent: -9999px !important;
+  background-color: #9ca3af; /* default gray */
+}
+
+/* Color by presence state text content / value classes Odoo may add */
+.o_employee_profile_presence_dot_wrap .o_field_widget[data-tooltip*="Present"],
+.o_employee_profile_presence_dot_wrap .text-success,
+.o_employee_profile_presence_dot_wrap .o_status_present,
+.o_employee_profile_presence_dot_wrap [title*="Present"] {
+  background-color: #22c55e !important;
+}
+
+.o_employee_profile_presence_dot_wrap .o_field_widget[data-tooltip*="Absent"],
+.o_employee_profile_presence_dot_wrap .text-danger,
+.o_employee_profile_presence_dot_wrap .o_status_absent,
+.o_employee_profile_presence_dot_wrap [title*="Absent"] {
+  background-color: #ef4444 !important;
+}
+
+.o_employee_profile_presence_dot_wrap .o_field_widget[data-tooltip*="Out"],
+.o_employee_profile_presence_dot_wrap .o_field_widget[data-tooltip*="Working"],
+.o_employee_profile_presence_dot_wrap .text-warning,
+.o_employee_profile_presence_dot_wrap [title*="Out"] {
+  background-color: #f59e0b !important;
+}
+
+/* ============================================================
+   AGGRESSIVELY hide every default presence indicator
+   (the gray circle that was floating left of the tabs)
+   ============================================================ */
+
+/* Common Odoo presence / status selectors */
+.o_form_view .o_employee_availability,
+.o_form_view .oe_title .o_status,
+.o_form_view .o_hr_employee_form_status,
+.o_form_view .o_presence_status,
+.o_form_view .o_status:not(.o_employee_profile_presence_dot_wrap *),
+.o_form_view .fa-circle.o_status,
+.o_form_view
+  .o_field_hr_presence_state:not(.o_employee_profile_presence_dot_wrap *),
+.o_form_view .o_employee_profile_root > .o_status,
+.o_form_view .o_notebook::before,
+.o_form_view .o_form_sheet > .o_status,
+.o_form_view .o_form_sheet_bg > .o_status,
+.o_form_view span.o_status,
+.o_form_view div.o_status {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide any leftover badge text for presence */
+.o_employee_profile_presence_badge {
+  display: none !important;
+}
+
+/* Force the presence badge into a pure colored circle (no text) */
+.o_employee_profile_presence_dot_wrap .badge,
+.o_employee_profile_presence_dot_wrap .o_field_badge,
+.o_employee_profile_presence_dot_wrap .o_employee_profile_presence_field,
+.o_employee_profile_presence_dot_wrap .o_field_widget {
+  display: inline-block !important;
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  max-width: 14px !important;
+  min-height: 14px !important;
+  max-height: 14px !important;
+  border-radius: 50% !important;
+  border: 2.5px solid #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent !important;
+  overflow: hidden !important;
+  text-indent: -999px !important;
+  vertical-align: middle;
+}
+
+/* Default gray when state is unknown / out of hours */
+.o_employee_profile_presence_dot_wrap .badge,
+.o_employee_profile_presence_dot_wrap .o_field_badge {
+  background-color: #9ca3af !important;
+}
+
+/* Green when present */
+.o_employee_profile_presence_dot_wrap .text-bg-success,
+.o_employee_profile_presence_dot_wrap .bg-success,
+.o_employee_profile_presence_dot_wrap .badge.text-bg-success {
+  background-color: #22c55e !important;
+}
+
+/* Red when absent */
+.o_employee_profile_presence_dot_wrap .text-bg-danger,
+.o_employee_profile_presence_dot_wrap .bg-danger,
+.o_employee_profile_presence_dot_wrap .badge.text-bg-danger {
+  background-color: #ef4444 !important;
+}
+
+/* Amber / warning */
+.o_employee_profile_presence_dot_wrap .text-bg-warning,
+.o_employee_profile_presence_dot_wrap .bg-warning,
+.o_employee_profile_presence_dot_wrap .badge.text-bg-warning {
+  background-color: #f59e0b !important;
+}

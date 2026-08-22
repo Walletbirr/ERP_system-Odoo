@@ -1,0 +1,106 @@
+/* Binget Payroll – Salary & Allowances (Job Position) */
+
+.o_form_view .binget_salary_page {
+    max-width: 720px;
+    padding: 0.25rem 0 1rem;
+}
+
+.o_form_view .binget_section_title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border: none;
+}
+
+/* Basic Salary – clean header block, same surface as allowances */
+.o_form_view .binget_basic_salary_header {
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.o_form_view .binget_wage_row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.o_form_view .binget_wage_field,
+.o_form_view .binget_wage_row .o_field_monetary {
+    max-width: 220px;
+}
+
+.o_form_view .binget_wage_row .o_field_monetary input,
+.o_form_view .binget_wage_row .o_field_monetary .o_input {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    background: #f8fafc;
+}
+
+.o_form_view .binget_wage_row .o_field_monetary input:focus,
+.o_form_view .binget_wage_row .o_field_monetary .o_input:focus {
+    background: #fff;
+    border-color: #94a3b8;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+}
+
+/* Allowances section – continuous with salary, not a separate “card” */
+.o_form_view .binget_allowances_section {
+    margin-top: 0.25rem;
+}
+
+.o_form_view .binget_comp_allowance_list .o_list_table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.o_form_view .binget_comp_allowance_list .o_list_table thead th {
+    background: transparent;
+    border-bottom: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.4rem 0.75rem 0.55rem;
+}
+
+.o_form_view .binget_comp_allowance_list .o_list_table tbody td {
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    padding: 0.55rem 0.75rem;
+}
+
+.o_form_view .binget_comp_allowance_list .o_list_table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.o_form_view .binget_comp_allowance_list .o_list_table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.o_form_view .binget_comp_allowance_list .o_field_monetary input,
+.o_form_view .binget_comp_allowance_list .o_field_monetary .o_input {
+    font-weight: 500;
+    text-align: right;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+}
+
+.o_form_view .binget_comp_allowance_list .o_field_monetary input:focus,
+.o_form_view .binget_comp_allowance_list .o_field_monetary .o_input:focus {
+    border-color: #e2e8f0;
+    background: #fff;
+}

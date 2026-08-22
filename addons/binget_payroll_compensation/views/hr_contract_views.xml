@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="hr_contract_view_form_binget_compensation" model="ir.ui.view">
+        <field name="name">hr.contract.form.binget.compensation</field>
+        <field name="model">hr.contract</field>
+        <field name="inherit_id" ref="payroll_account.hr_contract_view_form" />
+        <field name="arch" type="xml">
+            <!-- Journal / Analytic Account are auto-populated in the
+                 background (department/company defaults) rather than
+                 picked manually per contract, so this module keeps that
+                 group out of the form.
+
+                 Allowances are deliberately NOT shown on the
+                 contract/employee form by this module: that page's UI is
+                 owned by another team who are redesigning it themselves,
+                 so this module stops at storing the data
+                 (hr.contract.allowance.line / get_allowance_amount) and
+                 leaves how it's displayed to them. Anchored on
+                 journal_id's name (a stable identifier), not on the
+                 group's label text, since Odoo 18 no longer allows
+                 selecting by @string. -->
+            <xpath expr="//field[@name='journal_id']/.." position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

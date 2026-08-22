@@ -1,0 +1,16 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hr_employee_allowance_user,hr.employee.allowance.user,model_hr_employee_allowance,base.group_user,1,0,0,0
+access_hr_employee_allowance_hr_officer,hr.employee.allowance.hr_officer,model_hr_employee_allowance,hr.group_hr_user,1,1,1,1
+access_hr_employee_allowance_hr_manager,hr.employee.allowance.hr_manager,model_hr_employee_allowance,hr.group_hr_manager,1,1,1,1
+access_hr_employee_commitment_user,hr.employee.commitment.user,model_hr_employee_commitment,base.group_user,1,0,0,0
+access_hr_employee_commitment_hr_officer,hr.employee.commitment.hr_officer,model_hr_employee_commitment,hr.group_hr_user,1,1,1,1
+access_hr_employee_commitment_hr_manager,hr.employee.commitment.hr_manager,model_hr_employee_commitment,hr.group_hr_manager,1,1,1,1
+access_hr_employee_education_user,hr.employee.education.user,model_hr_employee_education,base.group_user,1,0,0,0
+access_hr_employee_education_hr_officer,hr.employee.education.hr_officer,model_hr_employee_education,hr.group_hr_user,1,1,1,1
+access_hr_employee_education_hr_manager,hr.employee.education.hr_manager,model_hr_employee_education,hr.group_hr_manager,1,1,1,1
+access_hr_employee_certification_user,hr.employee.certification.user,model_hr_employee_certification,base.group_user,1,0,0,0
+access_hr_employee_certification_hr_officer,hr.employee.certification.hr_officer,model_hr_employee_certification,hr.group_hr_user,1,1,1,1
+access_hr_employee_certification_hr_manager,hr.employee.certification.hr_manager,model_hr_employee_certification,hr.group_hr_manager,1,1,1,1
+access_hr_employee_experience_user,hr.employee.experience.user,model_hr_employee_experience,base.group_user,1,0,0,0
+access_hr_employee_experience_hr_officer,hr.employee.experience.hr_officer,model_hr_employee_experience,hr.group_hr_user,1,1,1,1
+access_hr_employee_experience_hr_manager,hr.employee.experience.hr_manager,model_hr_employee_experience,hr.group_hr_manager,1,1,1,1

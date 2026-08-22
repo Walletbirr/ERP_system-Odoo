@@ -1,0 +1,194 @@
+// =========================================================================
+// Job Position — Stunning UI (v2, on-brand)
+// Palette sampled directly from BINGET HOLDING's own UI (logo, active
+// sidebar item, month picker, active tab underline) = #BA7517.
+// Scoped entirely under .o_stunning_job_form so nothing else is affected.
+// =========================================================================
+
+.o_stunning_job_form {
+    --jp-brand: #BA7517;        // sampled from your logo / active states
+    --jp-brand-dark: #8b5711;   // hover / pressed
+    --jp-brand-light: #F3E6D5;  // sampled soft peach tint (sidebar highlight)
+    --jp-brand-tint: #FBF3E9;   // even lighter wash, for backgrounds
+    --jp-ink: #22242b;
+    --jp-muted: #8992a3;
+    --jp-card-bg: #ffffff;
+    --jp-card-border: #edeef2;
+    --jp-radius: 12px;
+
+    background: #fbfbfc;
+
+    // ---------------------------------------------------------------
+    // Sheet — no top ribbon anymore, just calm spacing + fade-in
+    // ---------------------------------------------------------------
+    .o_stunning_job_sheet {
+        padding-top: 22px !important;
+        animation: jp-fade-in .3s ease both;
+    }
+
+    // ---------------------------------------------------------------
+    // Title
+    // ---------------------------------------------------------------
+    h1, .o_form_sheet > h1 {
+        font-weight: 700;
+        letter-spacing: -.01em;
+        color: var(--jp-ink);
+
+        input.o_input {
+            font-weight: 700;
+            font-size: 1.85rem !important;
+        }
+    }
+
+    .o_form_label {
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--jp-muted) !important;
+    }
+
+    // ---------------------------------------------------------------
+    // Field groups -> soft cards, brand-tinted on hover/focus
+    // ---------------------------------------------------------------
+    .o_group {
+        background: var(--jp-card-bg);
+        border: 1px solid var(--jp-card-border);
+        border-radius: var(--jp-radius);
+        padding: 18px 20px !important;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+        transition: box-shadow .2s ease, border-color .2s ease;
+
+        &:hover {
+            box-shadow: 0 6px 16px rgba(16, 24, 40, .07);
+            border-color: #e6dcc9;
+        }
+
+        .o_input, .o_field_widget input, .o_field_widget textarea {
+            border-radius: 8px;
+            transition: border-color .15s ease, box-shadow .15s ease;
+
+            &:focus {
+                border-color: var(--jp-brand) !important;
+                box-shadow: 0 0 0 3px rgba(186, 117, 23, .12) !important;
+            }
+        }
+    }
+
+    .o_group + .o_group {
+        margin-top: 4px;
+    }
+
+    // ---------------------------------------------------------------
+    // Notebook / Tabs -> underline style, matching your own
+    // "Overview" tab pattern instead of a loud filled pill
+    // ---------------------------------------------------------------
+    .o_stunning_notebook {
+        margin-top: 18px;
+
+        > .o_notebook_headers {
+            border-bottom: 1px solid var(--jp-card-border);
+            margin-bottom: 16px;
+
+            .nav-tabs, .nav {
+                gap: 4px;
+            }
+
+            .nav-link {
+                border: none !important;
+                border-bottom: 2px solid transparent !important;
+                border-radius: 6px 6px 0 0 !important;
+                padding: 8px 14px !important;
+                margin-bottom: -1px;
+                font-weight: 600;
+                font-size: .85rem;
+                color: var(--jp-muted) !important;
+                background: transparent;
+                transition: all .15s ease;
+
+                .stunning-tab-icon {
+                    opacity: .65;
+                }
+
+                &:hover {
+                    color: var(--jp-ink) !important;
+                    background: var(--jp-brand-tint);
+
+                    .stunning-tab-icon { opacity: 1; }
+                }
+
+                &.active {
+                    color: var(--jp-brand) !important;
+                    background: transparent;
+                    border-bottom-color: var(--jp-brand) !important;
+
+                    .stunning-tab-icon { opacity: 1; }
+                }
+            }
+        }
+
+        .tab-pane, .o_notebook_content {
+            animation: jp-fade-in .22s ease both;
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Helper text (e.g. "These are default values only…")
+    // ---------------------------------------------------------------
+    .text-muted {
+        font-size: .8rem;
+        line-height: 1.5;
+        background: var(--jp-brand-tint);
+        border-left: 3px solid var(--jp-brand);
+        padding: 10px 14px;
+        border-radius: 0 8px 8px 0;
+        display: block;
+    }
+
+    // Published / Unpublished intentionally left as your default
+    // radio styling — no override here.
+
+    // ---------------------------------------------------------------
+    // Stat buttons (Job Applications, Trackers…) — icon now on-brand
+    // ---------------------------------------------------------------
+    .oe_button_box {
+        .oe_stat_button {
+            border-radius: 10px !important;
+            transition: transform .15s ease, box-shadow .15s ease;
+
+            &:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 14px rgba(16, 24, 40, .1);
+            }
+
+            .o_button_icon {
+                color: var(--jp-brand) !important;
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Buttons -> on-brand, solid (no rainbow gradient)
+    // ---------------------------------------------------------------
+    button.btn {
+        border-radius: 8px;
+    }
+
+    button.btn-primary {
+        background: var(--jp-brand);
+        border-color: var(--jp-brand);
+
+        &:hover {
+            background: var(--jp-brand-dark);
+            border-color: var(--jp-brand-dark);
+        }
+    }
+}
+
+// =========================================================================
+// Keyframes
+// =========================================================================
+@keyframes jp-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

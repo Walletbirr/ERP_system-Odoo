@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="res_config_settings_view_form_binget_payroll" model="ir.ui.view">
+        <field name="name">res.config.settings.form.binget.payroll</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="payroll.res_config_settings_view_form" />
+        <field name="arch" type="xml">
+            <field name="module_payroll_account" position="after">
+                <div class="o_setting_box" name="binget_payroll_defaults">
+                    <div class="o_setting_right_pane">
+                        <span class="o_form_label">Payroll Defaults</span>
+                        <div class="text-muted">
+                            Company-wide defaults applied to every new
+                            contract, so they don't need to be picked one by
+                            one.
+                        </div>
+                        <div class="o_binget_settings_stack mt16">
+                            <div class="o_binget_settings_field">
+                                <label for="payroll_structure_id" string="Default Salary Structure" />
+                                <div class="text-muted">
+                                    Salary structure applied to every new
+                                    contract for this company.
+                                </div>
+                                <field
+                                    name="payroll_structure_id"
+                                    domain="[('company_id', 'in', [company_id, False])]"
+                                />
+                            </div>
+                            <div class="o_binget_settings_field">
+                                <label for="payroll_journal_id" string="Salary Journal" />
+                                <div class="text-muted">
+                                    Journal used to post every payslip's
+                                    accounting entry.
+                                </div>
+                                <field name="payroll_journal_id" />
+                            </div>
+                            <div
+                                class="o_binget_settings_field"
+                                groups="analytic.group_analytic_accounting"
+                            >
+                                <label
+                                    for="payroll_analytic_account_id"
+                                    string="Salary Journal Analytic Account"
+                                />
+                                <div class="text-muted">
+                                    Fallback cost-center account used when an
+                                    employee's department has no analytic
+                                    account of its own.
+                                </div>
+                                <field name="payroll_analytic_account_id" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </field>
+        </field>
+    </record>
+</odoo>

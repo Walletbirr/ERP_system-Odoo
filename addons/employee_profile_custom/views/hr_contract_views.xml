@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Extends the SAME default Contract form used everywhere (Payroll >
+         Contracts included) - deliberately NOT a separate "primary" view,
+         so there's no separate view_id to wire up and nothing that can
+         silently fail to be picked up by an action. -->
+    <record id="hr_contract_view_form_profile_extra" model="ir.ui.view">
+        <field name="name">hr.contract.form.profile.extra</field>
+        <field name="model">hr.contract</field>
+        <field name="inherit_id"
+               ref="binget_payroll_compensation.hr_contract_view_form_binget_compensation" />
+        <field name="arch" type="xml">
+
+            <!-- Department / Job Position mirror the employee's Work Info
+                 and are pushed in automatically when this dialog is opened
+                 from the profile's Contract tab (see action_open_contract).
+                 Unconditionally read-only everywhere the Contract form is
+                 used (this dialog, Payroll > Contracts, the Contracts
+                 menu, ...) - a plain readonly="1" can't silently fail the
+                 way a context.get(...) conditional can if the context
+                 doesn't propagate through the full chain of inherited
+                 views/actions. If these ever need to be editable from a
+                 specific screen again, that screen should get its own
+                 view/xpath rather than reintroducing a context flag here. -->
+            <xpath expr="//field[@name='job_id']" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='department_id']" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </xpath>
+
+            <!-- allowance_line_ids is not shown in this dialog (the
+                 employee profile's Allowance tab is the surface for that
+                 data - see hr.employee._sync_allowances_from_contract).
+                 It still has to be a real <field> in the view, even
+                 invisible: a field that's entirely absent from every view
+                 is never included by the client in default_get's
+                 fields_list, in onchange's spec, or in the vals sent back
+                 on save - so without this line, the Job Position's
+                 default allowances (and the whole sync to the profile)
+                 silently never fire.
+
+                 It also needs an explicit sub-view here, not just a bare
+                 invisible field: without one, the client has no way to
+                 know which sub-fields of each line (rule_id, amount) it's
+                 responsible for tracking, so it can silently drop rule_id
+                 when saving - the "mandatory field is not set: rule_id"
+                 error. Listing both fields (still invisible) fixes that. -->
+            <xpath expr="//field[@name='job_id']" position="after">
+                <field name="allowance_line_ids" invisible="1">
+                    <list>
+                        <field name="rule_id"/>
+                        <field name="amount"/>
+                    </list>
+                </field>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

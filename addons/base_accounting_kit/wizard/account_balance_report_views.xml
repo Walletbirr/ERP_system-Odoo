@@ -5,16 +5,17 @@
         <field name="name">account.balance.report.view.form.inherit.base.accounting.kit</field>
         <field name="model">account.balance.report</field>
         <field name="inherit_id" ref="base_accounting_kit.account_report_view_form"/>
-        <field name="arch" type="xml">
+                <field name="arch" type="xml">
             <field name="journal_ids" position="replace"/>
+            <xpath expr="//field[@name='date_from']" position="before">
+                <field name="date_range_id"/>
+            </xpath>
             <xpath expr="//field[@name='target_move']" position="after">
 
                 <newline/>
 
 
                 <field name="display_account" widget="radio"/>
-                <newline/>
-                <field name="date_range_id"/>
 
 
             </xpath>
