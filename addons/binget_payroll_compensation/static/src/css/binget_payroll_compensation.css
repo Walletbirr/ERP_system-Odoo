@@ -1,0 +1,117 @@
+/* Binget Payroll Compensation - Salary & Allowances (Job Position)
+ * Base salary and allowances live inside a single unified card so they
+ * read as one section instead of two disconnected widgets.
+ */
+
+.o_binget_comp_card {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid #ececf0;
+    border-radius: 12px;
+    padding: 22px 26px;
+    gap: 28px;
+    background: #fff;
+    margin-top: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.o_binget_comp_col {
+    flex: 1 1 0;
+    min-width: 220px;
+}
+
+.o_binget_comp_divider {
+    width: 1px;
+    align-self: stretch;
+    background: linear-gradient(to bottom, transparent, #e2e2e8 20%, #e2e2e8 80%, transparent);
+}
+
+.o_binget_comp_title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2b2b2b;
+    margin-bottom: 16px;
+}
+
+.o_binget_comp_title::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #9b7ea8, #714b67);
+}
+
+/* ---- Basic salary ---- */
+.o_binget_wage_box {
+    background: linear-gradient(160deg, #faf9fc, #f2f0f5);
+    border: 1px solid #ececf2;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.o_binget_wage_box .o_field_monetary {
+    max-width: 220px;
+}
+
+/* ---- Allowances list ---- */
+.o_binget_allowance_list .o_list_renderer {
+    border: none;
+    overflow-x: hidden;
+}
+
+.o_binget_allowance_list table.o_list_table {
+    border: none;
+    width: 100% !important;
+    table-layout: fixed;
+}
+
+.o_binget_allowance_list table.o_list_table thead th {
+    text-transform: uppercase;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: #b8b8c0;
+    font-weight: 600;
+    border-bottom: 1px solid #ececf0 !important;
+}
+
+.o_binget_allowance_list table.o_list_table > tbody > tr > td,
+.o_binget_allowance_list table.o_list_table > tbody > tr > th,
+.o_binget_allowance_list table.o_list_table > thead > tr > td,
+.o_binget_allowance_list table.o_list_table > thead > tr > th {
+    border-top: none !important;
+    border-bottom: 1px solid #ececf0 !important;
+    padding: 9px 6px;
+}
+
+.o_binget_allowance_list table.o_list_table > tbody > tr:last-child > td {
+    border-bottom: none !important;
+}
+
+.o_binget_allowance_list .o_field_x2many_list_row_add a {
+    font-weight: 500;
+}
+
+/* ---- Payroll Defaults settings block ---- */
+.o_setting_box[name="binget_payroll_defaults"] .o_binget_settings_stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.o_setting_box[name="binget_payroll_defaults"] label {
+    font-weight: 600;
+}
+
+.o_setting_box[name="binget_payroll_defaults"] .o_field_widget {
+    max-width: 360px;
+}
+
+.o_setting_box[name="binget_payroll_defaults"] .o_field_widget .o_input,
+.o_setting_box[name="binget_payroll_defaults"] .o_field_widget input,
+.o_setting_box[name="binget_payroll_defaults"] .o_field_many2one_selection {
+    width: 100%;
+}

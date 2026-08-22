@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hr_job_allowance_line_hr_user,hr.job.allowance.line.hr.user,model_hr_job_allowance_line,hr.group_hr_user,1,1,1,1
+access_hr_job_allowance_line_payroll_user,hr.job.allowance.line.payroll.user,model_hr_job_allowance_line,payroll.group_payroll_user,1,0,0,0
+access_hr_contract_allowance_line_hr_user,hr.contract.allowance.line.hr.user,model_hr_contract_allowance_line,hr.group_hr_user,1,1,1,1
+access_hr_contract_allowance_line_payroll_user,hr.contract.allowance.line.payroll.user,model_hr_contract_allowance_line,payroll.group_payroll_user,1,1,1,1

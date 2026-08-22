@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        This view intentionally does NOT touch any field, label or business
+        logic. It only hangs a few CSS "hook" classes onto the existing
+        structure (form / sheet / notebook) so that hr_job_form.scss can
+        restyle everything purely visually. This keeps the module safe to
+        install on top of any customizations already applied to hr.job's
+        form view (e.g. custom Compensation fields).
+    -->
+    <record id="view_hr_job_form_stunning_ui" model="ir.ui.view">
+        <field name="name">hr.job.form.stunning.ui</field>
+        <field name="model">hr.job</field>
+        <field name="inherit_id" ref="hr.view_hr_job_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+
+            <xpath expr="//form" position="attributes">
+                <attribute name="class">o_stunning_job_form</attribute>
+            </xpath>
+
+            <xpath expr="//sheet" position="attributes">
+                <attribute name="class">o_stunning_job_sheet</attribute>
+            </xpath>
+
+            <xpath expr="//notebook" position="attributes">
+                <attribute name="class">o_stunning_notebook</attribute>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

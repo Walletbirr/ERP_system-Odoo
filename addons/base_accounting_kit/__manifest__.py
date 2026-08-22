@@ -34,7 +34,7 @@
     'maintainer': 'Cybrosys Techno Solutions',
     'website': "https://www.cybrosys.com",
     'depends': ['account', 'sale', 'account_check_printing', 'analytic',
-                'base_account_budget', 'report_xlsx'],
+                'base_account_budget', 'report_xlsx', 'date_range'],
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',

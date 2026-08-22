@@ -1,0 +1,768 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_employee_form_profile_custom" model="ir.ui.view">
+        <field name="name">hr.employee.form.profile.custom</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+
+            <!-- Make sure the fields our tabs use are loaded on the form.
+                 Anchored on <sheet> itself (always present) rather than any
+                 specific field, so this never breaks regardless of what other
+                 installed apps have already added to the base view. -->
+            <xpath expr="//sheet" position="inside">
+                <field name="currency_id" invisible="1"/>
+                <field name="contract_id" invisible="1"/>
+                <field name="locked_personal" invisible="1"/>
+                <field name="locked_guarantor" invisible="1"/>
+                <field name="locked_education" invisible="1"/>
+                <field name="locked_experience" invisible="1"/>
+                <field name="locked_certification" invisible="1"/>
+                <field name="locked_allowance" invisible="1"/>
+                <field name="locked_commitment" invisible="1"/>
+                <field name="first_contract_date" invisible="1"/>
+                <field name="contract_warning" invisible="1"/>
+            </xpath>
+
+            <!-- Contract access now lives entirely inside the "Contract" tab
+                 (Current Contract card + pencil icon), so we don't need a
+                 duplicate stat button up here anymore. -->
+
+            <!-- Hide the native "In Contract Since" / "Contracts" smart
+                 button that hr_contract adds to the button box. It's matched
+                 by name + icon (fa-book) so this only ever targets the core
+                 button, never our own. Its info (first_contract_date) is
+                 shown inside the Contract tab instead - see below. -->
+            <xpath expr="//div[@name='button_box']/button[@name='action_open_contract'][@icon='fa-book']"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Hide the native top-right avatar and top-left Name/Job Title
+                 block; we replace them with our own header below. Do this
+                 BEFORE inserting our duplicate avatar/name/job_title fields,
+                 so these selectors only ever match the single original node
+                 each, not our new copies. The image field carries the
+                 'oe_avatar' class directly (no wrapping div), so we target
+                 the field itself. -->
+            <xpath expr="//field[@name='image_1920']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_title')]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Same rule applies to work_email / work_phone: hide the
+                 ORIGINAL base fields here, before the header below inserts
+                 its own copies. If this ran after the header insert, the
+                 xpath would match our new header fields (first in document
+                 order) instead of the base ones - hiding our header's
+                 icons while leaving the real fields exposed elsewhere. -->
+            <xpath expr="//field[@name='work_email']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='work_phone']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- New profile header: circular avatar on the left, Name + Job
+                 Title stacked beside it (title/description style), replacing
+                 the default top-right photo / top-left name layout. Both
+                 fields remain editable from the Identification card in the
+                 Personal Information tab. -->
+            <xpath expr="//div[hasclass('oe_title')]" position="before">
+                <div class="o_employee_profile_header">
+
+                    <!-- Left half: avatar, name, job title, and quick
+                         contact (work email / work phone) with icons,
+                         placed right under the job title. -->
+                    <div class="o_employee_profile_header_left">
+                        <div class="o_employee_profile_avatar_wrap">
+                            <field name="image_1920" widget="image"
+                                   class="o_employee_profile_avatar"
+                                   options="{'preview_image': 'image_128'}"/>
+                            <!-- Presence status dot on bottom-right of avatar -->
+                            <div class="o_employee_profile_presence_dot_wrap">
+                                <field name="hr_presence_state" nolabel="1"
+                                       widget="badge"
+                                       decoration-success="hr_presence_state == 'present'"
+                                       decoration-warning="hr_presence_state in ('to_define',)"
+                                       decoration-danger="hr_presence_state == 'absent'"
+                                       class="o_employee_profile_presence_field"/>
+                            </div>
+                        </div>
+                        <div class="o_employee_profile_header_text">
+                            <div class="o_employee_profile_header_name">
+                                <field name="name" readonly="1" nolabel="1"/>
+                            </div>
+                            <div class="o_employee_profile_header_jobtitle">
+                                <field name="job_title" readonly="1" nolabel="1"/>
+                            </div>
+                            <div class="o_employee_profile_header_contact">
+                                <div class="o_employee_profile_header_contact_item">
+                                    <i class="fa fa-envelope-o" title="Work Email"/>
+                                    <field name="work_email" readonly="1" nolabel="1"
+                                           widget="email"/>
+                                </div>
+                                <div class="o_employee_profile_header_contact_item">
+                                    <i class="fa fa-phone" title="Work Phone"/>
+                                    <field name="work_phone" readonly="1" nolabel="1"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vertical divider at the center of the header card -->
+                    <div class="o_employee_profile_header_divider"/>
+
+                    <!-- Right half: quick identification summary -->
+                    <div class="o_employee_profile_header_right">
+                        <div class="o_employee_profile_header_info_item">
+                            <span class="o_employee_profile_header_info_label">Place of birth</span>
+                            <field name="place_of_birth" readonly="1" nolabel="1"/>
+                        </div>
+                        <div class="o_employee_profile_header_info_item">
+                            <span class="o_employee_profile_header_info_label">Birth date</span>
+                            <field name="birthday" readonly="1" nolabel="1"/>
+                        </div>
+                        <div class="o_employee_profile_header_info_item">
+                            <span class="o_employee_profile_header_info_label">Blood type</span>
+                            <field name="blood_type" readonly="1" nolabel="1"/>
+                        </div>
+                        <div class="o_employee_profile_header_info_item">
+                            <span class="o_employee_profile_header_info_label">Marital Status</span>
+                            <field name="marital" readonly="1" nolabel="1"/>
+                        </div>
+                        <div class="o_employee_profile_header_info_item">
+                            <span class="o_employee_profile_header_info_label">Religion</span>
+                            <field name="religion" readonly="1" nolabel="1"/>
+                        </div>
+                    </div>
+
+                </div>
+            </xpath>
+
+            <!-- Hide the standard header fields that are now duplicated inside
+                 our own Personal Information / Guarantee Information tabs, so
+                 the tabs sit right below the photo/name instead of under a
+                 long block of fields. They stay in the DOM (just invisible)
+                 so any other installed app that reads/writes them keeps
+                 working untouched. -->
+            <xpath expr="//field[@name='mobile_phone']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='department_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='job_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='parent_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='coach_id']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='category_ids']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Hide the original notebook (all its native pages/fields stay
+                 registered in the DOM so any other installed app that patches
+                 them - e.g. Org Chart, Recruitment, Appraisal, Payroll - keeps
+                 working without errors); we simply don't show it to the user. -->
+            <xpath expr="//notebook" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Insert our own profile notebook right after it. Since every
+                 header field above and the native notebook are now hidden,
+                 this becomes the first visible thing under the photo/name,
+                 i.e. the tabs are effectively "moved to the top". -->
+            <xpath expr="//notebook" position="after">
+
+              <div class="o_employee_profile_root">
+                <notebook class="o_employee_profile_notebook">
+
+                    <!-- ============== PERSONAL INFORMATION ============== -->
+                    <page string="Personal Information" name="personal_information">
+                        <div class="o_employee_profile_grid">
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Work</span>
+                                    <button name="action_unlock_personal" type="object"
+                                            icon="fa-pencil" class="o_employee_profile_card_edit"
+                                            invisible="not locked_personal" title="Edit"/>
+                                    <button name="action_lock_personal" type="object"
+                                            icon="fa-check" class="o_employee_profile_card_done"
+                                            invisible="locked_personal" title="Done"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Department</span>
+                                    <field name="department_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Job Position</span>
+                                    <field name="job_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Manager</span>
+                                    <field name="parent_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Coach</span>
+                                    <field name="coach_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Work Email</span>
+                                    <field name="work_email" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Work Phone</span>
+                                    <field name="work_phone" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Work Mobile</span>
+                                    <field name="mobile_phone" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                            </div>
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Identification</span>
+                                    <button name="action_unlock_personal" type="object"
+                                            icon="fa-pencil" class="o_employee_profile_card_edit"
+                                            invisible="not locked_personal" title="Edit"/>
+                                    <button name="action_lock_personal" type="object"
+                                            icon="fa-check" class="o_employee_profile_card_done"
+                                            invisible="locked_personal" title="Done"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Employee Name</span>
+                                    <field name="name" readonly="locked_personal and id"
+                                           placeholder="Employee's Name" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Job Title</span>
+                                    <field name="job_title" readonly="locked_personal and id"
+                                           placeholder="Job Title" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Gender</span>
+                                    <field name="gender" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Birth Date</span>
+                                    <field name="birthday" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Place of Birth</span>
+                                    <field name="place_of_birth" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Country of Birth</span>
+                                    <field name="country_of_birth" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Marital Status</span>
+                                    <field name="marital" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Blood Type</span>
+                                    <field name="blood_type" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Religion</span>
+                                    <field name="religion" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Identification No</span>
+                                    <field name="identification_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Passport No</span>
+                                    <field name="passport_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                            </div>
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Private Contact</span>
+                                    <button name="action_unlock_personal" type="object"
+                                            icon="fa-pencil" class="o_employee_profile_card_edit"
+                                            invisible="not locked_personal" title="Edit"/>
+                                    <button name="action_lock_personal" type="object"
+                                            icon="fa-check" class="o_employee_profile_card_done"
+                                            invisible="locked_personal" title="Done"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Private Email</span>
+                                    <field name="private_email" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Private Phone</span>
+                                    <field name="private_phone" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Street</span>
+                                    <field name="private_street" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Street 2</span>
+                                    <field name="private_street2" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">City</span>
+                                    <field name="private_city" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">State</span>
+                                    <field name="private_state_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">ZIP</span>
+                                    <field name="private_zip" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Country</span>
+                                    <field name="private_country_id" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                            </div>
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Emergency Contact</span>
+                                    <button name="action_unlock_personal" type="object"
+                                            icon="fa-pencil" class="o_employee_profile_card_edit"
+                                            invisible="not locked_personal" title="Edit"/>
+                                    <button name="action_lock_personal" type="object"
+                                            icon="fa-check" class="o_employee_profile_card_done"
+                                            invisible="locked_personal" title="Done"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Contact Name</span>
+                                    <field name="emergency_contact" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Contact Phone</span>
+                                    <field name="emergency_phone" readonly="locked_personal" nolabel="1"/>
+                                </div>
+                            </div>
+
+                        </div>
+                    </page>
+
+                    <!-- ============== GUARANTEE INFORMATION ============== -->
+                    <page string="Guarantee Information" name="guarantee_information">
+                        <div class="o_employee_profile_grid o_single_col">
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Guarantor</span>
+                                    <button name="action_unlock_guarantor" type="object"
+                                            icon="fa-pencil" class="o_employee_profile_card_edit"
+                                            invisible="not locked_guarantor" title="Edit"/>
+                                    <button name="action_lock_guarantor" type="object"
+                                            icon="fa-check" class="o_employee_profile_card_done"
+                                            invisible="locked_guarantor" title="Done"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Full Name</span>
+                                    <field name="guarantor_name" readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Phone No</span>
+                                    <field name="guarantor_phone" readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Job</span>
+                                    <field name="guarantor_job" readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Address</span>
+                                    <field name="guarantor_address" readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Salary</span>
+                                    <field name="guarantor_salary" readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Guarantee ID</span>
+                                    <field name="guarantor_id_document_filename" invisible="1"/>
+                                    <field name="guarantor_id_document"
+                                           filename="guarantor_id_document_filename"
+                                           readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Guarantee Document</span>
+                                    <field name="guarantor_document_filename" invisible="1"/>
+                                    <field name="guarantor_document"
+                                           filename="guarantor_document_filename"
+                                           readonly="locked_guarantor" nolabel="1"/>
+                                </div>
+                            </div>
+                        </div>
+                    </page>
+
+                    <!-- ============== EDUCATION BACKGROUND ============== -->
+                    <page string="Education Background" name="education_background">
+
+                        <!-- ========== EDUCATION SECTION ========== -->
+                        <div class="o_employee_profile_list_card o_employee_profile_section">
+                            <div class="o_employee_profile_card_header">
+                                <div class="o_employee_profile_section_title">
+                                    <i class="fa fa-graduation-cap me-2"/>
+                                    <span class="o_employee_profile_card_title">Education</span>
+                                </div>
+                                <button name="action_unlock_education" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        invisible="not locked_education" title="Edit Education"/>
+                                <button name="action_lock_education" type="object"
+                                        icon="fa-check" class="o_employee_profile_card_done"
+                                        invisible="locked_education" title="Done"/>
+                            </div>
+                            <field name="education_ids" readonly="locked_education" nolabel="1">
+                                <list create="true" delete="true"
+                                      class="o_employee_profile_resume_list o_employee_profile_list_with_header"
+                                      decoration-muted="status == 'dropped'">
+                                    <field name="institution_name" string="Institution"/>
+                                    <field name="field_of_study" string="Field of Study"/>
+                                    <field name="degree" string="Degree"/>
+                                    <field name="education_level" string="Level" optional="hide"/>
+                                    <field name="date_start" string="From" widget="date" optional="hide"/>
+                                    <field name="date_end" string="To" widget="date"/>
+                                    <field name="status" widget="badge"
+                                           decoration-success="status == 'completed'"
+                                           decoration-info="status == 'ongoing'"
+                                           decoration-muted="status == 'dropped'"/>
+                                    <control>
+                                        <create string="Add Education"/>
+                                    </control>
+                                </list>
+                                <form string="Create Education" class="o_employee_profile_modal_form">
+                                    <sheet>
+                                        <div class="o_employee_profile_modal_header">
+                                            <i class="fa fa-graduation-cap"/>
+                                            <span>Education Details</span>
+                                        </div>
+                                        <group>
+                                            <group string="PROGRAM">
+                                                <field name="education_level"/>
+                                                <field name="institution_name"
+                                                       placeholder="e.g. Addis Ababa University"/>
+                                                <field name="field_of_study"
+                                                       placeholder="e.g. Computer Science"/>
+                                                <field name="degree"
+                                                       placeholder="e.g. B.Sc."/>
+                                            </group>
+                                            <group string="STATUS &amp; LOCATION">
+                                                <field name="status"/>
+                                                <field name="grade" placeholder="e.g. 3.8 GPA"/>
+                                                <field name="country_id"/>
+                                                <field name="city"/>
+                                            </group>
+                                        </group>
+                                        <group>
+                                            <label for="date_start" string="DURATION"/>
+                                            <div class="o_row o_employee_profile_duration_row">
+                                                <field name="date_start" string="From"
+                                                       placeholder="Start date"/>
+                                                <span class="mx-2 text-muted">to</span>
+                                                <field name="date_end" string="To"
+                                                       placeholder="Leave empty if ongoing"/>
+                                            </div>
+                                        </group>
+                                        <group string="DOCUMENT">
+                                            <field name="certificate_document"
+                                                   filename="certificate_document_filename"
+                                                   string="Certificate / Document"
+                                                   widget="binary"/>
+                                            <field name="certificate_document_filename" invisible="1"/>
+                                        </group>
+                                        <group>
+                                            <field name="description"
+                                                   placeholder="Honors, activities, extra notes..."
+                                                   nolabel="1"/>
+                                        </group>
+                                    </sheet>
+                                </form>
+                            </field>
+                        </div>
+
+                        <!-- ========== CERTIFICATION SECTION (inside Education tab) ========== -->
+                        <div class="o_employee_profile_list_card o_employee_profile_section mt-3">
+                            <div class="o_employee_profile_card_header">
+                                <div class="o_employee_profile_section_title">
+                                    <i class="fa fa-certificate me-2"/>
+                                    <span class="o_employee_profile_card_title">Certifications</span>
+                                </div>
+                                <button name="action_unlock_certification" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        invisible="not locked_certification" title="Edit Certifications"/>
+                                <button name="action_lock_certification" type="object"
+                                        icon="fa-check" class="o_employee_profile_card_done"
+                                        invisible="locked_certification" title="Done"/>
+                            </div>
+                            <field name="certification_ids" readonly="locked_certification" nolabel="1">
+                                <list create="true" delete="true"
+                                      class="o_employee_profile_resume_list o_employee_profile_list_with_header"
+                                      decoration-muted="status == 'expired'">
+                                    <field name="name" string="Certification Title"/>
+                                    <field name="issuing_organization" string="Issued By"/>
+                                    <field name="issue_date" string="Issued On" widget="date"/>
+                                    <field name="expiry_date" string="Expires On" widget="date"/>
+                                    <field name="status" widget="badge"
+                                           decoration-success="status in ('valid', 'no_expiry')"
+                                           decoration-warning="status == 'expiring_soon'"
+                                           decoration-danger="status == 'expired'"/>
+                                    <control>
+                                        <create string="Add Certifications"/>
+                                    </control>
+                                </list>
+                                <form string="Create Certification" class="o_employee_profile_modal_form">
+                                    <sheet>
+                                        <div class="o_employee_profile_modal_header">
+                                            <i class="fa fa-certificate"/>
+                                            <span>Certification Details</span>
+                                        </div>
+                                        <group>
+                                            <group string="CERTIFICATION">
+                                                <field name="name" string="Certification Title"
+                                                       placeholder="e.g. AWS Certified Solutions Architect"/>
+                                                <field name="issuing_organization"
+                                                       placeholder="e.g. Amazon Web Services"/>
+                                                <field name="credential_id"
+                                                       placeholder="e.g. ABC-123-XYZ"/>
+                                            </group>
+                                            <group string="VALIDITY">
+                                                <field name="issue_date"/>
+                                                <field name="expiry_date"
+                                                       placeholder="Leave empty if it doesn't expire"/>
+                                                <field name="status" readonly="1"/>
+                                            </group>
+                                        </group>
+                                        <group string="DOCUMENT">
+                                            <field name="certificate_document"
+                                                   filename="certificate_document_filename"
+                                                   string="Certificate / Document"
+                                                   widget="binary"/>
+                                            <field name="certificate_document_filename" invisible="1"/>
+                                        </group>
+                                        <group>
+                                            <field name="description"
+                                                   placeholder="Notes about this certification..."
+                                                   nolabel="1"/>
+                                        </group>
+                                    </sheet>
+                                </form>
+                            </field>
+                        </div>
+
+                    </page>
+
+                    <!-- ============== EXPERIENCE ============== -->
+                    <page string="Experience" name="experience">
+                        <div class="o_employee_profile_list_card o_employee_profile_section">
+                            <div class="o_employee_profile_card_header">
+                                <div class="o_employee_profile_section_title">
+                                    <i class="fa fa-briefcase me-2"/>
+                                    <span class="o_employee_profile_card_title">Work Experience</span>
+                                </div>
+                                <button name="action_unlock_experience" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        invisible="not locked_experience" title="Edit Experience"/>
+                                <button name="action_lock_experience" type="object"
+                                        icon="fa-check" class="o_employee_profile_card_done"
+                                        invisible="locked_experience" title="Done"/>
+                            </div>
+                            <field name="experience_ids" readonly="locked_experience" nolabel="1">
+                                <list create="true" delete="true"
+                                      class="o_employee_profile_resume_list o_employee_profile_list_with_header"
+                                      decoration-info="currently_working">
+                                    <field name="company_name" string="Company / Organization"/>
+                                    <field name="job_title" string="Job Title / Position"/>
+                                    <field name="employment_type" string="Type"/>
+                                    <field name="department" string="Department" optional="hide"/>
+                                    <field name="date_start" string="From" widget="date"/>
+                                    <field name="date_end" string="To" widget="date"/>
+                                    <field name="currently_working" string="Current" widget="boolean_toggle" optional="show"/>
+                                    <field name="location" string="Location" optional="hide"/>
+                                    <control>
+                                        <create string="Add Experience"/>
+                                    </control>
+                                </list>
+                                <form string="Create Experience" class="o_employee_profile_modal_form">
+                                    <sheet>
+                                        <div class="o_employee_profile_modal_header">
+                                            <i class="fa fa-briefcase"/>
+                                            <span>Work Experience Details</span>
+                                        </div>
+                                        <group>
+                                            <group string="COMPANY &amp; ROLE">
+                                                <field name="company_name"
+                                                       placeholder="e.g. Acme Corporation"/>
+                                                <field name="job_title"
+                                                       placeholder="e.g. Senior Warehouse Manager"/>
+                                                <field name="employment_type"/>
+                                                <field name="department"
+                                                       placeholder="e.g. Logistics / Operations"/>
+                                            </group>
+                                            <group string="DURATION &amp; LOCATION">
+                                                <field name="date_start"/>
+                                                <field name="currently_working"/>
+                                                <field name="date_end"
+                                                       invisible="currently_working"
+                                                       placeholder="Leave empty if current"/>
+                                                <field name="location"
+                                                       placeholder="e.g. Addis Ababa, Ethiopia"/>
+                                            </group>
+                                        </group>
+                                        <group string="RESPONSIBILITIES">
+                                            <field name="responsibilities"
+                                                   placeholder="Main duties and responsibilities..."
+                                                   nolabel="1"/>
+                                        </group>
+                                        <group string="ACHIEVEMENTS">
+                                            <field name="achievements"
+                                                   placeholder="Major accomplishments..."
+                                                   nolabel="1"/>
+                                        </group>
+                                        <group>
+                                            <group string="LEAVING &amp; REFERENCE">
+                                                <field name="reason_for_leaving"
+                                                       placeholder="Optional"/>
+                                                <field name="reference_name"
+                                                       placeholder="Previous supervisor / HR"/>
+                                                <field name="reference_contact"
+                                                       placeholder="Phone or email"/>
+                                            </group>
+                                            <group string="DOCUMENT">
+                                                <field name="certificate_document"
+                                                       filename="certificate_document_filename"
+                                                       string="Experience Certificate"
+                                                       widget="binary"/>
+                                                <field name="certificate_document_filename" invisible="1"/>
+                                            </group>
+                                        </group>
+                                        <group>
+                                            <field name="description"
+                                                   placeholder="Any additional notes..."
+                                                   nolabel="1"/>
+                                        </group>
+                                    </sheet>
+                                </form>
+                            </field>
+                        </div>
+                    </page>
+
+                    <!-- ============== CONTRACT ============== -->
+                    <page string="Contract" name="contract">
+                        <div class="o_employee_profile_list_card">
+                            <div class="o_employee_profile_card_header">
+                                <span class="o_employee_profile_card_title">Contracts</span>
+                                <button name="action_open_contract" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        title="Edit Contract"/>
+                            </div>
+                            <field name="contract_ids" readonly="1" nolabel="1">
+                                <list class="o_employee_profile_resume_list"
+                                      create="false" edit="false" delete="false"
+                                      default_order="date_start desc">
+                                    <field name="name" string="Contract"/>
+                                    <field name="date_start" string="Start Date"/>
+                                    <field name="date_end" string="End Date"/>
+                                    <field name="state" string="Status" widget="badge"
+                                           decoration-success="state == 'open'"
+                                           decoration-info="state == 'draft'"
+                                           decoration-muted="state == 'close'"
+                                           decoration-danger="state == 'cancel'"/>
+                                </list>
+                            </field>
+                            <p class="text-muted mt-2 mb-0" style="font-size:12px;">
+                                Click the pencil icon above to open this employee's
+                                existing contract (wage, start/end date, salary
+                                structure, ...), whatever its status.
+                            </p>
+                        </div>
+                    </page>
+
+                    <!-- ============== ALLOWANCE ============== -->
+                    <page string="Allowance" name="allowance">
+                        <div class="o_employee_profile_list_card">
+                            <div class="o_employee_profile_card_header">
+                                <span class="o_employee_profile_card_title">Allowances</span>
+                                <button name="action_unlock_allowance" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        invisible="not locked_allowance" title="Edit"/>
+                                <button name="action_lock_allowance" type="object"
+                                        icon="fa-check" class="o_employee_profile_card_done"
+                                        invisible="locked_allowance" title="Done"/>
+                            </div>
+                            <field name="allowance_ids" readonly="locked_allowance" nolabel="1">
+                                <list editable="bottom">
+                                    <field name="rule_id" string="Allowance" required="1"/>
+                                    <field name="amount"/>
+                                    <field name="name" column_invisible="1"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="allowance_type" column_invisible="1"/>
+                                    <field name="date_start" column_invisible="1"/>
+                                    <field name="date_end" column_invisible="1"/>
+                                    <field name="note" column_invisible="1"/>
+                                    <control>
+                                        <create string="Add Allowances"/>
+                                    </control>
+                                </list>
+                            </field>
+                        </div>
+                    </page>
+
+                    <!-- ============== COMMITMENT ============== -->
+                    <page string="Commitment" name="commitment">
+                        <div class="o_employee_profile_list_card">
+                            <div class="o_employee_profile_card_header">
+                                <span class="o_employee_profile_card_title">Commitments</span>
+                                <button name="action_unlock_commitment" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        invisible="not locked_commitment" title="Edit"/>
+                                <button name="action_lock_commitment" type="object"
+                                        icon="fa-check" class="o_employee_profile_card_done"
+                                        invisible="locked_commitment" title="Done"/>
+                            </div>
+                            <field name="commitment_ids" readonly="locked_commitment" nolabel="1">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="commitment_type"/>
+                                    <field name="date_start"/>
+                                    <field name="date_end"/>
+                                    <field name="state"/>
+                                    <control>
+                                        <create string="Add Commitment"/>
+                                    </control>
+                                </list>
+                            </field>
+                        </div>
+                    </page>
+
+                    <!-- ============== DOCUMENT ============== -->
+                    <page string="Document" name="document">
+                        <div class="o_employee_profile_grid o_single_col">
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Employee Documents</span>
+                                </div>
+                                <field name="profile_document_ids" widget="many2many_binary" nolabel="1"/>
+                            </div>
+                        </div>
+                    </page>
+
+                </notebook>
+              </div>
+
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

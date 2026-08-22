@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_hr_job_form_binget_compensation" model="ir.ui.view">
+        <field name="name">hr.job.form.binget.compensation</field>
+        <field name="model">hr.job</field>
+        <field name="inherit_id" ref="hr.view_hr_job_form" />
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page string="Salary &amp; Allowances" name="binget_compensation">
+                    <field name="currency_id" invisible="1" />
+                    <div class="o_binget_comp_card">
+                        <div class="o_binget_comp_col o_binget_comp_col_wage">
+                            <div class="o_binget_comp_title">Basic Salary</div>
+                            <div class="o_binget_wage_box">
+                                <field
+                                    name="default_wage"
+                                    widget="monetary"
+                                    options="{'currency_field': 'currency_id'}"
+                                />
+                            </div>
+                        </div>
+                        <div class="o_binget_comp_divider" />
+                        <div class="o_binget_comp_col o_binget_comp_col_allowances">
+                            <div class="o_binget_comp_title">Default Allowances</div>
+                            <field
+                                name="allowance_line_ids"
+                                nolabel="1"
+                                class="o_binget_allowance_list"
+                            >
+                                <list editable="bottom">
+                                    <field name="rule_id" />
+                                    <field name="amount" widget="monetary" />
+                                    <field name="currency_id" column_invisible="1" />
+                                </list>
+                            </field>
+                        </div>
+                    </div>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>

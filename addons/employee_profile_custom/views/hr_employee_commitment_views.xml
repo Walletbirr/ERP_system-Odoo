@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_hr_employee_commitment_tree" model="ir.ui.view">
+        <field name="name">hr.employee.commitment.tree</field>
+        <field name="model">hr.employee.commitment</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="name"/>
+                <field name="commitment_type"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_commitment_form" model="ir.ui.view">
+        <field name="name">hr.employee.commitment.form</field>
+        <field name="model">hr.employee.commitment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="commitment_type"/>
+                        <field name="date_start"/>
+                        <field name="date_end"/>
+                        <field name="state"/>
+                    </group>
+                    <group>
+                        <field name="description" nolabel="1" placeholder="Details of the commitment / agreement..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>
