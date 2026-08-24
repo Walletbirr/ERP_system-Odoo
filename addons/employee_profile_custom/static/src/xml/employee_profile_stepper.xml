@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="employee_profile_custom.ProfileStepNav">
+        <div class="o_employee_profile_step_nav" t-ref="profileStepNavRoot">
+            <button t-if="prevLabel"
+                    type="button"
+                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev"
+                    t-on-click="onPrev">
+                <i class="fa fa-angle-left me-1"/>Previous
+            </button>
+            <span t-else="" class="o_employee_profile_step_spacer_left"/>
+
+            <button t-if="nextLabel"
+                    type="button"
+                    class="btn o_employee_profile_step_btn o_employee_profile_step_next"
+                    t-on-click="onNext">
+                Next<i class="fa fa-angle-right ms-1"/>
+            </button>
+        </div>
+    </t>
+
+</templates>

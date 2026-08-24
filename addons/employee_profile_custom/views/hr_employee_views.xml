@@ -15,6 +15,11 @@
             <xpath expr="//sheet" position="inside">
                 <field name="currency_id" invisible="1"/>
                 <field name="contract_id" invisible="1"/>
+                <!-- Kept in the arch (hidden) so any other module's view
+                     inheritance targeting //field[@name='religion'] still
+                     resolves; the field is intentionally not shown
+                     anywhere in the Employee Profile UI. -->
+                <field name="religion" invisible="1"/>
                 <field name="locked_personal" invisible="1"/>
                 <field name="locked_guarantor" invisible="1"/>
                 <field name="locked_education" invisible="1"/>
@@ -135,10 +140,6 @@
                             <span class="o_employee_profile_header_info_label">Marital Status</span>
                             <field name="marital" readonly="1" nolabel="1"/>
                         </div>
-                        <div class="o_employee_profile_header_info_item">
-                            <span class="o_employee_profile_header_info_label">Religion</span>
-                            <field name="religion" readonly="1" nolabel="1"/>
-                        </div>
                     </div>
 
                 </div>
@@ -192,143 +193,188 @@
 
                             <div class="o_employee_profile_card">
                                 <div class="o_employee_profile_card_header">
-                                    <span class="o_employee_profile_card_title">Work</span>
+                                    <span class="o_employee_profile_card_title">Employee Info</span>
                                     <button name="action_unlock_personal" type="object"
                                             icon="fa-pencil" class="o_employee_profile_card_edit"
-                                            invisible="not locked_personal" title="Edit"/>
+                                            invisible="not locked_personal or not id" title="Edit"/>
                                     <button name="action_lock_personal" type="object"
                                             icon="fa-check" class="o_employee_profile_card_done"
-                                            invisible="locked_personal" title="Done"/>
+                                            invisible="locked_personal and id" title="Done"/>
                                 </div>
                                 <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Department</span>
-                                    <field name="department_id" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Job Position</span>
-                                    <field name="job_id" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Manager</span>
-                                    <field name="parent_id" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Coach</span>
-                                    <field name="coach_id" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Work Email</span>
-                                    <field name="work_email" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Work Phone</span>
-                                    <field name="work_phone" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Work Mobile</span>
-                                    <field name="mobile_phone" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                            </div>
-
-                            <div class="o_employee_profile_card">
-                                <div class="o_employee_profile_card_header">
-                                    <span class="o_employee_profile_card_title">Identification</span>
-                                    <button name="action_unlock_personal" type="object"
-                                            icon="fa-pencil" class="o_employee_profile_card_edit"
-                                            invisible="not locked_personal" title="Edit"/>
-                                    <button name="action_lock_personal" type="object"
-                                            icon="fa-check" class="o_employee_profile_card_done"
-                                            invisible="locked_personal" title="Done"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Employee Name</span>
+                                    <span class="o_employee_profile_label">Employee Name<span class="o_employee_profile_required">*</span></span>
                                     <field name="name" readonly="locked_personal and id"
-                                           placeholder="Employee's Name" nolabel="1"/>
+                                           placeholder="e.g. Abebe Kebede" nolabel="1"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="name or not (locked_personal and id)">e.g. Abebe Kebede</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Job Title</span>
                                     <field name="job_title" readonly="locked_personal and id"
-                                           placeholder="Job Title" nolabel="1"/>
+                                           placeholder="e.g. Senior Accountant" nolabel="1"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="job_title or not (locked_personal and id)">e.g. Senior Accountant</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Gender</span>
-                                    <field name="gender" readonly="locked_personal" nolabel="1"/>
+                                    <field name="gender" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Gender"
+                                           selection="[('male', 'Male'), ('female', 'Female')]"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="gender or not (locked_personal and id)">Select Gender</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Birth Date</span>
-                                    <field name="birthday" readonly="locked_personal" nolabel="1"/>
+                                    <field name="birthday" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Date"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="birthday or not (locked_personal and id)">Select Date</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Place of Birth</span>
-                                    <field name="place_of_birth" readonly="locked_personal" nolabel="1"/>
+                                    <field name="place_of_birth" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. Addis Ababa"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="place_of_birth or not (locked_personal and id)">e.g. Addis Ababa</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Country of Birth</span>
-                                    <field name="country_of_birth" readonly="locked_personal" nolabel="1"/>
+                                    <field name="country_of_birth" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Country"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="country_of_birth or not (locked_personal and id)">Select Country</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Marital Status</span>
-                                    <field name="marital" readonly="locked_personal" nolabel="1"/>
+                                    <field name="marital" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Status"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="marital or not (locked_personal and id)">Select Status</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Blood Type</span>
-                                    <field name="blood_type" readonly="locked_personal" nolabel="1"/>
-                                </div>
-                                <div class="o_employee_profile_row">
-                                    <span class="o_employee_profile_label">Religion</span>
-                                    <field name="religion" readonly="locked_personal" nolabel="1"/>
+                                    <field name="blood_type" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Blood Type"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="blood_type or not (locked_personal and id)">Select Blood Type</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Identification No</span>
-                                    <field name="identification_id" readonly="locked_personal" nolabel="1"/>
+                                    <field name="identification_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. ID-0000000"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="identification_id or not (locked_personal and id)">e.g. ID-0000000</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Passport No</span>
-                                    <field name="passport_id" readonly="locked_personal" nolabel="1"/>
+                                    <field name="passport_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. EP0000000"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="passport_id or not (locked_personal and id)">e.g. EP0000000</span>
                                 </div>
                             </div>
 
                             <div class="o_employee_profile_card">
                                 <div class="o_employee_profile_card_header">
-                                    <span class="o_employee_profile_card_title">Private Contact</span>
+                                    <span class="o_employee_profile_card_title">Work</span>
                                     <button name="action_unlock_personal" type="object"
                                             icon="fa-pencil" class="o_employee_profile_card_edit"
-                                            invisible="not locked_personal" title="Edit"/>
+                                            invisible="not locked_personal or not id" title="Edit"/>
                                     <button name="action_lock_personal" type="object"
                                             icon="fa-check" class="o_employee_profile_card_done"
-                                            invisible="locked_personal" title="Done"/>
+                                            invisible="locked_personal and id" title="Done"/>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Department</span>
+                                    <field name="department_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Department"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="department_id or not (locked_personal and id)">Select Department</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Job Position</span>
+                                    <field name="job_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Job Position"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="job_id or not (locked_personal and id)">Select Job Position</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Manager</span>
+                                    <field name="parent_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Manager"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="parent_id or not (locked_personal and id)">Select Manager</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Coach</span>
+                                    <field name="coach_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Coach"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="coach_id or not (locked_personal and id)">Select Coach</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Work Email</span>
+                                    <field name="work_email" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. name@company.com"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="work_email or not (locked_personal and id)">e.g. name@company.com</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Work Phone</span>
+                                    <field name="work_phone" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. +251 9XX XXX XXX"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="work_phone or not (locked_personal and id)">e.g. +251 9XX XXX XXX</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Work Mobile</span>
+                                    <field name="mobile_phone" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. +251 9XX XXX XXX"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="mobile_phone or not (locked_personal and id)">e.g. +251 9XX XXX XXX</span>
+                                </div>
+                            </div>
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Personal Info</span>
+                                    <button name="action_unlock_personal" type="object"
+                                            icon="fa-pencil" class="o_employee_profile_card_edit"
+                                            invisible="not locked_personal or not id" title="Edit"/>
+                                    <button name="action_lock_personal" type="object"
+                                            icon="fa-check" class="o_employee_profile_card_done"
+                                            invisible="locked_personal and id" title="Done"/>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Private Email</span>
-                                    <field name="private_email" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_email" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. name@gmail.com"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_email or not (locked_personal and id)">e.g. name@gmail.com</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Private Phone</span>
-                                    <field name="private_phone" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_phone" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. +251 9XX XXX XXX"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_phone or not (locked_personal and id)">e.g. +251 9XX XXX XXX</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Street</span>
-                                    <field name="private_street" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_street" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. Bole Road"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_street or not (locked_personal and id)">e.g. Bole Road</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Street 2</span>
-                                    <field name="private_street2" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_street2" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Apartment, suite, etc."/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_street2 or not (locked_personal and id)">Apartment, suite, etc.</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">City</span>
-                                    <field name="private_city" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_city" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. Addis Ababa"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_city or not (locked_personal and id)">e.g. Addis Ababa</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">State</span>
-                                    <field name="private_state_id" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_state_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select State"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_state_id or not (locked_personal and id)">Select State</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">ZIP</span>
-                                    <field name="private_zip" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_zip" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. 1000"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_zip or not (locked_personal and id)">e.g. 1000</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Country</span>
-                                    <field name="private_country_id" readonly="locked_personal" nolabel="1"/>
+                                    <field name="private_country_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Country"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="private_country_id or not (locked_personal and id)">Select Country</span>
                                 </div>
                             </div>
 
@@ -337,22 +383,29 @@
                                     <span class="o_employee_profile_card_title">Emergency Contact</span>
                                     <button name="action_unlock_personal" type="object"
                                             icon="fa-pencil" class="o_employee_profile_card_edit"
-                                            invisible="not locked_personal" title="Edit"/>
+                                            invisible="not locked_personal or not id" title="Edit"/>
                                     <button name="action_lock_personal" type="object"
                                             icon="fa-check" class="o_employee_profile_card_done"
-                                            invisible="locked_personal" title="Done"/>
+                                            invisible="locked_personal and id" title="Done"/>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Contact Name</span>
-                                    <field name="emergency_contact" readonly="locked_personal" nolabel="1"/>
+                                    <field name="emergency_contact" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. Almaz Tesfaye"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="emergency_contact or not (locked_personal and id)">e.g. Almaz Tesfaye</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Contact Phone</span>
-                                    <field name="emergency_phone" readonly="locked_personal" nolabel="1"/>
+                                    <field name="emergency_phone" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="e.g. +251 9XX XXX XXX"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="emergency_phone or not (locked_personal and id)">e.g. +251 9XX XXX XXX</span>
                                 </div>
                             </div>
 
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'next': 'Guarantee Information', 'required': [{'name': 'name', 'label': 'Employee Name'}]}"/>
                     </page>
 
                     <!-- ============== GUARANTEE INFORMATION ============== -->
@@ -363,47 +416,60 @@
                                     <span class="o_employee_profile_card_title">Guarantor</span>
                                     <button name="action_unlock_guarantor" type="object"
                                             icon="fa-pencil" class="o_employee_profile_card_edit"
-                                            invisible="not locked_guarantor" title="Edit"/>
+                                            invisible="not locked_guarantor or not id" title="Edit"/>
                                     <button name="action_lock_guarantor" type="object"
                                             icon="fa-check" class="o_employee_profile_card_done"
-                                            invisible="locked_guarantor" title="Done"/>
+                                            invisible="locked_guarantor and id" title="Done"/>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Full Name</span>
-                                    <field name="guarantor_name" readonly="locked_guarantor" nolabel="1"/>
+                                    <field name="guarantor_name" readonly="locked_guarantor and id" nolabel="1"
+                                           placeholder="e.g. Kebede Alemu"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="guarantor_name or not (locked_guarantor and id)">e.g. Kebede Alemu</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Phone No</span>
-                                    <field name="guarantor_phone" readonly="locked_guarantor" nolabel="1"/>
+                                    <field name="guarantor_phone" readonly="locked_guarantor and id" nolabel="1"
+                                           placeholder="e.g. +251 9XX XXX XXX"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="guarantor_phone or not (locked_guarantor and id)">e.g. +251 9XX XXX XXX</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Job</span>
-                                    <field name="guarantor_job" readonly="locked_guarantor" nolabel="1"/>
+                                    <field name="guarantor_job" readonly="locked_guarantor and id" nolabel="1"
+                                           placeholder="e.g. Business Owner"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="guarantor_job or not (locked_guarantor and id)">e.g. Business Owner</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Address</span>
-                                    <field name="guarantor_address" readonly="locked_guarantor" nolabel="1"/>
+                                    <field name="guarantor_address" readonly="locked_guarantor and id" nolabel="1"
+                                           placeholder="e.g. Bole, Addis Ababa"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="guarantor_address or not (locked_guarantor and id)">e.g. Bole, Addis Ababa</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Salary</span>
-                                    <field name="guarantor_salary" readonly="locked_guarantor" nolabel="1"/>
+                                    <field name="guarantor_salary" readonly="locked_guarantor and id" nolabel="1"
+                                           placeholder="0.00"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="guarantor_salary or not (locked_guarantor and id)">0.00</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Guarantee ID</span>
                                     <field name="guarantor_id_document_filename" invisible="1"/>
                                     <field name="guarantor_id_document"
                                            filename="guarantor_id_document_filename"
-                                           readonly="locked_guarantor" nolabel="1"/>
+                                           readonly="locked_guarantor and id" nolabel="1"/>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Guarantee Document</span>
                                     <field name="guarantor_document_filename" invisible="1"/>
                                     <field name="guarantor_document"
                                            filename="guarantor_document_filename"
-                                           readonly="locked_guarantor" nolabel="1"/>
+                                           readonly="locked_guarantor and id" nolabel="1"/>
                                 </div>
                             </div>
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Personal Information', 'next': 'Education Background'}"/>
                     </page>
 
                     <!-- ============== EDUCATION BACKGROUND ============== -->
@@ -418,22 +484,22 @@
                                 </div>
                                 <button name="action_unlock_education" type="object"
                                         icon="fa-pencil" class="o_employee_profile_card_edit"
-                                        invisible="not locked_education" title="Edit Education"/>
+                                        invisible="not locked_education or not id" title="Edit Education"/>
                                 <button name="action_lock_education" type="object"
                                         icon="fa-check" class="o_employee_profile_card_done"
-                                        invisible="locked_education" title="Done"/>
+                                        invisible="locked_education and id" title="Done"/>
                             </div>
-                            <field name="education_ids" readonly="locked_education" nolabel="1">
+                            <field name="education_ids" readonly="locked_education and id" nolabel="1">
                                 <list create="true" delete="true"
                                       class="o_employee_profile_resume_list o_employee_profile_list_with_header"
                                       decoration-muted="status == 'dropped'">
-                                    <field name="institution_name" string="Institution"/>
+                                    <field name="institution_name" string="Institution *"/>
                                     <field name="field_of_study" string="Field of Study"/>
                                     <field name="degree" string="Degree"/>
-                                    <field name="education_level" string="Level" optional="hide"/>
-                                    <field name="date_start" string="From" widget="date" optional="hide"/>
-                                    <field name="date_end" string="To" widget="date"/>
-                                    <field name="status" widget="badge"
+                                    <field name="education_level" string="Level *" optional="hide"/>
+                                    <field name="date_start" string="From *" widget="date" optional="hide"/>
+                                    <field name="date_end" string="To *" widget="date"/>
+                                    <field name="status" string="Status *" widget="badge"
                                            decoration-success="status == 'completed'"
                                            decoration-info="status == 'ongoing'"
                                            decoration-muted="status == 'dropped'"/>
@@ -449,8 +515,9 @@
                                         </div>
                                         <group>
                                             <group string="PROGRAM">
-                                                <field name="education_level"/>
-                                                <field name="institution_name"
+                                                <field name="education_level" string="Education Level *"
+                                                       placeholder="Select Level"/>
+                                                <field name="institution_name" string="Institution Name *"
                                                        placeholder="e.g. Addis Ababa University"/>
                                                 <field name="field_of_study"
                                                        placeholder="e.g. Computer Science"/>
@@ -458,20 +525,22 @@
                                                        placeholder="e.g. B.Sc."/>
                                             </group>
                                             <group string="STATUS &amp; LOCATION">
-                                                <field name="status"/>
+                                                <field name="status" string="Status *"
+                                                       placeholder="Select Status"/>
                                                 <field name="grade" placeholder="e.g. 3.8 GPA"/>
-                                                <field name="country_id"/>
-                                                <field name="city"/>
+                                                <field name="country_id"
+                                                       placeholder="Defaults to Ethiopia"/>
+                                                <field name="city" placeholder="e.g. Addis Ababa"/>
                                             </group>
                                         </group>
                                         <group>
-                                            <label for="date_start" string="DURATION"/>
+                                            <label for="date_start" string="Duration *"/>
                                             <div class="o_row o_employee_profile_duration_row">
                                                 <field name="date_start" string="From"
                                                        placeholder="Start date"/>
                                                 <span class="mx-2 text-muted">to</span>
                                                 <field name="date_end" string="To"
-                                                       placeholder="Leave empty if ongoing"/>
+                                                       placeholder="End date"/>
                                             </div>
                                         </group>
                                         <group string="DOCUMENT">
@@ -500,16 +569,16 @@
                                 </div>
                                 <button name="action_unlock_certification" type="object"
                                         icon="fa-pencil" class="o_employee_profile_card_edit"
-                                        invisible="not locked_certification" title="Edit Certifications"/>
+                                        invisible="not locked_certification or not id" title="Edit Certifications"/>
                                 <button name="action_lock_certification" type="object"
                                         icon="fa-check" class="o_employee_profile_card_done"
-                                        invisible="locked_certification" title="Done"/>
+                                        invisible="locked_certification and id" title="Done"/>
                             </div>
-                            <field name="certification_ids" readonly="locked_certification" nolabel="1">
+                            <field name="certification_ids" readonly="locked_certification and id" nolabel="1">
                                 <list create="true" delete="true"
                                       class="o_employee_profile_resume_list o_employee_profile_list_with_header"
                                       decoration-muted="status == 'expired'">
-                                    <field name="name" string="Certification Title"/>
+                                    <field name="name" string="Certification Title *"/>
                                     <field name="issuing_organization" string="Issued By"/>
                                     <field name="issue_date" string="Issued On" widget="date"/>
                                     <field name="expiry_date" string="Expires On" widget="date"/>
@@ -529,7 +598,7 @@
                                         </div>
                                         <group>
                                             <group string="CERTIFICATION">
-                                                <field name="name" string="Certification Title"
+                                                <field name="name" string="Certification Title *"
                                                        placeholder="e.g. AWS Certified Solutions Architect"/>
                                                 <field name="issuing_organization"
                                                        placeholder="e.g. Amazon Web Services"/>
@@ -560,6 +629,8 @@
                             </field>
                         </div>
 
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Guarantee Information', 'next': 'Experience', 'required': [{'name': 'education_ids', 'label': 'Education'}, {'name': 'certification_ids', 'label': 'Certifications'}]}"/>
                     </page>
 
                     <!-- ============== EXPERIENCE ============== -->
@@ -572,20 +643,20 @@
                                 </div>
                                 <button name="action_unlock_experience" type="object"
                                         icon="fa-pencil" class="o_employee_profile_card_edit"
-                                        invisible="not locked_experience" title="Edit Experience"/>
+                                        invisible="not locked_experience or not id" title="Edit Experience"/>
                                 <button name="action_lock_experience" type="object"
                                         icon="fa-check" class="o_employee_profile_card_done"
-                                        invisible="locked_experience" title="Done"/>
+                                        invisible="locked_experience and id" title="Done"/>
                             </div>
-                            <field name="experience_ids" readonly="locked_experience" nolabel="1">
+                            <field name="experience_ids" readonly="locked_experience and id" nolabel="1">
                                 <list create="true" delete="true"
                                       class="o_employee_profile_resume_list o_employee_profile_list_with_header"
                                       decoration-info="currently_working">
-                                    <field name="company_name" string="Company / Organization"/>
-                                    <field name="job_title" string="Job Title / Position"/>
+                                    <field name="company_name" string="Company / Organization *"/>
+                                    <field name="job_title" string="Job Title / Position *"/>
                                     <field name="employment_type" string="Type"/>
                                     <field name="department" string="Department" optional="hide"/>
-                                    <field name="date_start" string="From" widget="date"/>
+                                    <field name="date_start" string="From *" widget="date"/>
                                     <field name="date_end" string="To" widget="date"/>
                                     <field name="currently_working" string="Current" widget="boolean_toggle" optional="show"/>
                                     <field name="location" string="Location" optional="hide"/>
@@ -601,16 +672,18 @@
                                         </div>
                                         <group>
                                             <group string="COMPANY &amp; ROLE">
-                                                <field name="company_name"
+                                                <field name="company_name" string="Company / Organization *"
                                                        placeholder="e.g. Acme Corporation"/>
-                                                <field name="job_title"
+                                                <field name="job_title" string="Job Title / Position *"
                                                        placeholder="e.g. Senior Warehouse Manager"/>
-                                                <field name="employment_type"/>
+                                                <field name="employment_type"
+                                                       placeholder="Select Type"/>
                                                 <field name="department"
                                                        placeholder="e.g. Logistics / Operations"/>
                                             </group>
                                             <group string="DURATION &amp; LOCATION">
-                                                <field name="date_start"/>
+                                                <field name="date_start" string="Start Date *"
+                                                       placeholder="Select Start Date"/>
                                                 <field name="currently_working"/>
                                                 <field name="date_end"
                                                        invisible="currently_working"
@@ -655,6 +728,9 @@
                                 </form>
                             </field>
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Education Background', 'next': 'Contract', 'required': [{'name': 'experience_ids', 'label': 'Work Experience'}]}"/>
                     </page>
 
                     <!-- ============== CONTRACT ============== -->
@@ -686,6 +762,9 @@
                                 structure, ...), whatever its status.
                             </p>
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Experience', 'next': 'Allowance'}"/>
                     </page>
 
                     <!-- ============== ALLOWANCE ============== -->
@@ -695,15 +774,16 @@
                                 <span class="o_employee_profile_card_title">Allowances</span>
                                 <button name="action_unlock_allowance" type="object"
                                         icon="fa-pencil" class="o_employee_profile_card_edit"
-                                        invisible="not locked_allowance" title="Edit"/>
+                                        invisible="not locked_allowance or not id" title="Edit"/>
                                 <button name="action_lock_allowance" type="object"
                                         icon="fa-check" class="o_employee_profile_card_done"
-                                        invisible="locked_allowance" title="Done"/>
+                                        invisible="locked_allowance and id" title="Done"/>
                             </div>
-                            <field name="allowance_ids" readonly="locked_allowance" nolabel="1">
+                            <field name="allowance_ids" readonly="locked_allowance and id" nolabel="1">
                                 <list editable="bottom">
-                                    <field name="rule_id" string="Allowance" required="1"/>
-                                    <field name="amount"/>
+                                    <field name="rule_id" string="Allowance *" required="1"
+                                           placeholder="Select Allowance"/>
+                                    <field name="amount" required="1" placeholder="0.00"/>
                                     <field name="name" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                     <field name="allowance_type" column_invisible="1"/>
@@ -716,6 +796,9 @@
                                 </list>
                             </field>
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Contract', 'next': 'Commitment', 'required': [{'name': 'allowance_ids', 'label': 'Allowances'}]}"/>
                     </page>
 
                     <!-- ============== COMMITMENT ============== -->
@@ -725,24 +808,29 @@
                                 <span class="o_employee_profile_card_title">Commitments</span>
                                 <button name="action_unlock_commitment" type="object"
                                         icon="fa-pencil" class="o_employee_profile_card_edit"
-                                        invisible="not locked_commitment" title="Edit"/>
+                                        invisible="not locked_commitment or not id" title="Edit"/>
                                 <button name="action_lock_commitment" type="object"
                                         icon="fa-check" class="o_employee_profile_card_done"
-                                        invisible="locked_commitment" title="Done"/>
+                                        invisible="locked_commitment and id" title="Done"/>
                             </div>
-                            <field name="commitment_ids" readonly="locked_commitment" nolabel="1">
+                            <field name="commitment_ids" readonly="locked_commitment and id" nolabel="1">
                                 <list editable="bottom">
-                                    <field name="name"/>
-                                    <field name="commitment_type"/>
-                                    <field name="date_start"/>
-                                    <field name="date_end"/>
-                                    <field name="state"/>
+                                    <field name="name" string="Commitment Title *"
+                                           placeholder="e.g. Training Bond Agreement"/>
+                                    <field name="commitment_type" string="Type *"
+                                           placeholder="Select Type"/>
+                                    <field name="date_start" placeholder="Select Start Date"/>
+                                    <field name="date_end" placeholder="Select End Date"/>
+                                    <field name="state" string="Status *"/>
                                     <control>
                                         <create string="Add Commitment"/>
                                     </control>
                                 </list>
                             </field>
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Allowance', 'next': 'Document', 'required': [{'name': 'commitment_ids', 'label': 'Commitments'}]}"/>
                     </page>
 
                     <!-- ============== DOCUMENT ============== -->
@@ -755,6 +843,9 @@
                                 <field name="profile_document_ids" widget="many2many_binary" nolabel="1"/>
                             </div>
                         </div>
+
+                        <widget name="profile_step_nav"
+                                options="{'prev': 'Commitment'}"/>
                     </page>
 
                 </notebook>

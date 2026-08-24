@@ -28,8 +28,8 @@ class HrEmployeeEducation(models.Model):
         string='Degree / Qualification',
         help="e.g. B.Sc., B.A., Diploma, Certificate")
 
-    date_start = fields.Date(string='Start Date')
-    date_end = fields.Date(string='End Date / Graduation Date')
+    date_start = fields.Date(string='Start Date', required=True)
+    date_end = fields.Date(string='End Date / Graduation Date', required=True)
 
     status = fields.Selection([
         ('completed', 'Completed'),
@@ -39,7 +39,10 @@ class HrEmployeeEducation(models.Model):
 
     grade = fields.Char(string='Grade / GPA')
 
-    country_id = fields.Many2one('res.country', string='Country')
+    country_id = fields.Many2one(
+        'res.country', string='Country',
+        default=lambda self: self.env['res.country'].search(
+            [('code', '=', 'ET')], limit=1).id)
     city = fields.Char(string='City')
 
     certificate_document = fields.Binary(string='Certificate / Document')

@@ -1,6 +1,6 @@
 {
     'name': 'Employee Profile Custom UI',
-    'version': '18.0.3.10.0',
+    'version': '18.0.3.15.0',
     'category': 'Human Resources',
     'summary': 'Redesigned Employee profile: top tab bar, card-based sections, per-section edit pencil icons',
     'description': """
@@ -41,6 +41,8 @@ improved modal forms.
     'assets': {
         'web.assets_backend': [
             'employee_profile_custom/static/src/css/employee_profile.css',
+            'employee_profile_custom/static/src/js/employee_profile_stepper.js',
+            'employee_profile_custom/static/src/xml/employee_profile_stepper.xml',
         ],
     },
     'installable': True,
