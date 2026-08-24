@@ -1,6 +1,6 @@
 {
     'name': 'Employee Profile Custom UI',
-    'version': '18.0.3.15.0',
+    'version': '18.0.3.16.0',
     'category': 'Human Resources',
     'summary': 'Redesigned Employee profile: top tab bar, card-based sections, per-section edit pencil icons',
     'description': """
