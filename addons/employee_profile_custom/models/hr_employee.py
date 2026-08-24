@@ -27,7 +27,23 @@ class HrEmployee(models.Model):
     blood_type = fields.Selection([
         ('a', 'A'), ('b', 'B'), ('ab', 'AB'), ('o', 'O'),
     ], string='Blood Type')
+    # Kept as a real field (rather than deleted) because other custom
+    # modules in this instance may still reference it via view
+    # inheritance (xpath expr="//field[@name='religion']"). It's hidden
+    # from the Employee Profile UI below - see the view file.
     religion = fields.Char(string='Religion')
+
+    # ------------------------------------------------------------------
+    # Restrict Gender to Male / Female only (drop the core "Other"
+    # option). Overriding the field's selection directly here is
+    # simpler and more reliable than trying to hide the choice at the
+    # view/widget level, and it applies everywhere gender is used, not
+    # just on this profile form.
+    # ------------------------------------------------------------------
+    gender = fields.Selection([
+        ('male', 'Male'),
+        ('female', 'Female'),
+    ], string='Gender')
 
     # ------------------------------------------------------------------
     # Allowance / Commitment / Education / Certification

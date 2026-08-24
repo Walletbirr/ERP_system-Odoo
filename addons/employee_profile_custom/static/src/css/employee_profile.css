@@ -373,6 +373,25 @@
   width: 100%;
 }
 
+/* Read-only "ghost" placeholder: shown instead of the field's native
+   placeholder attribute (which the browser only renders while an <input>
+   is actually present, i.e. only once the section is unlocked). The view
+   toggles this span with invisible="fieldname or not (readonly_cond)" so
+   it only ever appears when the section is locked AND the field is empty.
+   It's stacked into the exact same grid cell as the field (column 2 of
+   the row's 2-column grid) so no layout shift happens when the pencil
+   icon unlocks the section and the real field/native placeholder takes
+   over. */
+.o_employee_profile_card .o_employee_profile_row .o_employee_profile_placeholder_text {
+  grid-column: 2;
+  grid-row: 1;
+  color: #9aa3af;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.3;
+  user-select: none;
+}
+
 /* ---- List-based tabs (Education, Experience, Allowance, Commitment) ---- */
 .o_employee_profile_root .o_employee_profile_list_card {
   background: #ffffff;
@@ -915,4 +934,78 @@
 .o_employee_profile_presence_dot_wrap .bg-warning,
 .o_employee_profile_presence_dot_wrap .badge.text-bg-warning {
   background-color: #f59e0b !important;
+}
+
+/* ==========================================================================
+   Required-field markers
+   ========================================================================== */
+
+/* Star next to a label inside our custom card rows (Personal / Guarantee
+   tabs), e.g. <span class="o_employee_profile_label">Employee Name
+   <span class="o_employee_profile_required">*</span></span> */
+.o_employee_profile_required {
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+/* Required fields inside standard <group>/<field> layouts (Education,
+   Certification, Experience, Commitment, Allowance modals and lists) get
+   their trailing " *" straight from the field's `string` attribute in the
+   view - no extra styling hook needed, it renders as part of the label. */
+
+/* A field row flagged as invalid by the Next-button validation. */
+.o_employee_profile_row_invalid {
+  background: #fef2f2;
+  border-radius: 8px;
+  outline: 1px solid #fca5a5;
+}
+
+.o_employee_profile_row_invalid .o_employee_profile_label {
+  color: #dc2626 !important;
+}
+
+/* ==========================================================================
+   Previous / Next step navigation bar
+   ========================================================================== */
+.o_employee_profile_step_nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #eceef1;
+}
+
+.o_employee_profile_step_spacer_left {
+  flex: 0 0 auto;
+}
+
+.o_employee_profile_step_btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 9px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  transition: all 0.15s ease;
+}
+
+.o_employee_profile_step_btn:hover {
+  border-color: #a06e03;
+  color: #a06e03;
+}
+
+.o_employee_profile_step_next {
+  background: #a06e03;
+  border-color: #a06e03;
+  color: #ffffff;
+  margin-left: auto;
+}
+
+.o_employee_profile_step_next:hover {
+  background: #8a5f02;
+  border-color: #8a5f02;
+  color: #ffffff;
 }
