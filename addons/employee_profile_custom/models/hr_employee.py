@@ -127,16 +127,37 @@ class HrEmployee(models.Model):
     # contract instead of being filled in by hand a second time.
     # ------------------------------------------------------------------
     def _sync_allowances_from_contract(self, contract=None):
-        """Sync from the given contract's allowance lines. Falls back to
-        employee.contract_id (Odoo's "currently running" contract) when no
-        contract is passed explicitly - but the caller in hr_contract.py
-        always passes the contract that was just created/saved directly,
-        since a brand-new contract may still be in Draft and therefore not
-        yet reflected in contract_id."""
+        """Sync the Allowance tab from the employee's contract.
+
+        Source order:
+          1. Explicit contract passed by caller (create/write on hr.contract)
+          2. employee.contract_id (Running contract)
+          3. Any non-cancelled contract on the employee (covers Draft/import)
+          4. If the chosen contract still has no positive allowance lines,
+             fall back to the Job Position's Default Allowances so imports
+             and contracts created without UI onchanges still populate this tab.
+        """
         Allowance = self.env['hr.employee.allowance']
         for employee in self:
             source = contract if contract is not None else employee.contract_id
-            lines = source.allowance_line_ids.filtered('amount') if source else source
+            if not source:
+                candidates = employee.contract_ids.filtered(
+                    lambda c: c.state != 'cancel'
+                )
+                source = candidates.sorted(
+                    key=lambda c: (c.date_start or fields.Date.today(), c.id),
+                    reverse=True,
+                )[:1]
+
+            lines = source.allowance_line_ids.filtered('amount') if source else self.env['hr.contract.allowance.line']
+
+            # Fallback: job defaults when contract lines are empty (import path)
+            if not lines and source and source.job_id and source.job_id.allowance_line_ids:
+                lines = source.job_id.allowance_line_ids.filtered('amount')
+
+            if not lines:
+                continue
+
             existing_by_rule = {
                 a.rule_id: a for a in employee.allowance_ids if a.rule_id
             }
@@ -144,27 +165,34 @@ class HrEmployee(models.Model):
                 a.name: a for a in employee.allowance_ids if not a.rule_id
             }
             for line in lines:
-                record = existing_by_rule.get(line.rule_id) or existing_by_name.get(
-                    line.rule_id.name
-                )
+                rule = getattr(line, 'rule_id', False)
+                if not rule:
+                    continue
+                amount = line.amount
+                record = existing_by_rule.get(rule) or existing_by_name.get(rule.name)
                 if record:
                     vals = {}
-                    if record.amount != line.amount:
-                        vals['amount'] = line.amount
+                    if record.amount != amount:
+                        vals['amount'] = amount
                     if not record.rule_id:
-                        # Legacy row from before rule_id existed - link it
-                        # up now that we can, instead of leaving it a
-                        # name-only guess forever.
-                        vals['rule_id'] = line.rule_id.id
+                        vals['rule_id'] = rule.id
                     if vals:
                         record.write(vals)
                 else:
                     Allowance.create({
                         'employee_id': employee.id,
-                        'rule_id': line.rule_id.id,
-                        'name': line.rule_id.name,
-                        'amount': line.amount,
+                        'rule_id': rule.id,
+                        'name': rule.name,
+                        'amount': amount,
                     })
+
+    def action_refresh_allowances_from_contract(self):
+        """Manual / bulk refresh of the Allowance tab from the active
+        contract (or its Job Position defaults). Useful after an import
+        that created contracts before this sync logic existed."""
+        for employee in self:
+            employee._sync_allowances_from_contract()
+        return True
 
     # ------------------------------------------------------------------
     # Contract tab: open the real hr.contract record in a dialog so all
