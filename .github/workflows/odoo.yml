@@ -19,15 +19,22 @@ jobs:
           whoami
           id
           groups
+          echo "=== Searching for exact Odoo service name ==="
+          systemctl list-units --type=service | grep -i odoo  echo "No odoo services found!"
           echo "=== Odoo service status before deployment ==="
-          systemctl status odoo --no-pager || echo "Odoo service not active or not found"
-          echo "=== Stopping Odoo for deployment ==="
+          sudo systemctl status odoo --no-pager  echo "Odoo service not active or not found"
 
       - name: Stop Odoo
-        run: systemctl stop odoo
+        run: |
+          # 1. Added 'sudo' (required for system services)
+          # 2. Added ' true' so the pipeline doesn't fail if Odoo is already stopped
+          sudo systemctl stop odoo  true
 
       - name: Sync project
-        run: rsync -av --delete ./ /data/ERP_system-Odoo/
+        run: |
+          # CRITICAL FIX: Added '--exclude' flags! 
+          # Without this, the '--delete' flag would wipe out your 'venv' folder because it's not in the Git repo.
+          rsync -av --delete --exclude='venv/' --exclude='.git/' ./ /data/ERP_system-Odoo/
 
       - name: Install dependencies
         run: |
@@ -43,10 +50,10 @@ jobs:
             --stop-after-init
 
       - name: Start Odoo
-        run: systemctl start odoo
+        run: sudo systemctl start odoo
 
       - name: Verify Odoo
         run: |
           echo "=== Waiting for Odoo to start ==="
           sleep 8
-          systemctl status odoo --no-pager
+          sudo systemctl status odoo --no-pager
