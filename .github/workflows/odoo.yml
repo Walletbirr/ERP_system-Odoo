@@ -24,7 +24,7 @@ jobs:
           echo "=== Stopping Odoo for deployment ==="
 
       - name: Stop Odoo
-        run: sudo systemctl stop odoo  true
+        run: systemctl stop odoo
 
       - name: Sync project
         run: rsync -av --delete ./ /data/ERP_system-Odoo/
@@ -43,10 +43,10 @@ jobs:
             --stop-after-init
 
       - name: Start Odoo
-        run: sudo systemctl start odoo
+        run: systemctl start odoo
 
       - name: Verify Odoo
         run: |
           echo "=== Waiting for Odoo to start ==="
           sleep 8
-          sudo systemctl status odoo --no-pager
+          systemctl status odoo --no-pager
