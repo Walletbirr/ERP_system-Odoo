@@ -56,4 +56,4 @@ jobs:
         run: |
           echo "=== Waiting for Odoo to start ==="
           sleep 8
-          sudo systemctl status odoo --no-pager
+          systemctl status odoo --no-pager
