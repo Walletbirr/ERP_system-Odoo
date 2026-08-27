@@ -20,14 +20,14 @@ jobs:
           id
           groups
           echo "=== Searching for exact Odoo service name ==="
-          systemctl list-units --type=service | grep -i odoo  echo "No odoo services found!"
+          systemctl list-units --type=service | grep -i odoo || echo "No odoo services found!"
           echo "=== Odoo service status before deployment ==="
-          sudo systemctl status odoo --no-pager  echo "Odoo service not active or not found"
+          sudo systemctl status odoo --no-pager || echo "Odoo service not active or not found"
 
       - name: Stop Odoo
         run: |
-          # The ' true' ensures the pipeline doesn't fail if Odoo is already stopped
-          sudo systemctl stop odoo  true
+          # The '|| true' ensures the pipeline doesn't fail if Odoo is already stopped
+          sudo systemctl stop odoo || true
 
       - name: Sync project
         run: |
