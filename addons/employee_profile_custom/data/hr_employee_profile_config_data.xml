@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================= GENDER (Other intentionally NOT seeded) ================= -->
+    <record id="gender_male" model="hr.employee.gender">
+        <field name="name">Male</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="gender_female" model="hr.employee.gender">
+        <field name="name">Female</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <!-- ================= MARITAL STATUS ================= -->
+    <record id="marital_single" model="hr.employee.marital.status">
+        <field name="name">Single</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="marital_married" model="hr.employee.marital.status">
+        <field name="name">Married</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="marital_cohabitant" model="hr.employee.marital.status">
+        <field name="name">Cohabitant</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="marital_widower" model="hr.employee.marital.status">
+        <field name="name">Widowed</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="marital_divorced" model="hr.employee.marital.status">
+        <field name="name">Divorced</field>
+        <field name="sequence">50</field>
+    </record>
+
+    <!-- ================= BLOOD TYPE ================= -->
+    <record id="blood_type_a" model="hr.employee.blood.type">
+        <field name="name">A</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="blood_type_b" model="hr.employee.blood.type">
+        <field name="name">B</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="blood_type_ab" model="hr.employee.blood.type">
+        <field name="name">AB</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="blood_type_o" model="hr.employee.blood.type">
+        <field name="name">O</field>
+        <field name="sequence">40</field>
+    </record>
+
+</odoo>

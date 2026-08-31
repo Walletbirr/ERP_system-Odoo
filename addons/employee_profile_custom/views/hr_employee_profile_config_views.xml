@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================= GENDER ================= -->
+    <record id="view_hr_employee_gender_list" model="ir.ui.view">
+        <field name="name">hr.employee.gender.list</field>
+        <field name="model">hr.employee.gender</field>
+        <field name="arch" type="xml">
+            <list string="Genders" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_gender_form" model="ir.ui.view">
+        <field name="name">hr.employee.gender.form</field>
+        <field name="model">hr.employee.gender</field>
+        <field name="arch" type="xml">
+            <form string="Gender">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="e.g. Male"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_employee_gender" model="ir.actions.act_window">
+        <field name="name">Genders</field>
+        <field name="res_model">hr.employee.gender</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add a new gender</p>
+            <p>Options available on the Employee profile's Gender field.</p>
+        </field>
+    </record>
+
+    <!-- ================= MARITAL STATUS ================= -->
+    <record id="view_hr_employee_marital_status_list" model="ir.ui.view">
+        <field name="name">hr.employee.marital.status.list</field>
+        <field name="model">hr.employee.marital.status</field>
+        <field name="arch" type="xml">
+            <list string="Marital Statuses" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_marital_status_form" model="ir.ui.view">
+        <field name="name">hr.employee.marital.status.form</field>
+        <field name="model">hr.employee.marital.status</field>
+        <field name="arch" type="xml">
+            <form string="Marital Status">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="e.g. Single"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_employee_marital_status" model="ir.actions.act_window">
+        <field name="name">Marital Statuses</field>
+        <field name="res_model">hr.employee.marital.status</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add a new marital status</p>
+            <p>Options available on the Employee profile's Marital Status field.</p>
+        </field>
+    </record>
+
+    <!-- ================= BLOOD TYPE ================= -->
+    <record id="view_hr_employee_blood_type_list" model="ir.ui.view">
+        <field name="name">hr.employee.blood.type.list</field>
+        <field name="model">hr.employee.blood.type</field>
+        <field name="arch" type="xml">
+            <list string="Blood Types" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="active" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_blood_type_form" model="ir.ui.view">
+        <field name="name">hr.employee.blood.type.form</field>
+        <field name="model">hr.employee.blood.type</field>
+        <field name="arch" type="xml">
+            <form string="Blood Type">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="e.g. O+"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_employee_blood_type" model="ir.actions.act_window">
+        <field name="name">Blood Types</field>
+        <field name="res_model">hr.employee.blood.type</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add a new blood type</p>
+            <p>Options available on the Employee profile's Blood Type field.</p>
+        </field>
+    </record>
+
+    <!-- ================= MENU (Employees > Configuration) ================= -->
+    <menuitem id="menu_hr_employee_profile_config"
+              name="Personal Information"
+              parent="hr.menu_human_resources_configuration"
+              sequence="15"/>
+
+    <menuitem id="menu_hr_employee_gender"
+              name="Genders"
+              action="action_hr_employee_gender"
+              parent="menu_hr_employee_profile_config"
+              sequence="10"/>
+
+    <menuitem id="menu_hr_employee_marital_status"
+              name="Marital Statuses"
+              action="action_hr_employee_marital_status"
+              parent="menu_hr_employee_profile_config"
+              sequence="20"/>
+
+    <menuitem id="menu_hr_employee_blood_type"
+              name="Blood Types"
+              action="action_hr_employee_blood_type"
+              parent="menu_hr_employee_profile_config"
+              sequence="30"/>
+
+</odoo>

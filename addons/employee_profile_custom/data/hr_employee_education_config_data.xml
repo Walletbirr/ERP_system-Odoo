@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================= EDUCATION LEVELS ================= -->
+    <record id="edu_level_high_school" model="hr.employee.education.level">
+        <field name="name">High School</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="edu_level_certificate" model="hr.employee.education.level">
+        <field name="name">Certificate (TVET Level I-IV)</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="edu_level_diploma" model="hr.employee.education.level">
+        <field name="name">Diploma</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="edu_level_advanced_diploma" model="hr.employee.education.level">
+        <field name="name">Advanced Diploma</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="edu_level_bachelor" model="hr.employee.education.level">
+        <field name="name">Bachelor's Degree</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="edu_level_master" model="hr.employee.education.level">
+        <field name="name">Master's Degree</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="edu_level_phd" model="hr.employee.education.level">
+        <field name="name">Doctorate (PhD)</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="edu_level_other" model="hr.employee.education.level">
+        <field name="name">Other</field>
+        <field name="sequence">80</field>
+    </record>
+
+    <!-- ================= DEGREES / QUALIFICATIONS ================= -->
+    <record id="edu_degree_certificate" model="hr.employee.education.degree">
+        <field name="name">Certificate</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="edu_degree_diploma" model="hr.employee.education.degree">
+        <field name="name">Diploma</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="edu_degree_ba" model="hr.employee.education.degree">
+        <field name="name">BA</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="edu_degree_bsc" model="hr.employee.education.degree">
+        <field name="name">BSc</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="edu_degree_llb" model="hr.employee.education.degree">
+        <field name="name">LLB</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="edu_degree_ma" model="hr.employee.education.degree">
+        <field name="name">MA</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="edu_degree_msc" model="hr.employee.education.degree">
+        <field name="name">MSc</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="edu_degree_mba" model="hr.employee.education.degree">
+        <field name="name">MBA</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="edu_degree_llm" model="hr.employee.education.degree">
+        <field name="name">LLM</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="edu_degree_phd" model="hr.employee.education.degree">
+        <field name="name">PhD</field>
+        <field name="sequence">100</field>
+    </record>
+
+    <!-- ================= FIELDS OF STUDY ================= -->
+    <record id="edu_field_computer_science" model="hr.employee.education.field">
+        <field name="name">Computer Science</field>
+    </record>
+    <record id="edu_field_information_technology" model="hr.employee.education.field">
+        <field name="name">Information Technology</field>
+    </record>
+    <record id="edu_field_software_engineering" model="hr.employee.education.field">
+        <field name="name">Software Engineering</field>
+    </record>
+    <record id="edu_field_accounting" model="hr.employee.education.field">
+        <field name="name">Accounting</field>
+    </record>
+    <record id="edu_field_accounting_finance" model="hr.employee.education.field">
+        <field name="name">Accounting and Finance</field>
+    </record>
+    <record id="edu_field_management" model="hr.employee.education.field">
+        <field name="name">Management</field>
+    </record>
+    <record id="edu_field_business_admin" model="hr.employee.education.field">
+        <field name="name">Business Administration</field>
+    </record>
+    <record id="edu_field_economics" model="hr.employee.education.field">
+        <field name="name">Economics</field>
+    </record>
+    <record id="edu_field_marketing_management" model="hr.employee.education.field">
+        <field name="name">Marketing Management</field>
+    </record>
+    <record id="edu_field_hrm" model="hr.employee.education.field">
+        <field name="name">Human Resource Management</field>
+    </record>
+    <record id="edu_field_logistics_scm" model="hr.employee.education.field">
+        <field name="name">Logistics and Supply Chain Management</field>
+    </record>
+    <record id="edu_field_civil_engineering" model="hr.employee.education.field">
+        <field name="name">Civil Engineering</field>
+    </record>
+    <record id="edu_field_electrical_engineering" model="hr.employee.education.field">
+        <field name="name">Electrical and Computer Engineering</field>
+    </record>
+    <record id="edu_field_mechanical_engineering" model="hr.employee.education.field">
+        <field name="name">Mechanical Engineering</field>
+    </record>
+    <record id="edu_field_architecture" model="hr.employee.education.field">
+        <field name="name">Architecture</field>
+    </record>
+    <record id="edu_field_law" model="hr.employee.education.field">
+        <field name="name">Law</field>
+    </record>
+    <record id="edu_field_medicine" model="hr.employee.education.field">
+        <field name="name">Medicine</field>
+    </record>
+    <record id="edu_field_nursing" model="hr.employee.education.field">
+        <field name="name">Nursing</field>
+    </record>
+    <record id="edu_field_public_health" model="hr.employee.education.field">
+        <field name="name">Public Health</field>
+    </record>
+    <record id="edu_field_pharmacy" model="hr.employee.education.field">
+        <field name="name">Pharmacy</field>
+    </record>
+    <record id="edu_field_agriculture" model="hr.employee.education.field">
+        <field name="name">Agriculture</field>
+    </record>
+    <record id="edu_field_statistics" model="hr.employee.education.field">
+        <field name="name">Statistics</field>
+    </record>
+    <record id="edu_field_mathematics" model="hr.employee.education.field">
+        <field name="name">Mathematics</field>
+    </record>
+    <record id="edu_field_political_science" model="hr.employee.education.field">
+        <field name="name">Political Science and International Relations</field>
+    </record>
+    <record id="edu_field_sociology" model="hr.employee.education.field">
+        <field name="name">Sociology</field>
+    </record>
+    <record id="edu_field_psychology" model="hr.employee.education.field">
+        <field name="name">Psychology</field>
+    </record>
+    <record id="edu_field_journalism" model="hr.employee.education.field">
+        <field name="name">Journalism and Communications</field>
+    </record>
+    <record id="edu_field_educational_planning" model="hr.employee.education.field">
+        <field name="name">Educational Planning and Management</field>
+    </record>
+    <record id="edu_field_tourism" model="hr.employee.education.field">
+        <field name="name">Tourism and Hotel Management</field>
+    </record>
+    <record id="edu_field_banking_finance" model="hr.employee.education.field">
+        <field name="name">Banking and Finance</field>
+    </record>
+
+    <!-- ================= INSTITUTIONS (Ethiopian universities) ================= -->
+    <record id="edu_inst_addis_ababa_university" model="hr.employee.education.institution">
+        <field name="name">Addis Ababa University</field>
+    </record>
+    <record id="edu_inst_aastu" model="hr.employee.education.institution">
+        <field name="name">Addis Ababa Science and Technology University</field>
+    </record>
+    <record id="edu_inst_bahir_dar_university" model="hr.employee.education.institution">
+        <field name="name">Bahir Dar University</field>
+    </record>
+    <record id="edu_inst_jimma_university" model="hr.employee.education.institution">
+        <field name="name">Jimma University</field>
+    </record>
+    <record id="edu_inst_mekelle_university" model="hr.employee.education.institution">
+        <field name="name">Mekelle University</field>
+    </record>
+    <record id="edu_inst_hawassa_university" model="hr.employee.education.institution">
+        <field name="name">Hawassa University</field>
+    </record>
+    <record id="edu_inst_haramaya_university" model="hr.employee.education.institution">
+        <field name="name">Haramaya University</field>
+    </record>
+    <record id="edu_inst_gondar_university" model="hr.employee.education.institution">
+        <field name="name">University of Gondar</field>
+    </record>
+    <record id="edu_inst_adama_stu" model="hr.employee.education.institution">
+        <field name="name">Adama Science and Technology University</field>
+    </record>
+    <record id="edu_inst_arba_minch_university" model="hr.employee.education.institution">
+        <field name="name">Arba Minch University</field>
+    </record>
+    <record id="edu_inst_dire_dawa_university" model="hr.employee.education.institution">
+        <field name="name">Dire Dawa University</field>
+    </record>
+    <record id="edu_inst_wollo_university" model="hr.employee.education.institution">
+        <field name="name">Wollo University</field>
+    </record>
+    <record id="edu_inst_debre_berhan_university" model="hr.employee.education.institution">
+        <field name="name">Debre Berhan University</field>
+    </record>
+    <record id="edu_inst_debre_markos_university" model="hr.employee.education.institution">
+        <field name="name">Debre Markos University</field>
+    </record>
+    <record id="edu_inst_wolaita_sodo_university" model="hr.employee.education.institution">
+        <field name="name">Wolaita Sodo University</field>
+    </record>
+    <record id="edu_inst_wollega_university" model="hr.employee.education.institution">
+        <field name="name">Wollega University</field>
+    </record>
+    <record id="edu_inst_ambo_university" model="hr.employee.education.institution">
+        <field name="name">Ambo University</field>
+    </record>
+    <record id="edu_inst_jigjiga_university" model="hr.employee.education.institution">
+        <field name="name">Jigjiga University</field>
+    </record>
+    <record id="edu_inst_semera_university" model="hr.employee.education.institution">
+        <field name="name">Semera University</field>
+    </record>
+    <record id="edu_inst_assosa_university" model="hr.employee.education.institution">
+        <field name="name">Assosa University</field>
+    </record>
+    <record id="edu_inst_bule_hora_university" model="hr.employee.education.institution">
+        <field name="name">Bule Hora University</field>
+    </record>
+    <record id="edu_inst_dilla_university" model="hr.employee.education.institution">
+        <field name="name">Dilla University</field>
+    </record>
+    <record id="edu_inst_kotebe_university" model="hr.employee.education.institution">
+        <field name="name">Kotebe University of Education</field>
+    </record>
+    <record id="edu_inst_ecsu" model="hr.employee.education.institution">
+        <field name="name">Ethiopian Civil Service University</field>
+    </record>
+    <record id="edu_inst_unity_university" model="hr.employee.education.institution">
+        <field name="name">Unity University</field>
+    </record>
+    <record id="edu_inst_st_marys_university" model="hr.employee.education.institution">
+        <field name="name">St. Mary's University</field>
+    </record>
+    <record id="edu_inst_rift_valley_university" model="hr.employee.education.institution">
+        <field name="name">Rift Valley University</field>
+    </record>
+    <record id="edu_inst_admas_university" model="hr.employee.education.institution">
+        <field name="name">Admas University</field>
+    </record>
+    <record id="edu_inst_hilcoe" model="hr.employee.education.institution">
+        <field name="name">HiLCoE School of Computer Science and Technology</field>
+    </record>
+    <record id="edu_inst_alpha_university" model="hr.employee.education.institution">
+        <field name="name">Alpha University College</field>
+    </record>
+    <record id="edu_inst_wachemo_university" model="hr.employee.education.institution">
+        <field name="name">Wachemo University</field>
+    </record>
+    <record id="edu_inst_debre_tabor_university" model="hr.employee.education.institution">
+        <field name="name">Debre Tabor University</field>
+    </record>
+    <record id="edu_inst_woldia_university" model="hr.employee.education.institution">
+        <field name="name">Woldia University</field>
+    </record>
+    <record id="edu_inst_madda_walabu_university" model="hr.employee.education.institution">
+        <field name="name">Madda Walabu University</field>
+    </record>
+    <record id="edu_inst_mizan_tepi_university" model="hr.employee.education.institution">
+        <field name="name">Mizan-Tepi University</field>
+    </record>
+    <record id="edu_inst_other" model="hr.employee.education.institution">
+        <field name="name">Other</field>
+    </record>
+
+</odoo>

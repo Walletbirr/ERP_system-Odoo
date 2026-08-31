@@ -30,6 +30,19 @@
                 <attribute name="readonly">1</attribute>
             </xpath>
 
+            <!-- Wage: the base Contract form makes this readonly once
+                 the contract leaves draft/new (governance for Payroll >
+                 Contracts). The employee profile's Contract tab is
+                 where HR is expected to actively manage compensation
+                 though, so it's forced editable here regardless of
+                 contract state. A literal "0" (not a python expression
+                 referencing state) is used deliberately, so it wins
+                 outright over whatever readonly condition the base view
+                 applies, rather than needing to duplicate/guess it. -->
+            <xpath expr="//field[@name='wage']" position="attributes">
+                <attribute name="readonly">0</attribute>
+            </xpath>
+
             <!-- allowance_line_ids is not shown in this dialog (the
                  employee profile's Allowance tab is the surface for that
                  data - see hr.employee._sync_allowances_from_contract).

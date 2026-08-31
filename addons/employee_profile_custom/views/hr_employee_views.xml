@@ -26,6 +26,7 @@
                 <field name="locked_experience" invisible="1"/>
                 <field name="locked_certification" invisible="1"/>
                 <field name="locked_allowance" invisible="1"/>
+                <field name="locked_benefits" invisible="1"/>
                 <field name="locked_commitment" invisible="1"/>
                 <field name="first_contract_date" invisible="1"/>
                 <field name="contract_warning" invisible="1"/>
@@ -134,11 +135,11 @@
                         </div>
                         <div class="o_employee_profile_header_info_item">
                             <span class="o_employee_profile_header_info_label">Blood type</span>
-                            <field name="blood_type" readonly="1" nolabel="1"/>
+                            <field name="blood_type_id" readonly="1" nolabel="1"/>
                         </div>
                         <div class="o_employee_profile_header_info_item">
                             <span class="o_employee_profile_header_info_label">Marital Status</span>
-                            <field name="marital" readonly="1" nolabel="1"/>
+                            <field name="marital_status_id" readonly="1" nolabel="1"/>
                         </div>
                     </div>
 
@@ -185,10 +186,94 @@
             <xpath expr="//notebook" position="after">
 
               <div class="o_employee_profile_root">
-                <notebook class="o_employee_profile_notebook">
+                <field name="profile_step" invisible="1"/>
+                <field name="profile_wizard_active" invisible="1"/>
+
+                <!-- Custom tab bar: plain buttons, not a real notebook.
+                     Every single click here - including jumping straight
+                     to a tab far ahead - is a `type="object"` button call
+                     that round-trips through action_profile_step_goto in
+                     Python, so it gets exactly the same required-field
+                     validation as clicking Next does. There is no native
+                     browser tab-switch here for anyone to bypass. -->
+                <div class="o_employee_profile_tabbar" role="tablist">
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'personal'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'personal'">Personal Information</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'personal'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'personal'">Personal Information</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'guarantee'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'guarantee'">Guarantee Information</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'guarantee'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'guarantee'">Guarantee Information</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'education'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'education'">Educational Background</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'education'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'education'">Educational Background</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'experience'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'experience'">Experience</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'experience'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'experience'">Experience</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'contract'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'contract'">Contract</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'contract'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'contract'">Contract</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'allowance'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'allowance'">Allowance</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'allowance'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'allowance'">Allowance</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'commitment'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'commitment'">Commitment</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'commitment'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'commitment'">Commitment</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'document'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'document'">Document</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'document'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'document'">Document</button>
+                </div>
+
+                <div class="o_employee_profile_content">
 
                     <!-- ============== PERSONAL INFORMATION ============== -->
-                    <page string="Personal Information" name="personal_information">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'personal'">
                         <div class="o_employee_profile_grid">
 
                             <div class="o_employee_profile_card">
@@ -215,10 +300,9 @@
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Gender</span>
-                                    <field name="gender" readonly="locked_personal and id" nolabel="1"
-                                           placeholder="Select Gender"
-                                           selection="[('male', 'Male'), ('female', 'Female')]"/>
-                                    <span class="o_employee_profile_placeholder_text" invisible="gender or not (locked_personal and id)">Select Gender</span>
+                                    <field name="gender_id" readonly="locked_personal and id" nolabel="1"
+                                           placeholder="Select Gender"/>
+                                    <span class="o_employee_profile_placeholder_text" invisible="gender_id or not (locked_personal and id)">Select Gender</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Birth Date</span>
@@ -240,15 +324,15 @@
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Marital Status</span>
-                                    <field name="marital" readonly="locked_personal and id" nolabel="1"
+                                    <field name="marital_status_id" readonly="locked_personal and id" nolabel="1"
                                            placeholder="Select Status"/>
-                                    <span class="o_employee_profile_placeholder_text" invisible="marital or not (locked_personal and id)">Select Status</span>
+                                    <span class="o_employee_profile_placeholder_text" invisible="marital_status_id or not (locked_personal and id)">Select Status</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Blood Type</span>
-                                    <field name="blood_type" readonly="locked_personal and id" nolabel="1"
+                                    <field name="blood_type_id" readonly="locked_personal and id" nolabel="1"
                                            placeholder="Select Blood Type"/>
-                                    <span class="o_employee_profile_placeholder_text" invisible="blood_type or not (locked_personal and id)">Select Blood Type</span>
+                                    <span class="o_employee_profile_placeholder_text" invisible="blood_type_id or not (locked_personal and id)">Select Blood Type</span>
                                 </div>
                                 <div class="o_employee_profile_row">
                                     <span class="o_employee_profile_label">Identification No</span>
@@ -404,12 +488,16 @@
 
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'next': 'Guarantee Information', 'required': [{'name': 'name', 'label': 'Employee Name'}]}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== GUARANTEE INFORMATION ============== -->
-                    <page string="Guarantee Information" name="guarantee_information">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'guarantee'">
                         <div class="o_employee_profile_grid o_single_col">
                             <div class="o_employee_profile_card">
                                 <div class="o_employee_profile_card_header">
@@ -468,12 +556,20 @@
                             </div>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Personal Information', 'next': 'Education Background'}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== EDUCATION BACKGROUND ============== -->
-                    <page string="Education Background" name="education_background">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'education'">
 
                         <!-- ========== EDUCATION SECTION ========== -->
                         <div class="o_employee_profile_list_card o_employee_profile_section">
@@ -518,11 +614,11 @@
                                                 <field name="education_level" string="Education Level *"
                                                        placeholder="Select Level"/>
                                                 <field name="institution_name" string="Institution Name *"
-                                                       placeholder="e.g. Addis Ababa University"/>
+                                                       placeholder="Select Institution"/>
                                                 <field name="field_of_study"
-                                                       placeholder="e.g. Computer Science"/>
+                                                       placeholder="Select Field of Study"/>
                                                 <field name="degree"
-                                                       placeholder="e.g. B.Sc."/>
+                                                       placeholder="Select Degree"/>
                                             </group>
                                             <group string="STATUS &amp; LOCATION">
                                                 <field name="status" string="Status *"
@@ -629,12 +725,20 @@
                             </field>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Guarantee Information', 'next': 'Experience', 'required': [{'name': 'education_ids', 'label': 'Education'}, {'name': 'certification_ids', 'label': 'Certifications'}]}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== EXPERIENCE ============== -->
-                    <page string="Experience" name="experience">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'experience'">
                         <div class="o_employee_profile_list_card o_employee_profile_section">
                             <div class="o_employee_profile_card_header">
                                 <div class="o_employee_profile_section_title">
@@ -729,12 +833,20 @@
                             </field>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Education Background', 'next': 'Contract', 'required': [{'name': 'experience_ids', 'label': 'Work Experience'}]}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== CONTRACT ============== -->
-                    <page string="Contract" name="contract">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'contract'">
                         <div class="o_employee_profile_list_card">
                             <div class="o_employee_profile_card_header">
                                 <span class="o_employee_profile_card_title">Contracts</span>
@@ -763,12 +875,20 @@
                             </p>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Experience', 'next': 'Allowance'}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== ALLOWANCE ============== -->
-                    <page string="Allowance" name="allowance">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'allowance'">
                         <div class="o_employee_profile_list_card">
                             <div class="o_employee_profile_card_header">
                                 <span class="o_employee_profile_card_title">Allowances</span>
@@ -797,12 +917,52 @@
                             </field>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Contract', 'next': 'Commitment', 'required': [{'name': 'allowance_ids', 'label': 'Allowances'}]}"/>
-                    </page>
+                        <!-- ========== BENEFITS SECTION (non-payroll: Card Allowance, etc.) ========== -->
+                        <div class="o_employee_profile_list_card o_employee_profile_section mt-3">
+                            <div class="o_employee_profile_card_header">
+                                <div class="o_employee_profile_section_title">
+                                    <i class="fa fa-gift me-2"/>
+                                    <span class="o_employee_profile_card_title">Benefits</span>
+                                </div>
+                                <button name="action_unlock_benefits" type="object"
+                                        icon="fa-pencil" class="o_employee_profile_card_edit"
+                                        invisible="not locked_benefits or not id" title="Edit Benefits"/>
+                                <button name="action_lock_benefits" type="object"
+                                        icon="fa-check" class="o_employee_profile_card_done"
+                                        invisible="locked_benefits and id" title="Done"/>
+                            </div>
+                            <field name="benefit_line_ids" readonly="locked_benefits and id" nolabel="1">
+                                <list editable="bottom">
+                                    <field name="category_id" string="Benefit"
+                                           placeholder="Select Benefit"/>
+                                    <field name="option_id" string="Amount"
+                                           domain="[('category_id', '=', category_id), ('active', '=', True)]"
+                                           placeholder="Select Amount"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="current_amount" column_invisible="1"/>
+                                    <field name="note" column_invisible="1"/>
+                                    <field name="active" column_invisible="1"/>
+                                    <control>
+                                        <create string="Add Benefit"/>
+                                    </control>
+                                </list>
+                            </field>
+                        </div>
+
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== COMMITMENT ============== -->
-                    <page string="Commitment" name="commitment">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'commitment'">
                         <div class="o_employee_profile_list_card">
                             <div class="o_employee_profile_card_header">
                                 <span class="o_employee_profile_card_title">Commitments</span>
@@ -829,12 +989,20 @@
                             </field>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Allowance', 'next': 'Document', 'required': [{'name': 'commitment_ids', 'label': 'Commitments'}]}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- ============== DOCUMENT ============== -->
-                    <page string="Document" name="document">
+                    <div class="o_employee_profile_page" invisible="profile_step != 'document'">
                         <div class="o_employee_profile_grid o_single_col">
                             <div class="o_employee_profile_card">
                                 <div class="o_employee_profile_card_header">
@@ -844,11 +1012,15 @@
                             </div>
                         </div>
 
-                        <widget name="profile_step_nav"
-                                options="{'prev': 'Commitment'}"/>
-                    </page>
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                        </div>
+                    </div>
 
-                </notebook>
+                </div>
               </div>
 
             </xpath>

@@ -194,6 +194,61 @@
   }
 }
 
+/* ---- Top tab bar - plain buttons, not a real notebook.
+   Every button here calls action_profile_step_goto on the server, so
+   clicking any tab - not just Next - goes through the same
+   required-field validation. Styling is carried over unchanged from
+   the old .o_notebook/.nav-tabs version. ---- */
+.o_employee_profile_tabbar {
+  margin-top: 12px;
+  border-bottom: none;
+  gap: 6px;
+  background: #f1f3f6;
+  border-radius: 12px;
+  padding: 5px;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.o_employee_profile_tab_btn {
+  color: #6b7280;
+  font-weight: 550;
+  font-size: 13.5px;
+  border: none !important;
+  border-radius: 9px !important;
+  padding: 9px 16px;
+  background: transparent !important;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  box-shadow: none !important;
+}
+
+.o_employee_profile_tab_btn:hover {
+  color: #a06e03;
+  background: rgba(255, 255, 255, 0.7) !important;
+}
+
+.o_employee_profile_tab_btn_active {
+  color: #a06e03 !important;
+  font-weight: 650;
+  background: #ffffff !important;
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.1),
+    0 1px 2px rgba(16, 24, 40, 0.06) !important;
+}
+
+.o_employee_profile_content {
+  margin-top: 4px;
+}
+
+/* Each step's content block, shown/hidden purely via the invisible
+   modifier tied to profile_step - same underlying mechanism the old
+   .o_notebook page used, just without the notebook/bootstrap-tab
+   machinery around it. */
+.o_employee_profile_page {
+  padding-top: 4px;
+}
+
 /* ---- Top tab bar (the notebook) — modern professional style ---- */
 .o_employee_profile_root .o_notebook {
   margin-top: 12px;
@@ -1008,4 +1063,27 @@
   background: #8a5f02;
   border-color: #8a5f02;
   color: #ffffff;
+}
+
+/* ---- Auto-save status (Saving… / All changes saved) ---- */
+.o_employee_profile_autosave_status {
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 12px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.o_employee_profile_autosave_idle {
+  visibility: hidden; /* reserve the space so buttons don't jump around */
+}
+
+.o_employee_profile_autosave_saving {
+  color: #a06e03;
+}
+
+.o_employee_profile_autosave_saved {
+  color: #16a34a;
 }

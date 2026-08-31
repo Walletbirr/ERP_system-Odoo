@@ -4,7 +4,7 @@
     "name": "Payroll Summary Report",
     "summary": "Print/export a payroll summary (PDF & Excel) across batches or employees, "
     "with one column per salary rule",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.14.0",
     "category": "Human Resources/Payroll",
     "author": "Binget Holding",
     "license": "AGPL-3",

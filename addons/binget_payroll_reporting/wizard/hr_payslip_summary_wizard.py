@@ -4,6 +4,70 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
+# Rows per PDF page (landscape A4) with readable font sizes.
+ROWS_PER_PAGE = 25
+
+# Non-taxable portion of transport allowance (Ethiopian payroll practice).
+TRANSPORT_TAX_FREE = 600.0
+TAXABLE_TRANSPORT_CODE = "__TAXABLE_TRANSPORT__"
+TAXABLE_TRANSPORT_NAME = "Taxable Transport Allowance"
+
+
+def _split_header_name(name, max_chars=14):
+    """Split a long column title into short lines for a compact header.
+    Prefers breaking on spaces (e.g. 'Position Allowance' → ['Position', 'Allowance']).
+    """
+    name = (name or "").strip()
+    if not name:
+        return [""]
+    words = name.split()
+    if len(words) == 1:
+        if len(name) <= max_chars:
+            return [name]
+        lines = []
+        while name:
+            lines.append(name[:max_chars])
+            name = name[max_chars:]
+        return lines
+    lines = []
+    current = words[0]
+    for w in words[1:]:
+        if len(current) + 1 + len(w) <= max_chars:
+            current = current + " " + w
+        else:
+            lines.append(current)
+            current = w
+    lines.append(current)
+    return lines
+
+
+def _split_employee_name(name, max_chars=20):
+    """Wrap long employee names onto at most 2 lines (readable, not compressed)."""
+    name = (name or "").strip()
+    if not name or len(name) <= max_chars:
+        return [name]
+    words = name.split()
+    if len(words) == 1:
+        return [name[:max_chars], name[max_chars:]] if len(name) > max_chars else [name]
+    lines = []
+    current = words[0]
+    for w in words[1:]:
+        if len(current) + 1 + len(w) <= max_chars:
+            current = current + " " + w
+        else:
+            lines.append(current)
+            current = w
+    lines.append(current)
+    if len(lines) > 2:
+        lines = [lines[0], " ".join(lines[1:])]
+    return lines
+
+
+def _is_transport_column(col):
+    """Detect the Transport Allowance column by label or code."""
+    label = (col.get("name") or col.get("code") or "").lower()
+    return "transport" in label and "taxable" not in label
+
 
 class HrPayslipSummaryReport(models.TransientModel):
     _name = "hr.payslip.summary.report"
@@ -50,12 +114,6 @@ class HrPayslipSummaryReport(models.TransientModel):
             raise UserError(
                 _("Select at least one batch or one employee before printing.")
             )
-        # The date range is only used as a real filter when no batch is
-        # selected (pure employee-based lookup). Once a batch is picked, the
-        # batch membership alone determines what's included - this avoids
-        # any edge case where combining non-contiguous batches (e.g. one in
-        # March, one in September) and then manually narrowing the date
-        # fields could accidentally exclude one of the batches.
         if not self.batch_ids:
             if self.date_from:
                 domain.append(("date_from", ">=", self.date_from))
@@ -65,23 +123,81 @@ class HrPayslipSummaryReport(models.TransientModel):
             domain.append(("state", "=", "done"))
         return self.env["hr.payslip"].search(domain, order="employee_id, date_from")
 
+    def _chunk_rows(self, rows, columns):
+        """Split rows into pages of ROWS_PER_PAGE and compute per-page totals."""
+        pages = []
+        for i in range(0, len(rows), ROWS_PER_PAGE):
+            chunk = rows[i : i + ROWS_PER_PAGE]
+            page_totals = {c["code"]: 0.0 for c in columns}
+            for row in chunk:
+                for code, amount in row["values"].items():
+                    page_totals[code] = page_totals.get(code, 0.0) + amount
+            pages.append(
+                {
+                    "rows": chunk,
+                    "page_totals": page_totals,
+                    "page_num": len(pages) + 1,
+                    "is_last": False,
+                }
+            )
+        if pages:
+            pages[-1]["is_last"] = True
+        return pages
+
+    def _insert_taxable_transport(self, columns, rows, totals):
+        """Insert 'Taxable Transport Allowance' right after Transport Allowance.
+
+        Taxable amount = max(0, transport_allowance - 600).
+        """
+        transport_idx = None
+        transport_code = None
+        for i, col in enumerate(columns):
+            if _is_transport_column(col):
+                transport_idx = i
+                transport_code = col["code"]
+                break
+
+        if transport_idx is None:
+            # No transport column found — nothing to add
+            return columns, rows, totals
+
+        taxable_col = {
+            "code": TAXABLE_TRANSPORT_CODE,
+            "name": TAXABLE_TRANSPORT_NAME,
+            "sequence": columns[transport_idx]["sequence"] + 0.5,
+            "name_lines": _split_header_name(TAXABLE_TRANSPORT_NAME),
+        }
+        columns = (
+            columns[: transport_idx + 1]
+            + [taxable_col]
+            + columns[transport_idx + 1 :]
+        )
+
+        taxable_total = 0.0
+        for row in rows:
+            transport_amt = row["values"].get(transport_code, 0.0) or 0.0
+            taxable = max(0.0, transport_amt - TRANSPORT_TAX_FREE)
+            row["values"][TAXABLE_TRANSPORT_CODE] = taxable
+            taxable_total += taxable
+
+        totals[TAXABLE_TRANSPORT_CODE] = taxable_total
+        return columns, rows, totals
+
     def _get_report_data(self):
         """Build the pivoted report data: one column per distinct salary
         rule found on the matched payslips (ordered by rule sequence), one
         row per payslip, plus a totals row. Purely dynamic - if you add,
-        rename or remove salary rules, this report adapts on its own."""
+        rename or remove salary rules, this report adapts on its own.
+
+        Also inserts Taxable Transport Allowance (Transport - 600) next to
+        Transport Allowance, and splits rows into pages for PDF page totals.
+        """
         self.ensure_one()
         payslips = self._get_payslips()
         if not payslips:
             raise UserError(_("No payslips match the selected filters."))
 
         lines = payslips.mapped("line_ids")
-        # De-duplicate report columns. If a rule has a report_group_label
-        # set (e.g. TRANS and TRANS2 both labelled "Transport Allowance"),
-        # group and sum them under that single label - this is what makes
-        # the printed report look clean/professional even though several
-        # internal rules feed into it. Rules without a label keep behaving
-        # exactly as before: one column per rule, keyed by its own code.
         seen = {}
         for line in lines:
             rule = line.salary_rule_id
@@ -94,6 +210,8 @@ class HrPayslipSummaryReport(models.TransientModel):
                     "sequence": line.sequence,
                 }
         columns = [seen[c] for c in sorted(seen, key=lambda c: seen[c]["sequence"])]
+        for col in columns:
+            col["name_lines"] = _split_header_name(col["name"])
 
         rows = []
         totals = {c["code"]: 0.0 for c in columns}
@@ -103,40 +221,55 @@ class HrPayslipSummaryReport(models.TransientModel):
                 key = line.salary_rule_id.report_group_label or line.code or line.name
                 values[key] = values.get(key, 0.0) + line.total
                 totals[key] = totals.get(key, 0.0) + line.total
+            emp_name = payslip.employee_id.name or ""
             rows.append(
                 {
-                    "employee": payslip.employee_id.name,
-                    "reference": payslip.number or payslip.name,
+                    "employee": emp_name,
+                    "employee_lines": _split_employee_name(emp_name),
+                    "reference": payslip.number or payslip.name or "",
                     "date_from": payslip.date_from,
                     "date_to": payslip.date_to,
                     "values": values,
                 }
             )
 
+        columns, rows, totals = self._insert_taxable_transport(columns, rows, totals)
+
+        pages = self._chunk_rows(rows, columns)
+        # Employee ~14%; remaining width split across amount columns
+        col_width_pct = (86.0 / len(columns)) if columns else 10.0
+
         return {
             "columns": columns,
             "rows": rows,
+            "pages": pages,
             "totals": totals,
+            "col_width_pct": col_width_pct,
             "wizard": self,
             "company": self.env.company,
             "batches_label": ", ".join(self.batch_ids.mapped("name")) or "-",
-            "period_from": min((r["date_from"] for r in rows if r["date_from"]), default=False),
-            "period_to": max((r["date_to"] for r in rows if r["date_to"]), default=False),
+            "period_from": min(
+                (r["date_from"] for r in rows if r["date_from"]), default=False
+            ),
+            "period_to": max(
+                (r["date_to"] for r in rows if r["date_to"]), default=False
+            ),
             "generated_on": fields.Datetime.context_timestamp(
                 self, fields.Datetime.now()
             ),
+            "total_pages": len(pages),
         }
 
     def action_print_pdf(self):
         self.ensure_one()
-        self._get_report_data()  # validates filters before opening the report
+        self._get_report_data()
         return self.env.ref(
             "binget_payroll_reporting.action_report_hr_payslip_summary"
         ).report_action(self)
 
     def action_export_xlsx(self):
         self.ensure_one()
-        self._get_report_data()  # validates filters before hitting the controller
+        self._get_report_data()
         return {
             "type": "ir.actions.act_url",
             "url": f"/binget_payroll_reporting/xlsx/{self.id}",
@@ -145,10 +278,6 @@ class HrPayslipSummaryReport(models.TransientModel):
 
 
 class ReportHrPayslipSummary(models.AbstractModel):
-    # Name must be "report.<report_name>" where <report_name> matches the
-    # `report_name` field of the ir.actions.report record - this is how
-    # Odoo's qweb-pdf rendering finds the parser and calls
-    # _get_report_values(docids, data) to build the template context.
     _name = "report.binget_payroll_reporting.report_hr_payslip_summary"
     _description = "Payroll Summary Report Parser"
 

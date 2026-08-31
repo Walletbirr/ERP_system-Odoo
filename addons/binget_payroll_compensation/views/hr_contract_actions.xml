@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Adds "Backfill Payroll Defaults" to the Action (gear) menu on the
+        Contracts list view. Select any contracts (old or new, one or
+        all) and run it - it fills in journal, analytic account,
+        structure, wage, and allowance lines wherever they're currently
+        blank, using each contract's Job Position and the company's
+        Payroll settings. Never touches a field that already has a real
+        value, so it is always safe to select everything and run it.
+    -->
+    <record id="action_binget_backfill_payroll_defaults" model="ir.actions.server">
+        <field name="name">Backfill Payroll Defaults (Journal, Wage, Allowances)</field>
+        <field name="model_id" ref="hr_contract.model_hr_contract"/>
+        <field name="binding_model_id" ref="hr_contract.model_hr_contract"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">records.action_binget_backfill_payroll_defaults()</field>
+    </record>
+</odoo>

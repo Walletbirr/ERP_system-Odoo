@@ -1,6 +1,6 @@
 {
     'name': 'Employee Profile Custom UI',
-    'version': '18.0.3.16.0',
+    'version': '18.0.3.20.0',
     'category': 'Human Resources',
     'summary': 'Redesigned Employee profile: top tab bar, card-based sections, per-section edit pencil icons',
     'description': """
@@ -11,7 +11,7 @@ card-based profile layout inspired by modern HRIS UIs:
 
 - Personal Information
 - Guarantee Information
-- Education Background (Education + Certifications combined)
+- Educational Background (Education + Certifications combined)
 - Experience
 - Contract
 - Allowance
@@ -25,24 +25,38 @@ section for editing, and a check (done) icon to lock it back after saving.
 Contract details open the real Contract record in a dialog so all native
 contract logic (Enterprise/Community) keeps working untouched.
 
-Education Background tab now contains two independent sections
+Educational Background tab now contains two independent sections
 (Education and Certifications) with separate lock controls and
-improved modal forms.
+improved modal forms. Education Level, Institution Name, Field of
+Study and Degree/Qualification are configurable master data managed
+under Employees > Configuration > Educational Background, the same
+way core Odoo's Employee Tags are managed - HR can add, rename or
+archive options without touching code.
+
+Gender is restricted to Male/Female (the core "Other" option is removed).
+
+Gender, Marital Status, and Blood Type are now configurable master
+data too, managed under Employees > Configuration > Personal
+Information, the same pattern as Employee Tags - HR can add, rename,
+or delete options directly, no code changes needed.
     """,
     'author': 'Custom Development',
-    'depends': ['hr', 'hr_contract', 'binget_payroll_compensation'],
+    'depends': ['hr', 'hr_contract', 'binget_payroll_compensation', 'binget_employee_benefits'],
     'data': [
         'security/ir.model.access.csv',
+        'data/hr_employee_education_config_data.xml',
+        'data/hr_employee_profile_config_data.xml',
         'views/hr_contract_views.xml',
         'views/hr_employee_allowance_views.xml',
+        'views/hr_employee_other_allowance_views.xml',
         'views/hr_employee_commitment_views.xml',
+        'views/hr_employee_education_config_views.xml',
+        'views/hr_employee_profile_config_views.xml',
         'views/hr_employee_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
             'employee_profile_custom/static/src/css/employee_profile.css',
-            'employee_profile_custom/static/src/js/employee_profile_stepper.js',
-            'employee_profile_custom/static/src/xml/employee_profile_stepper.xml',
         ],
     },
     'installable': True,

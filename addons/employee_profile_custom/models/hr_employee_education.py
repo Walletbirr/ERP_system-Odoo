@@ -13,19 +13,20 @@ class HrEmployeeEducation(models.Model):
     name = fields.Char(
         string='Summary', compute='_compute_name', store=True)
 
-    education_level = fields.Selection([
-        ('high_school', 'High School'),
-        ('diploma', 'Diploma'),
-        ('bachelor', 'Bachelor'),
-        ('master', 'Master'),
-        ('phd', 'PhD'),
-        ('other', 'Other'),
-    ], string='Education Level', required=True, default='bachelor')
-
-    institution_name = fields.Char(string='Institution Name', required=True)
-    field_of_study = fields.Char(string='Field of Study / Major')
-    degree = fields.Char(
-        string='Degree / Qualification',
+    # ------------------------------------------------------------------
+    # These four fields are configurable master data, managed under
+    # Employees > Configuration > Educational Background (same pattern
+    # as core Odoo's Employee Tags). HR can add/rename/archive options
+    # there without touching code.
+    # ------------------------------------------------------------------
+    education_level = fields.Many2one(
+        'hr.employee.education.level', string='Education Level', required=True)
+    institution_name = fields.Many2one(
+        'hr.employee.education.institution', string='Institution Name', required=True)
+    field_of_study = fields.Many2one(
+        'hr.employee.education.field', string='Field of Study / Major')
+    degree = fields.Many2one(
+        'hr.employee.education.degree', string='Degree / Qualification',
         help="e.g. B.Sc., B.A., Diploma, Certificate")
 
     date_start = fields.Date(string='Start Date', required=True)
@@ -53,8 +54,10 @@ class HrEmployeeEducation(models.Model):
 
     @api.depends('education_level', 'degree', 'field_of_study', 'institution_name')
     def _compute_name(self):
-        level_labels = dict(self._fields['education_level'].selection)
         for rec in self:
-            label = rec.degree or level_labels.get(rec.education_level, '')
-            parts = [p for p in (label, rec.field_of_study, rec.institution_name) if p]
+            label = rec.degree.name if rec.degree else (rec.education_level.name or '')
+            parts = [
+                p for p in (label, rec.field_of_study.name, rec.institution_name.name)
+                if p
+            ]
             rec.name = ' - '.join(parts) or 'New Education Entry'
