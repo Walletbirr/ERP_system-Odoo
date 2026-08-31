@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_hr_employee_benefit_line_smart" model="ir.actions.act_window">
+        <field name="name">Benefits</field>
+        <field name="res_model">hr.employee.benefit.line</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('employee_id', '=', active_id)]</field>
+        <field name="context">{'default_employee_id': active_id}</field>
+    </record>
+
+    <record id="view_employee_form_inherit_benefits" model="ir.ui.view">
+        <field name="name">hr.employee.form.inherit.benefits</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="%(action_hr_employee_benefit_line_smart)d" type="action"
+                        class="oe_stat_button" icon="fa-mobile">
+                    <field name="benefit_count" widget="statinfo" string="Benefits"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Benefits" name="benefits">
+                    <p class="text-muted">
+                        Non-payroll company benefits (e.g. mobile/airtime
+                        card). This is entirely separate from Payroll -
+                        nothing entered here can affect a payslip. Pick a
+                        Category, then a Value from that category's own
+                        dropdown (categories and their values are set up
+                        under Employees > Configuration > Benefit
+                        Categories) - no amount is typed here. "Current
+                        Amount" is a preview only; Accounting resolves the
+                        real amount for the batch's own period when it
+                        computes.
+                    </p>
+                    <field name="benefit_line_ids">
+                        <list editable="bottom">
+                            <field name="category_id" string="Benefit"/>
+                            <field name="option_id" string="Amount"
+                                   domain="[('category_id', '=', category_id), ('active', '=', True)]"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="current_amount" column_invisible="1"/>
+                            <field name="note" column_invisible="1"/>
+                            <field name="active" column_invisible="1"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

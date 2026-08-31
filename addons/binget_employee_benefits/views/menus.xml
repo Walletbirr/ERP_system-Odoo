@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Accounting > Accounting > Employee Benefits
+         Only three children: Single Employee, All Employees, Account Configuration.
+         Generate is a button (modal) on the All Employees page, not a menu item. -->
+    <menuitem id="menu_hr_benefits_root"
+              name="Employee Benefits"
+              parent="account.menu_finance_entries"
+              sequence="5"
+              groups="account.group_account_invoice,account.group_account_manager"/>
+
+    <menuitem id="menu_hr_benefit_batch_single"
+              name="Single Employee"
+              action="action_hr_benefit_batch_single"
+              parent="menu_hr_benefits_root"
+              sequence="10"
+              groups="account.group_account_invoice,account.group_account_manager"/>
+
+    <menuitem id="menu_hr_benefit_batch_all"
+              name="All Employees"
+              action="action_hr_benefit_batch_all"
+              parent="menu_hr_benefits_root"
+              sequence="20"
+              groups="account.group_account_invoice,account.group_account_manager"/>
+
+    <menuitem id="menu_hr_benefit_account_config"
+              name="Account Configuration"
+              action="action_hr_benefit_account_config_open"
+              parent="menu_hr_benefits_root"
+              sequence="30"
+              groups="account.group_account_manager"/>
+
+    <!-- Employees > Configuration > Benefit Categories -->
+    <menuitem id="menu_hr_benefit_category_hr"
+              name="Benefit Categories"
+              action="action_hr_benefit_category_hr"
+              parent="hr.menu_human_resources_configuration"
+              sequence="5"
+              groups="hr.group_hr_user"/>
+
+</odoo>

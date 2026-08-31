@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_hr_benefit_batch_search" model="ir.ui.view">
+        <field name="name">hr.benefit.batch.search</field>
+        <field name="model">hr.benefit.batch</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="department_id"/>
+                <filter string="Draft" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Computed" name="computed" domain="[('state','=','computed')]"/>
+                <filter string="Posted" name="posted" domain="[('state','=','posted')]"/>
+                <separator/>
+                <filter string="Monthly" name="monthly" domain="[('period_type','=','monthly')]"/>
+                <filter string="Yearly" name="yearly" domain="[('period_type','=','yearly')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Employee" name="group_employee" context="{'group_by': 'employee_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Period" name="group_period" context="{'group_by': 'period_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- List without Generate (used by Single Employee) -->
+    <record id="view_hr_benefit_batch_list" model="ir.ui.view">
+        <field name="name">hr.benefit.batch.list</field>
+        <field name="model">hr.benefit.batch</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'draft'">
+                <field name="name"/>
+                <field name="employee_id" optional="show"/>
+                <field name="period_type" optional="show"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="line_count"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="total_amount" sum="Total"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'posted'"
+                       decoration-info="state == 'computed'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- All Employees list: New only (no Generate on the list) -->
+    <record id="view_hr_benefit_batch_list_all" model="ir.ui.view">
+        <field name="name">hr.benefit.batch.list.all</field>
+        <field name="model">hr.benefit.batch</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'draft'">
+                <field name="name"/>
+                <field name="period_type" optional="show"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="line_count"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="total_amount" sum="Total"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'posted'"
+                       decoration-info="state == 'computed'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Single Employee form - no journal field; uses Account Configuration -->
+    <record id="view_hr_benefit_batch_form_single" model="ir.ui.view">
+        <field name="name">hr.benefit.batch.form.single</field>
+        <field name="model">hr.benefit.batch</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_compute" type="object" string="Compute"
+                            class="btn-primary" invisible="state == 'posted'"/>
+                    <button name="action_post" type="object" string="Post"
+                            class="btn-primary"
+                            invisible="state != 'computed'"
+                            confirm="This will create and post a journal entry for every included line. Continue?"/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft"
+                            invisible="state == 'draft' or move_count &gt; 0"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,computed,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_moves" type="object"
+                                class="oe_stat_button" icon="fa-book"
+                                invisible="move_count == 0">
+                            <field name="move_count" widget="statinfo" string="Journal Entries"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="period_type"/>
+                            <field name="month" invisible="period_type != 'monthly'" required="period_type == 'monthly'"/>
+                            <field name="year" placeholder="e.g. 2026"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_amount"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Lines" name="lines">
+                            <field name="line_ids" readonly="state == 'draft'">
+                                <list editable="bottom" decoration-muted="not include">
+                                    <field name="employee_id"/>
+                                    <field name="category_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount"/>
+                                    <field name="include"/>
+                                    <field name="move_id" readonly="1"/>
+                                    <button name="action_post_single" type="object"
+                                            string="Post" class="btn-link"
+                                            invisible="move_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- All Employees form: Generate lives here (after New), not on the list -->
+    <record id="view_hr_benefit_batch_form_all" model="ir.ui.view">
+        <field name="name">hr.benefit.batch.form.all</field>
+        <field name="model">hr.benefit.batch</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open_generate_wizard" type="object"
+                            string="Generate" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_compute" type="object" string="Compute"
+                            class="btn-primary" invisible="state == 'posted'"/>
+                    <button name="action_post" type="object" string="Post"
+                            class="btn-primary"
+                            invisible="state != 'computed'"
+                            confirm="This will create and post a journal entry for every included line. Continue?"/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft"
+                            invisible="state == 'draft' or move_count &gt; 0"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,computed,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_moves" type="object"
+                                class="oe_stat_button" icon="fa-book"
+                                invisible="move_count == 0">
+                            <field name="move_count" widget="statinfo" string="Journal Entries"/>
+                        </button>
+                    </div>
+                    <field name="employee_id" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name"/></h1>
+                        <p class="text-muted mb-0">
+                            Use Generate to select employees (one, several, or all)
+                            and compute their benefits for this period. Journal and
+                            accounts come from Account Configuration.
+                        </p>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="period_type"/>
+                            <field name="month" invisible="period_type != 'monthly'" required="period_type == 'monthly'"/>
+                            <field name="year" placeholder="e.g. 2026"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_amount"/>
+                        </group>
+                    </group>
+                    <group string="Narrow This Run (optional)" invisible="state != 'draft'">
+                        <field name="department_id"/>
+                        <field name="restrict_employee_ids" widget="many2many_tags"/>
+                    </group>
+                    <notebook>
+                        <page string="Lines" name="lines">
+                            <field name="line_ids" readonly="state == 'draft'">
+                                <list editable="bottom" decoration-muted="not include">
+                                    <field name="employee_id"/>
+                                    <field name="category_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount"/>
+                                    <field name="include"/>
+                                    <field name="move_id" readonly="1"/>
+                                    <button name="action_post_single" type="object"
+                                            string="Post" class="btn-link"
+                                            invisible="move_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_benefit_batch_single" model="ir.actions.act_window">
+        <field name="name">Single Employee</field>
+        <field name="res_model">hr.benefit.batch</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hr_benefit_batch_search"/>
+        <field name="domain">[('employee_id', '!=', False)]</field>
+        <field name="context">{'search_default_group_employee': 0, 'default_employee_id': False}</field>
+        <field name="view_ids" eval="[
+            (5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_hr_benefit_batch_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_hr_benefit_batch_form_single')}),
+        ]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Compute and post one employee's benefits
+            </p>
+            <p>
+                Pick the employee and the period (Monthly or Yearly), hit
+                Compute to pull their configured benefit(s) automatically,
+                review, then Post - independent of the run for everyone else.
+                Uses the accounts and journal from Account Configuration.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_hr_benefit_batch_all" model="ir.actions.act_window">
+        <field name="name">All Employees</field>
+        <field name="res_model">hr.benefit.batch</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hr_benefit_batch_search"/>
+        <field name="domain">[('employee_id', '=', False)]</field>
+        <field name="context">{'default_employee_id': False}</field>
+        <field name="view_ids" eval="[
+            (5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_hr_benefit_batch_list_all')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_hr_benefit_batch_form_all')}),
+        ]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Start a new All Employees run
+            </p>
+            <p>
+                Click New, set the period, then Generate to select employees
+                (one, several, or all) and compute their benefits. Review the
+                lines, then Post. Uses accounts and journal from Account
+                Configuration.
+            </p>
+        </field>
+    </record>
+
+    <!-- Generate wizard modal - like Payroll Generate Payslips -->
+    <record id="view_hr_benefit_batch_generate_wizard_form" model="ir.ui.view">
+        <field name="name">hr.benefit.batch.generate.wizard.form</field>
+        <field name="model">hr.benefit.batch.generate.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generate Employee Benefits">
+                <p class="text-muted">
+                    Select employees (one, several, or leave empty for everyone)
+                    and the period. Generate will compute their benefits and
+                    show them on the batch lines, ready to review and post.
+                    Journal and accounts come from Account Configuration.
+                </p>
+                <group>
+                    <group>
+                        <field name="period_type"/>
+                        <field name="month" invisible="period_type != 'monthly'" required="period_type == 'monthly'"/>
+                        <field name="year" placeholder="e.g. 2026"/>
+                        <field name="date_from" readonly="1"/>
+                        <field name="date_to" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="department_id"/>
+                    </group>
+                </group>
+                <group string="Employees">
+                    <field name="employee_ids" nolabel="1" colspan="2">
+                        <list>
+                            <field name="name"/>
+                            <field name="work_phone" optional="hide"/>
+                            <field name="work_email" optional="hide"/>
+                            <field name="department_id"/>
+                            <field name="job_id" optional="show"/>
+                            <field name="parent_id" optional="hide"/>
+                        </list>
+                    </field>
+                </group>
+                <footer>
+                    <button name="action_generate" type="object" string="Generate"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_benefit_batch_generate_wizard" model="ir.actions.act_window">
+        <field name="name">Generate Employee Benefits</field>
+        <field name="res_model">hr.benefit.batch.generate.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_hr_benefit_batch_generate_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+
+</odoo>
