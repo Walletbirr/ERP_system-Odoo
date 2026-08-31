@@ -32,6 +32,13 @@ class BhManagementDashboard(models.Model):
         # period movement, so it always reflects the true balance an
         # executive would expect (see _get_cash_at_bank_data docstring).
         finance_data['cash_at_bank'] = self._get_cash_at_bank_data(date_to)
+        # Receivable / Payable — Chart of Accounts balance as of date_to,
+        # same approach as Cash & Bank, overriding the invoice-residual
+        # figures computed above (see _get_receivable_payable_data
+        # docstring for why).
+        rp = self._get_receivable_payable_data(date_to)
+        finance_data['summary']['total_receivable'] = rp['total_receivable']
+        finance_data['summary']['total_payable'] = rp['total_payable']
 
         return {
             'sales':         self._get_sales_data(date_from, date_to),
@@ -189,8 +196,16 @@ class BhManagementDashboard(models.Model):
     def _get_finance_data(self, date_from, date_to):
         """
         Fix: use invoice_date (DATE column — no timezone cast needed).
-        total_receivable / total_payable are lifetime figures (not date-filtered)
-        so executives always see outstanding balances.
+
+        total_receivable / total_payable are NOT computed here anymore —
+        they used to be summed from account_move.amount_residual, bounded
+        by the same invoice_date window as total_invoices/total_invoiced,
+        which contradicted their own "lifetime, not date-filtered" intent
+        (an unpaid invoice from an earlier period would silently drop out
+        of Receivables the moment the dashboard period moved past it).
+        They are now overwritten by get_dashboard_data() with the Chart
+        of Accounts balance from _get_receivable_payable_data(), matching
+        the Cash & Bank approach. See that method's docstring for why.
         """
         # Period summary
         self.env.cr.execute("""
@@ -200,17 +215,7 @@ class BhManagementDashboard(models.Model):
                 COALESCE(SUM(
                     CASE WHEN move_type = 'out_invoice' AND state = 'posted'
                          THEN amount_total ELSE 0 END
-                ), 0)                                           AS total_invoiced,
-                COALESCE(SUM(
-                    CASE WHEN move_type = 'out_invoice' AND state = 'posted'
-                              AND payment_state NOT IN ('paid','reversed')
-                         THEN amount_residual ELSE 0 END
-                ), 0)                                           AS total_receivable,
-                COALESCE(SUM(
-                    CASE WHEN move_type = 'in_invoice' AND state = 'posted'
-                              AND payment_state NOT IN ('paid','reversed')
-                         THEN amount_residual ELSE 0 END
-                ), 0)                                           AS total_payable
+                ), 0)                                           AS total_invoiced
             FROM account_move
             WHERE invoice_date BETWEEN %s::date AND %s::date
         """, (date_from, date_to))
@@ -322,6 +327,60 @@ class BhManagementDashboard(models.Model):
                 'bank_provider':  b['bank_provider'],
                 'balance':        b['balance'],
             } for b in banks],
+        }
+
+    # ─────────────────────────────────────────────────────────────────────
+    # RECEIVABLE / PAYABLE
+    # ─────────────────────────────────────────────────────────────────────
+    def _get_receivable_payable_data(self, date_to):
+        """Receivable & Payable, taken from the Chart of Accounts balance
+        of every account of type 'asset_receivable' / 'liability_payable'
+        — i.e. exactly what Odoo's own "Balance" smart button shows on
+        those accounts — same approach as _get_cash_at_bank_data, and for
+        the same reason: summing account_move.amount_residual per-invoice
+        can drift from the true GL balance (write-offs, manual journal
+        entries against the AR/AP account, exchange adjustments, credit
+        notes reconciled outside the invoice, etc. all move the account
+        balance without necessarily moving amount_residual in lockstep).
+
+        Like Cash & Bank, this is a running total as of date_to, NOT
+        bounded by date_from — Receivable/Payable are point-in-time
+        balances, not period movements, so switching the dashboard
+        period still shows "balance as of the end of that period"
+        rather than zeroing out for any period that isn't this month.
+
+        Sign convention: asset_receivable accounts are debit-normal, so
+        SUM(balance) is already positive when customers owe money.
+        liability_payable accounts are credit-normal, so SUM(balance) is
+        negative when the company owes money — negated here so
+        total_payable is reported as a positive "amount owed" figure,
+        matching how total_receivable reads and how the mobile/web UI
+        already expects it.
+        """
+        self.env.cr.execute("""
+            SELECT
+                COALESCE(SUM(
+                    CASE WHEN aa.account_type = 'asset_receivable'
+                         THEN aml.balance ELSE 0 END
+                ), 0)  AS total_receivable,
+                COALESCE(SUM(
+                    CASE WHEN aa.account_type = 'liability_payable'
+                         THEN -aml.balance ELSE 0 END
+                ), 0)  AS total_payable
+            FROM account_move_line aml
+            JOIN account_account aa
+              ON aa.id = aml.account_id
+            WHERE aa.account_type IN ('asset_receivable', 'liability_payable')
+              AND aml.parent_state = 'posted'
+              AND aml.company_id  = %s
+              AND aml.date       <= %s::date
+        """, (self.env.company.id, date_to))
+        row = self.env.cr.dictfetchone()
+
+        return {
+            'total_receivable': row['total_receivable'],
+            'total_payable':    row['total_payable'],
+            'as_of':            date_to,
         }
 
     # ─────────────────────────────────────────────────────────────────────
