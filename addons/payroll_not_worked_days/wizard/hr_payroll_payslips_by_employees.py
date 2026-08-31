@@ -75,13 +75,11 @@ class HrPayslipEmployees(models.TransientModel):
     def compute_sheet(self):
         self.ensure_one()
 
-        # Keep only lines that actually have an employee
         valid_lines = self.line_ids.filtered(lambda l: l.employee_id)
 
         if not valid_lines and not self.employee_ids:
             raise UserError(_("You must select employee(s) to generate payslip(s)."))
 
-        # If lines are missing but employees are selected, rebuild them
         if not valid_lines and self.employee_ids:
             self._onchange_employee_ids()
             valid_lines = self.line_ids.filtered(lambda l: l.employee_id)
@@ -112,28 +110,8 @@ class HrPayslipEmployees(models.TransientModel):
             )
             value = slip_data.get("value", {})
 
+            # Build normal input lines from structure (no UNPAID_DAYS yet)
             input_lines = [(0, 0, x) for x in value.get("input_line_ids", [])]
-            if line.not_worked_days:
-                contract_id = value.get("contract_id")
-                if not contract_id and employee:
-                    contracts = employee._get_contracts(
-                        date_from=from_date, date_to=to_date
-                    )
-                    contract_id = contracts[:1].id if contracts else False
-
-                input_lines.append(
-                    (
-                        0,
-                        0,
-                        {
-                            "name": _("Not Worked Days"),
-                            "code": "UNPAID_DAYS",
-                            "amount": line.not_worked_days,
-                            "contract_id": contract_id,
-                            "sequence": 90,
-                        },
-                    )
-                )
 
             res = {
                 "employee_id": employee.id,
@@ -150,7 +128,30 @@ class HrPayslipEmployees(models.TransientModel):
                 "credit_note": credit_note,
                 "company_id": employee.company_id.id,
             }
-            payslips += self.env["hr.payslip"].create(res)
+            payslip = self.env["hr.payslip"].create(res)
+
+            # Inject UNPAID_DAYS AFTER create (more reliable)
+            if line.not_worked_days:
+                contract = payslip.contract_id
+                if not contract:
+                    contracts = employee._get_contracts(
+                        date_from=from_date, date_to=to_date
+                    )
+                    contract = contracts[:1]
+
+                if contract:
+                    self.env["hr.payslip.input"].create(
+                        {
+                            "payslip_id": payslip.id,
+                            "name": _("Not Worked Days"),
+                            "code": "UNPAID_DAYS",
+                            "amount": line.not_worked_days,
+                            "contract_id": contract.id,
+                            "sequence": 90,
+                        }
+                    )
+
+            payslips += payslip
 
         payslips._compute_name()
         payslips.compute_sheet()
@@ -167,8 +168,6 @@ class HrPayslipEmployeesLine(models.TransientModel):
         required=True,
         ondelete="cascade",
     )
-    # Not required at DB level so empty phantom lines from the UI
-    # do not block the Generate button. We filter them in compute_sheet.
     employee_id = fields.Many2one(
         "hr.employee",
         string="Employee",
