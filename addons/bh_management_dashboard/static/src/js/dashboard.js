@@ -2,7 +2,7 @@
 
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { Component, useState, onMounted, onPatched, onWillUnmount } from "@odoo/owl";
+import { Component, useState, onMounted, onPatched, onWillUnmount, markup } from "@odoo/owl";
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -14,7 +14,25 @@ function fmt(n, decimals = 0) {
     return num.toFixed(decimals);
 }
 
-function fmtCur(n) { return "ETB " + fmt(n, 2); }
+// Money values render as "<amount><Br subscript>" instead of an "ETB " prefix.
+// Owl's t-out only ever renders raw HTML when the string is wrapped in
+// markup() — anything else gets escaped exactly like t-esc. The content
+// here is fully trusted (our own formatted number + a fixed literal), so
+// wrapping it is safe.
+function fmtCur(n) { return markup(fmt(n, 2) + '<sub class="bh-br-sub">Br</sub>'); }
+
+// Simple client-side pagination helpers, shared by any table on the
+// dashboard that needs "load more than 5 rows -> paginate" behavior.
+const BH_PAGE_SIZE = 5;
+
+function bhPageSlice(list, page) {
+    const start = (page - 1) * BH_PAGE_SIZE;
+    return (list || []).slice(start, start + BH_PAGE_SIZE);
+}
+
+function bhTotalPages(list) {
+    return Math.max(1, Math.ceil((list || []).length / BH_PAGE_SIZE));
+}
 
 const PALETTE = [
     "#7c5c2e","#a07840","#c49c6c","#e8c89a",
@@ -45,6 +63,11 @@ export class BhManagementDashboard extends Component {
             selectedPeriod:   "this_month",
             periods:          [],
             periodsLoading:   false,
+            // Pagination — Finance tab Customer Credit / Customer Deposits tables
+            creditPage:       1,
+            depositPage:      1,
+            // Cash at Bank — per-journal breakdown modal
+            showCashModal:    false,
         });
 
         this.charts         = {};
@@ -103,6 +126,9 @@ export class BhManagementDashboard extends Component {
 
             this.state.data    = data;
             this.state.loading = false;
+            // New data -> pages 1..N may no longer line up, reset to page 1
+            this.state.creditPage  = 1;
+            this.state.depositPage = 1;
             // onPatched will handle chart rendering after DOM update
 
         } catch (e) {
@@ -131,6 +157,35 @@ export class BhManagementDashboard extends Component {
     onDateFromChange(ev) { this.state.dateFrom = ev.target.value; this.state.selectedPeriod = "custom"; }
     onDateToChange(ev)   { this.state.dateTo   = ev.target.value; this.state.selectedPeriod = "custom"; }
     onRefresh()          { this.loadData(); }
+
+    // ── Pagination — Customer Credit / Customer Deposits tables ────────────────
+    // Simple 5-rows-per-page client-side pagination. Data for these tables is
+    // already a small top-N list from the server, so slicing on the client
+    // is enough — no extra round-trip needed.
+
+    pagedList(list, page) { return bhPageSlice(list, page); }
+    totalPages(list)      { return bhTotalPages(list); }
+
+    creditPrevPage() {
+        if (this.state.creditPage > 1) this.state.creditPage--;
+    }
+    creditNextPage() {
+        const list = this.state.data?.finance?.customer_credit?.top_customers || [];
+        if (this.state.creditPage < bhTotalPages(list)) this.state.creditPage++;
+    }
+
+    depositPrevPage() {
+        if (this.state.depositPage > 1) this.state.depositPage--;
+    }
+    depositNextPage() {
+        const list = this.state.data?.finance?.customer_deposits?.top_customers || [];
+        if (this.state.depositPage < bhTotalPages(list)) this.state.depositPage++;
+    }
+
+    // ── Cash at Bank modal ───────────────────────────────────────────────────
+
+    openCashModal()  { this.state.showCashModal = true; }
+    closeCashModal() { this.state.showCashModal = false; }
 
     // ── Period selector ───────────────────────────────────────────────────────
 
@@ -353,6 +408,28 @@ export class BhManagementDashboard extends Component {
             ["Receivable", "Payable"],
             [parseFloat(s.summary.total_receivable || 0), parseFloat(s.summary.total_payable || 0)]
         );
+
+        // Optional sections — only rendered if the sibling report module
+        // (customer_credit_report / customer_deposit_credit) is installed.
+        const credit = s.customer_credit;
+        if (credit && (credit.top_customers || []).length) {
+            this._bar("chart-credit-top",
+                credit.top_customers.map(c => c.customer),
+                [{ label: "Outstanding Credit (ETB)",
+                   data: credit.top_customers.map(c => parseFloat(c.outstanding_credit || 0)),
+                   backgroundColor: "rgba(220,53,69,0.75)" }]
+            );
+        }
+
+        const deposits = s.customer_deposits;
+        if (deposits && (deposits.top_customers || []).length) {
+            this._bar("chart-deposit-top",
+                deposits.top_customers.map(d => d.customer),
+                [{ label: "Deposit Balance (ETB)",
+                   data: deposits.top_customers.map(d => parseFloat(d.deposit_balance || 0)),
+                   backgroundColor: "rgba(32,201,151,0.75)" }]
+            );
+        }
     }
 
     _poCharts(s) {

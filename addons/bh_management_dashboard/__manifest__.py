@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BH Management Dashboard',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.2.0',
     'category': 'Reporting',
     'summary': 'Higher Management Reporting Dashboard for BINGET HOLDING PLC',
     'description': """

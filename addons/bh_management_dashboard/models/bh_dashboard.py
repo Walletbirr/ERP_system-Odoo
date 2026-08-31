@@ -20,10 +20,23 @@ class BhManagementDashboard(models.Model):
         if not date_to:
             date_to = today.strftime('%Y-%m-%d')
 
+        finance_data = self._get_finance_data(date_from, date_to)
+        # Credit / deposit reports live in their own optional modules
+        # (customer_credit_report / customer_deposit_credit). They are not
+        # hard 'depends' of this module — each getter checks whether the
+        # relevant fields exist on res.partner and returns None if not, so
+        # the Finance tab simply hides the section instead of erroring out.
+        finance_data['customer_credit'] = self._get_customer_credit_data()
+        finance_data['customer_deposits'] = self._get_customer_deposit_data()
+        # Cash & Bank balances — a running total as of date_to, not a
+        # period movement, so it always reflects the true balance an
+        # executive would expect (see _get_cash_at_bank_data docstring).
+        finance_data['cash_at_bank'] = self._get_cash_at_bank_data(date_to)
+
         return {
             'sales':         self._get_sales_data(date_from, date_to),
             'inventory':     self._get_inventory_data(),
-            'finance':       self._get_finance_data(date_from, date_to),
+            'finance':       finance_data,
             'purchase':      self._get_purchase_data(date_from, date_to),
             'manufacturing': self._get_manufacturing_data(date_from, date_to),
             'hr':            self._get_hr_data(),
@@ -226,6 +239,177 @@ class BhManagementDashboard(models.Model):
         return {
             'summary':       summary,
             'monthly_trend': monthly_trend,
+        }
+
+    # ─────────────────────────────────────────────────────────────────────
+    # CASH AT BANK
+    # ─────────────────────────────────────────────────────────────────────
+    def _get_cash_at_bank_data(self, date_to):
+        """Cash & Bank balances, one row per Bank/Cash journal.
+
+        A bank balance is a running total, not a period movement, so unlike
+        the sales/purchase/finance summaries above this is NOT bounded by
+        date_from — it sums every posted entry on the journal's account
+        from inception through date_to. That means switching the dashboard
+        period still shows "balance as of the end of that period" rather
+        than zeroing out for any period that isn't the current month.
+
+        Journals with no default_account_id (misconfigured) or no posted
+        entries yet simply show a balance of 0 — they are not excluded, so
+        the bank still appears in the list.
+
+        The balance per journal is the standard General Ledger balance of
+        that journal's linked account (default_account_id) — i.e. exactly
+        what Odoo's own "Balance" smart button shows on that account in
+        Chart of Accounts. That means it is NOT restricted to entries
+        posted through this specific journal: opening-balance entries,
+        inter-journal transfers, and reconciliation entries posted via
+        another journal (e.g. Miscellaneous) but hitting this account are
+        correctly included too, matching what an accountant would expect
+        when they look up "what's the balance of account 101105".
+
+        Caveat: if two Bank/Cash journals were ever configured to share the
+        SAME default_account_id (not the normal setup — each journal
+        Odoo creates gets its own dedicated account), both rows would show
+        that account's full balance and the total would double-count it.
+        Standard journal setup (one dedicated account per journal, as in
+        your Bank journal → 101105 LCMA) does not hit this.
+
+        aj.name (like product/department names elsewhere in this file) is
+        a translated field, so on multi-language databases Postgres
+        stores it as jsonb — hence the ->>'en_US' extraction with a
+        fallback to the raw value for single-language databases where
+        it's a plain varchar.
+        """
+        self.env.cr.execute("""
+            SELECT
+                aj.id                                          AS journal_id,
+                COALESCE(aj.name->>'en_US', aj.name::text)     AS bank_name,
+                aj.type                                        AS journal_type,
+                rb.acc_number                                  AS account_number,
+                rbk.name                                       AS bank_provider,
+                COALESCE(SUM(aml.balance), 0)                  AS balance
+            FROM account_journal aj
+            LEFT JOIN account_account aa
+                   ON aa.id = aj.default_account_id
+            LEFT JOIN res_partner_bank rb
+                   ON rb.id = aj.bank_account_id
+            LEFT JOIN res_bank rbk
+                   ON rbk.id = rb.bank_id
+            LEFT JOIN account_move_line aml
+                   ON aml.account_id  = aa.id
+                  AND aml.parent_state = 'posted'
+                  AND aml.company_id  = aj.company_id
+                  AND aml.date       <= %s::date
+            WHERE aj.type IN ('bank', 'cash')
+              AND aj.company_id = %s
+            GROUP BY aj.id, aj.name, aj.type, rb.acc_number, rbk.name
+            ORDER BY balance DESC
+        """, (date_to, self.env.company.id))
+        banks = self.env.cr.dictfetchall()
+
+        total_balance = sum(b['balance'] for b in banks)
+
+        return {
+            'total_balance': total_balance,
+            'bank_count':    len(banks),
+            'as_of':         date_to,
+            'banks': [{
+                'id':             b['journal_id'],
+                'name':           b['bank_name'],
+                'type':           b['journal_type'],  # 'bank' | 'cash'
+                'account_number': b['account_number'],
+                'bank_provider':  b['bank_provider'],
+                'balance':        b['balance'],
+            } for b in banks],
+        }
+
+    # ─────────────────────────────────────────────────────────────────────
+    # CUSTOMER CREDIT  (from the optional 'customer_credit_report' module)
+    # ─────────────────────────────────────────────────────────────────────
+    def _get_customer_credit_data(self):
+        """Outstanding customer credit summary for executives.
+
+        Sourced from res.partner fields added by 'customer_credit_report'
+        (x_total_sale_amount, x_total_invoiced, x_credit_amount_paid,
+        x_remaining_balance) plus the native 'credit' field (Outstanding
+        Credit). Those compute fields are not stored, so this is done via
+        the ORM (not raw SQL) — the 'credit' field has a custom search
+        method that still lets us filter server-side efficiently.
+
+        Returns None if 'customer_credit_report' isn't installed, so the
+        UI can hide the section instead of showing empty/zero data.
+        """
+        Partner = self.env['res.partner']
+        if 'x_remaining_balance' not in Partner._fields:
+            return None
+
+        partners = Partner.search([
+            ('customer_rank', '>', 0),
+            ('credit', '>', 0.01),
+        ])
+
+        top = partners.sorted(key=lambda p: p.credit, reverse=True)[:10]
+        top_customers = [{
+            'customer':            p.name,
+            'orders':              p.sale_order_count,
+            'total_invoiced':      p.x_total_invoiced,
+            'amount_paid':         p.x_credit_amount_paid,
+            'outstanding_credit':  p.credit,
+            'remaining_balance':   p.x_remaining_balance,
+        } for p in top]
+
+        return {
+            'summary': {
+                'customer_count':    len(partners),
+                'total_outstanding': sum(partners.mapped('credit')),
+                'total_invoiced':    sum(partners.mapped('x_total_invoiced')),
+                'total_paid':        sum(partners.mapped('x_credit_amount_paid')),
+            },
+            'top_customers': top_customers,
+        }
+
+    # ─────────────────────────────────────────────────────────────────────
+    # CUSTOMER DEPOSITS  (from the optional 'customer_deposit_credit' module)
+    # ─────────────────────────────────────────────────────────────────────
+    def _get_customer_deposit_data(self):
+        """Customer deposit / advance-credit summary for executives.
+
+        Sourced from res.partner fields added by 'customer_deposit_credit'
+        (deposit_total_paid, deposit_total_invoiced, deposit_total_refunded,
+        deposit_balance, is_deposit_customer). Those fields ARE stored, so
+        we can search + order on them directly through the ORM.
+
+        Returns None if 'customer_deposit_credit' isn't installed, so the
+        UI can hide the section instead of showing empty/zero data.
+        """
+        Partner = self.env['res.partner']
+        if 'deposit_balance' not in Partner._fields:
+            return None
+
+        partners = Partner.search(
+            [('is_deposit_customer', '=', True)],
+            order='deposit_balance desc',
+        )
+
+        top_customers = [{
+            'customer':         p.name,
+            'total_paid':       p.deposit_total_paid,
+            'total_invoiced':   p.deposit_total_invoiced,
+            'total_refunded':   p.deposit_total_refunded,
+            'deposit_balance':  p.deposit_balance,
+            'last_transaction': fields.Datetime.to_string(p.deposit_last_transaction_date)
+                                 if p.deposit_last_transaction_date else False,
+        } for p in partners[:10]]
+
+        return {
+            'summary': {
+                'customer_count':  len(partners),
+                'total_balance':   sum(partners.mapped('deposit_balance')),
+                'total_paid':      sum(partners.mapped('deposit_total_paid')),
+                'total_refunded':  sum(partners.mapped('deposit_total_refunded')),
+            },
+            'top_customers': top_customers,
         }
 
     # ─────────────────────────────────────────────────────────────────────

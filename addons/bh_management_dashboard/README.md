@@ -8,7 +8,7 @@ Executive reporting dashboard for **BINGET HOLDING PLC** — restricted to CEO/G
 |-----|-------------|
 | 💰 Sales | Revenue, Orders, Trend, Top Customers |
 | 📦 Inventory | Stock Value, Qty, Location breakdown, Low stock alerts |
-| 🏦 Finance | Invoiced, Receivables, Payables, Monthly trend |
+| 🏦 Finance | Invoiced, Receivables, Payables, Monthly trend, Customer Credit, Customer Deposits |
 | 🛒 Purchase | PO spend, Top vendors, RFQs |
 | 🏭 Manufacturing | MO status, Qty produced, Top products |
 | 👥 HR | Headcount, Departments, Gender distribution |
@@ -40,6 +40,18 @@ Go to **Settings → Users** → open the CEO/GM user → under **Other** tab, t
 
 ## Dependencies
 - sale_management, stock, account, purchase, mrp, hr
+
+### Optional (soft) dependencies
+The Finance tab's **Customer Credit** and **Customer Deposits** sections read
+extra `res.partner` fields added by two standalone companion modules. They
+are *not* listed in `depends`, so this dashboard installs fine without them —
+each section simply shows an "Install the ... module" hint instead of data
+until the matching module is installed:
+
+| Section | Needs module |
+|---|---|
+| Customer Credit | `customer_credit_report` |
+| Customer Deposits | `customer_deposit_credit` |
 
 ## Chart.js
 This module uses Odoo's bundled Chart.js. If charts do not render, ensure Chart.js is loaded

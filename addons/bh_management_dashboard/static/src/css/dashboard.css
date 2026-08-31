@@ -470,6 +470,64 @@
   background: #fafafa;
 }
 
+/* ── Currency "Br" subscript ──
+   Every money figure (fmtCur) renders as "<amount><Br>" — the "Br" sits as a
+   small subscript in a smooth, muted gray so it reads as a unit label
+   rather than competing with the number itself. */
+.bh_dashboard .bh-br-sub {
+  color: #9a9a9a;
+  font-weight: 600;
+  font-size: 0.62em;
+  margin-left: 2px;
+  letter-spacing: 0.2px;
+}
+
+/* ── Pagination (Finance tab: Customer Credit / Customer Deposits tables) ── */
+.bh_dashboard .bh-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 12px;
+  margin-top: 6px;
+  border-top: 1px solid #f2f2f2;
+}
+
+.bh_dashboard .bh-page-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #7c5c2e;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.bh_dashboard .bh-page-btn:hover:not(:disabled) {
+  background: #f0e8da;
+  border-color: #cbb488;
+}
+
+.bh_dashboard .bh-page-btn:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  background: #fafafa;
+}
+
+.bh_dashboard .bh-page-info {
+  font-size: 12px;
+  font-weight: 600;
+  color: #777;
+  white-space: nowrap;
+}
+
 /* ── Loading ── */
 .bh_dashboard .bh-loading {
   display: flex;
@@ -533,6 +591,55 @@
   color: #0c5460;
   font-size: 13px;
   font-weight: 500;
+}
+
+/* ── Section divider (used to split a tab into sub-reports, e.g.
+   Finance > Overview / Customer Credit / Customer Deposits) ── */
+.bh_dashboard .bh-section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 32px 0 16px;
+  padding-top: 20px;
+  border-top: 1px solid #ececec;
+}
+.bh_dashboard .bh-section-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.bh_dashboard .bh-section-heading .bh-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2a2a2a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh_dashboard .bh-section-heading .bh-section-title i {
+  color: #7c5c2e;
+}
+.bh_dashboard .bh-section-heading .bh-section-sub {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ── Unavailable-module hint (shown when an optional report module,
+   e.g. customer_credit_report / customer_deposit_credit, isn't installed) ── */
+.bh_dashboard .bh-module-hint {
+  background: #f8f9fa;
+  border: 1px dashed #d8d4cc;
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #888;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bh_dashboard .bh-module-hint i {
+  font-size: 16px;
+  color: #b5aa96;
 }
 
 /* ── Error banner ── */
@@ -650,4 +757,174 @@
   height: 22px;
   background: #e0ddd8;
   flex-shrink: 0;
+}
+
+/* ── Cash at Bank — clickable KPI card ────────────────────────────────── */
+.bh_dashboard .bh-kpi-card.bh-clickable {
+  cursor: pointer;
+}
+.bh_dashboard .bh-kpi-card.bh-clickable:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+.bh_dashboard .bh-kpi-card.bh-clickable .bh-kpi-caret {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  font-size: 11px;
+  color: #a07840;
+  font-weight: 600;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Cash at Bank — modal ─────────────────────────────────────────────── */
+.bh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 15, 30, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.bh-modal-panel {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 440px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.bh-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #eee5d8;
+}
+
+.bh-modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2b2013;
+}
+
+.bh-modal-subtitle {
+  font-size: 11.5px;
+  color: #8a8478;
+  margin-top: 3px;
+}
+
+.bh-modal-close {
+  background: #f5f1ea;
+  border: none;
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b6255;
+  flex-shrink: 0;
+}
+.bh-modal-close:hover {
+  background: #eee5d8;
+}
+
+.bh-modal-total {
+  padding: 14px 20px;
+  background: #faf7f1;
+  border-bottom: 1px solid #eee5d8;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.bh-modal-total-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #8a8478;
+  font-weight: 700;
+}
+.bh-modal-total-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #7c5c2e;
+}
+
+.bh-modal-list {
+  overflow-y: auto;
+  padding: 6px 8px;
+}
+
+.bh-bank-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 10px;
+}
+.bh-bank-row:hover {
+  background: #faf7f1;
+}
+
+.bh-bank-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(124, 92, 46, 0.08);
+  color: #7c5c2e;
+  font-size: 15px;
+}
+.bh-bank-icon.cash {
+  background: rgba(32, 201, 151, 0.1);
+  color: #20c997;
+}
+
+.bh-bank-info {
+  flex: 1;
+  min-width: 0;
+}
+.bh-bank-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #2b2013;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bh-bank-sub {
+  font-size: 11px;
+  color: #8a8478;
+  margin-top: 1px;
+}
+
+.bh-bank-balance {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #7c5c2e;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.bh-bank-balance.negative {
+  color: #dc3545;
+}
+
+.bh-modal-empty {
+  padding: 30px 20px;
+  text-align: center;
+  color: #8a8478;
+  font-size: 13px;
 }
