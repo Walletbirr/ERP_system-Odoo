@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Simple category for the deduction rule -->
+    <record id="hr_salary_rule_category_unpaid" model="hr.salary.rule.category">
+        <field name="name">Not Worked Days</field>
+        <field name="code">UNPAID</field>
+    </record>
+
+    <!--
+        Sample salary rule that uses the UNPAID_DAYS input.
+        Created as inactive so you can review the formula, adjust the
+        divisor (30 / 26 / calendar days …) and add the rule to your
+        salary structure(s) before activating it.
+    -->
+    <record id="hr_salary_rule_unpaid_days" model="hr.salary.rule">
+        <field name="name">Not Worked Days Deduction</field>
+        <field name="code">UNPAID</field>
+        <field name="category_id" ref="hr_salary_rule_category_unpaid" />
+        <field name="sequence">90</field>
+        <field name="appears_on_payslip" eval="True" />
+        <field name="active" eval="False" />
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'UNPAID_DAYS' in inputs</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+# Deduct (monthly wage / 30) * number of not-worked days
+# Change 30 to whatever your company uses (26, 22, real calendar days, etc.)
+result = 0.0
+if 'UNPAID_DAYS' in inputs and contract:
+    days = inputs['UNPAID_DAYS'].amount or 0.0
+    if days:
+        result = -(contract.wage / 30.0) * days
+        </field>
+        <field name="note">
+Created by the payroll_not_worked_days module.
+Input code used on the payslip: UNPAID_DAYS
+Activate only after reviewing the formula and adding the rule to the relevant salary structure(s).
+        </field>
+    </record>
+</odoo>
