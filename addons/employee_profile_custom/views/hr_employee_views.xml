@@ -268,6 +268,15 @@
                             context="{'goto_step': 'document'}"
                             class="o_employee_profile_tab_btn"
                             invisible="profile_step == 'document'">Document</button>
+
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'attendance'}"
+                            class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                            invisible="profile_step != 'attendance'">Attendance</button>
+                    <button type="object" name="action_profile_step_goto"
+                            context="{'goto_step': 'attendance'}"
+                            class="o_employee_profile_tab_btn"
+                            invisible="profile_step == 'attendance'">Attendance</button>
                 </div>
 
                 <div class="o_employee_profile_content">
@@ -1010,6 +1019,38 @@
                                 </div>
                                 <field name="profile_document_ids" widget="many2many_binary" nolabel="1"/>
                             </div>
+                        </div>
+
+                        <div class="o_employee_profile_step_nav">
+                            <button name="action_profile_step_prev" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                                <i class="fa fa-angle-left me-1"/>Previous
+                            </button>
+                            <button name="action_profile_step_next" type="object"
+                                    class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                                Next<i class="fa fa-angle-right ms-1"/>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ============== ATTENDANCE ==============
+                         Read-only history for this one employee. Entry
+                         happens only in Employees > Attendance (HR-only
+                         screen, module binget_attendance) so there is no
+                         pencil/lock pair here - the list below is always
+                         readonly, on purpose, to avoid two places editing
+                         the same record. -->
+                    <div class="o_employee_profile_page" invisible="profile_step != 'attendance'">
+                        <div class="o_employee_profile_list_card">
+                            <div class="o_employee_profile_card_header">
+                                <span class="o_employee_profile_card_title">Attendance</span>
+                            </div>
+                            <field name="attendance_ids" readonly="1" nolabel="1">
+                                <list>
+                                    <field name="month"/>
+                                    <field name="days_absent"/>
+                                </list>
+                            </field>
                         </div>
 
                         <div class="o_employee_profile_step_nav">

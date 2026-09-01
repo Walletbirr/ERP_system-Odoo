@@ -41,7 +41,7 @@ Information, the same pattern as Employee Tags - HR can add, rename,
 or delete options directly, no code changes needed.
     """,
     'author': 'Custom Development',
-    'depends': ['hr', 'hr_contract', 'binget_payroll_compensation', 'binget_employee_benefits'],
+    'depends': ['hr', 'hr_contract', 'binget_payroll_compensation', 'binget_employee_benefits', 'binget_attendance'],
     'data': [
         'security/ir.model.access.csv',
         'data/hr_employee_education_config_data.xml',

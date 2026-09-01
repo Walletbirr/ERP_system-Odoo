@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_hr_employee_attendance_days_tree" model="ir.ui.view">
+        <field name="name">hr.employee.attendance.days.list</field>
+        <field name="model">hr.employee.attendance.days</field>
+        <field name="arch" type="xml">
+            <list string="Attendance" editable="bottom">
+                <field name="employee_id"/>
+                <field name="month"/>
+                <field name="days_absent"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_attendance_days_form" model="ir.ui.view">
+        <field name="name">hr.employee.attendance.days.form</field>
+        <field name="model">hr.employee.attendance.days</field>
+        <field name="arch" type="xml">
+            <form string="Attendance">
+                <sheet>
+                    <group>
+                        <field name="employee_id"/>
+                        <field name="month"/>
+                        <field name="days_absent"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_hr_employee_attendance_days_search" model="ir.ui.view">
+        <field name="name">hr.employee.attendance.days.search</field>
+        <field name="model">hr.employee.attendance.days</field>
+        <field name="arch" type="xml">
+            <search string="Attendance">
+                <field name="employee_id"/>
+                <field name="month"/>
+                <filter string="Employee" name="group_employee" context="{'group_by': 'employee_id'}"/>
+                <filter string="Month" name="group_month" context="{'group_by': 'month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_hr_employee_attendance_days" model="ir.actions.act_window">
+        <field name="name">Attendance</field>
+        <field name="res_model">hr.employee.attendance.days</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_hr_employee_attendance_days_search"/>
+        <field name="context">{'search_default_group_month': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Record how many days an employee was absent this month
+            </p>
+            <p>
+                This number feeds directly into that employee's payroll calculation.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_hr_employee_attendance_days"
+              name="Attendance"
+              parent="hr.menu_hr_root"
+              action="action_hr_employee_attendance_days"
+              groups="hr.group_hr_user"
+              sequence="16"/>
+
+</odoo>

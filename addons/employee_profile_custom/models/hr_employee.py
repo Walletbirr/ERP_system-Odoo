@@ -102,6 +102,16 @@ class HrEmployee(models.Model):
     experience_ids = fields.One2many('hr.employee.experience', 'employee_id', string='Work Experience')
 
     # ------------------------------------------------------------------
+    # Attendance (read-only here). The actual data entry (HR marking
+    # days absent per month) happens in the standalone Attendance list
+    # under Employees > Attendance, defined in binget_attendance - not
+    # on this form. This is purely a per-employee history/lookup view
+    # of the same records, same reasoning as Payslips/Benefits/Time Off
+    # being visible on the profile without being editable from it.
+    # ------------------------------------------------------------------
+    attendance_ids = fields.One2many('hr.employee.attendance.days', 'employee_id', string='Attendance')
+
+    # ------------------------------------------------------------------
     # Documents (simple attachment shelf, independent of the chatter)
     # ------------------------------------------------------------------
     profile_document_ids = fields.Many2many(
@@ -150,19 +160,19 @@ class HrEmployee(models.Model):
     # ------------------------------------------------------------------
     _PROFILE_STEP_ORDER = [
         'personal', 'guarantee', 'education', 'experience',
-        'contract', 'allowance', 'commitment', 'document',
+        'contract', 'allowance', 'commitment', 'document', 'attendance',
     ]
     _PROFILE_STEP_REQUIRED_FIELDS = {
         # step key -> [(field_name, human label), ...]
-        # Guarantee Information and Contract intentionally have no
-        # entries here, so Next passes them through with zero checks.
+        # Guarantee Information, Contract, Experience, Commitment and
+        # Attendance intentionally have no entries here, so Next passes
+        # them through with zero checks - none of these should block
+        # onboarding just because they're empty.
         'personal': [('name', 'Employee Name')],
         'education': [
             ('education_ids', 'Education'),
         ],
-        'experience': [('experience_ids', 'Work Experience')],
         'allowance': [('allowance_ids', 'Allowances')],
-        'commitment': [('commitment_ids', 'Commitments')],
     }
 
     profile_step = fields.Selection(
@@ -175,6 +185,7 @@ class HrEmployee(models.Model):
             ('allowance', 'Allowance'),
             ('commitment', 'Commitment'),
             ('document', 'Document'),
+            ('attendance', 'Attendance'),
         ],
         string='Profile Step', default='personal', required=True,
         help="Which profile tab is currently shown. Advances only via "
