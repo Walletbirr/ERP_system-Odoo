@@ -119,32 +119,3 @@ class HrContract(models.Model):
         # wizard, or any API call - where onchange never fires.
         contracts._binget_apply_company_defaults()
         return contracts
-
-    def action_binget_backfill_payroll_defaults(self):
-        """One-time (but safe to re-run anytime) catch-up for contracts
-        that already existed before this module was installed, or whose
-        Job Position / company Payroll settings were only filled in
-        afterwards. The onchange/create hooks above only ever fire for
-        brand new contracts or brand new field changes - an old contract
-        that was never touched again never gets them. This method fixes
-        that gap on demand, for any number of selected contracts at once.
-
-        It only ever fills in a field that is currently blank/zero - it
-        never overwrites wage, journal, analytic account, structure, or
-        allowance lines that already have a real value on them, so
-        running it on a mix of old and new, touched and untouched
-        contracts is always safe."""
-        for contract in self:
-            contract._binget_apply_company_defaults()
-            if (
-                not contract.wage
-                and contract.job_id
-                and contract.job_id.default_wage
-            ):
-                contract.wage = contract.job_id.default_wage
-            if (
-                not contract.allowance_line_ids
-                and contract.job_id
-                and contract.job_id.allowance_line_ids
-            ):
-                contract.action_load_job_position_allowances()

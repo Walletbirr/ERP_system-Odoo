@@ -5,3 +5,4 @@ from . import hr_job
 from . import hr_department
 from . import hr_contract_allowance_line
 from . import hr_contract
+from . import hr_payslip
