@@ -759,6 +759,33 @@
   flex-shrink: 0;
 }
 
+/* ── Trend chips — period-over-period % change on KPI cards ──────────── */
+.bh_dashboard .bh-trend-chip {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bh_dashboard .bh-trend-chip.up {
+  color: #1e8e5a;
+}
+.bh_dashboard .bh-trend-chip.down {
+  color: #dc3545;
+}
+.bh_dashboard .bh-trend-chip.flat,
+.bh_dashboard .bh-trend-chip.neutral {
+  color: #8a8478;
+}
+.bh_dashboard .bh-trend-vs {
+  font-weight: 400;
+  color: #8a8478;
+  margin-left: 2px;
+}
+
 /* ── Cash at Bank — clickable KPI card ────────────────────────────────── */
 .bh_dashboard .bh-kpi-card.bh-clickable {
   cursor: pointer;
@@ -858,6 +885,40 @@
   font-size: 20px;
   font-weight: 700;
   color: #7c5c2e;
+}
+
+/* ── Receivable / Payable — aging bucket strip ────────────────────────── */
+.bh-aging-buckets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #eee5d8;
+}
+.bh-aging-bucket {
+  background: #faf7f1;
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+}
+.bh-aging-bucket.warn {
+  background: #fff3cd;
+}
+.bh-aging-bucket.danger {
+  background: #f8d7da;
+}
+.bh-aging-bucket-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #8a8478;
+  font-weight: 700;
+}
+.bh-aging-bucket-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2b2013;
+  margin-top: 2px;
 }
 
 .bh-modal-list {

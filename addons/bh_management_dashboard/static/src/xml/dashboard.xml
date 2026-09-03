@@ -135,13 +135,21 @@
                         <div class="bh-kpi-icon"><i class="fa fa-line-chart"/></div>
                         <div class="bh-kpi-label">Total Revenue</div>
                         <div class="bh-kpi-value" t-out="fmtCur(state.data.sales.summary.total_revenue)"/>
-                        <div class="bh-kpi-sub">All orders in period</div>
+                        <div t-if="state.data.sales.summary.total_revenue" t-att-class="'bh-trend-chip ' + trendClass(state.data.sales.comparison.revenue_change_pct)">
+                            <i t-att-class="trendIcon(state.data.sales.comparison.revenue_change_pct)"/>
+                            <t t-esc="fmtPct(state.data.sales.comparison.revenue_change_pct)"/>
+                            <span class="bh-trend-vs">vs prior period</span>
+                        </div>
                     </div>
                     <div class="bh-kpi-card blue">
                         <div class="bh-kpi-icon"><i class="fa fa-file-text-o"/></div>
                         <div class="bh-kpi-label">Total Orders</div>
                         <div class="bh-kpi-value" t-esc="state.data.sales.summary.total_orders"/>
-                        <div class="bh-kpi-sub">Excl. cancelled</div>
+                        <div t-if="state.data.sales.summary.total_orders" t-att-class="'bh-trend-chip ' + trendClass(state.data.sales.comparison.orders_change_pct)">
+                            <i t-att-class="trendIcon(state.data.sales.comparison.orders_change_pct)"/>
+                            <t t-esc="fmtPct(state.data.sales.comparison.orders_change_pct)"/>
+                            <span class="bh-trend-vs">vs prior period</span>
+                        </div>
                     </div>
                     <div class="bh-kpi-card orange">
                         <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
@@ -253,23 +261,28 @@
                         <div class="bh-kpi-icon"><i class="fa fa-file-text-o"/></div>
                         <div class="bh-kpi-label">Total Invoiced</div>
                         <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.summary.total_invoiced)"/>
+                        <div t-if="state.data.finance.summary.total_invoiced" t-att-class="'bh-trend-chip ' + trendClass(state.data.finance.comparison.invoiced_change_pct)">
+                            <i t-att-class="trendIcon(state.data.finance.comparison.invoiced_change_pct)"/>
+                            <t t-esc="fmtPct(state.data.finance.comparison.invoiced_change_pct)"/>
+                            <span class="bh-trend-vs">vs prior period</span>
+                        </div>
                     </div>
                     <div class="bh-kpi-card blue">
                         <div class="bh-kpi-icon"><i class="fa fa-clipboard"/></div>
                         <div class="bh-kpi-label">Total Invoices</div>
                         <div class="bh-kpi-value" t-esc="state.data.finance.summary.total_invoices"/>
                     </div>
-                    <div class="bh-kpi-card orange">
+                    <div class="bh-kpi-card orange bh-clickable" t-on-click="openReceivableModal">
                         <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-down"/></div>
                         <div class="bh-kpi-label">Accounts Receivable</div>
                         <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.summary.total_receivable)"/>
-                        <div class="bh-kpi-sub">Unpaid invoices</div>
+                        <div class="bh-kpi-caret"><i class="fa fa-list-ul"/> View aging breakdown</div>
                     </div>
-                    <div class="bh-kpi-card red">
+                    <div class="bh-kpi-card red bh-clickable" t-on-click="openPayableModal">
                         <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-up"/></div>
                         <div class="bh-kpi-label">Accounts Payable</div>
                         <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.summary.total_payable)"/>
-                        <div class="bh-kpi-sub">Unpaid bills</div>
+                        <div class="bh-kpi-caret"><i class="fa fa-list-ul"/> View aging breakdown</div>
                     </div>
                     <div class="bh-kpi-card teal bh-clickable" t-on-click="openCashModal">
                         <div class="bh-kpi-icon"><i class="fa fa-university"/></div>
@@ -493,6 +506,124 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ACCOUNTS RECEIVABLE — aging breakdown modal -->
+                <div t-if="state.showReceivableModal" class="bh-modal-backdrop" t-on-click="closeReceivableModal">
+                    <div class="bh-modal-panel" t-on-click.stop="">
+                        <div class="bh-modal-header">
+                            <div>
+                                <div class="bh-modal-title">Accounts Receivable — Aging</div>
+                                <div class="bh-modal-subtitle">As of <t t-esc="state.data.date_to"/></div>
+                            </div>
+                            <button class="bh-modal-close" t-on-click="closeReceivableModal">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                        <div class="bh-modal-total">
+                            <span class="bh-modal-total-label">Total Receivable</span>
+                            <span class="bh-modal-total-value" t-out="fmtCur(state.data.finance.summary.total_receivable)"/>
+                        </div>
+                        <div class="bh-aging-buckets">
+                            <div class="bh-aging-bucket">
+                                <div class="bh-aging-bucket-label">Not Due</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.receivable_aging.buckets.not_due)"/>
+                            </div>
+                            <div class="bh-aging-bucket">
+                                <div class="bh-aging-bucket-label">1-30d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.receivable_aging.buckets.d1_30)"/>
+                            </div>
+                            <div class="bh-aging-bucket">
+                                <div class="bh-aging-bucket-label">31-60d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.receivable_aging.buckets.d31_60)"/>
+                            </div>
+                            <div class="bh-aging-bucket warn">
+                                <div class="bh-aging-bucket-label">61-90d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.receivable_aging.buckets.d61_90)"/>
+                            </div>
+                            <div class="bh-aging-bucket danger">
+                                <div class="bh-aging-bucket-label">90+d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.receivable_aging.buckets.d90_plus)"/>
+                            </div>
+                        </div>
+                        <div class="bh-modal-list">
+                            <div t-if="!state.data.finance.receivable_aging.by_partner.length" class="bh-modal-empty">
+                                No open receivables.
+                            </div>
+                            <t t-foreach="state.data.finance.receivable_aging.by_partner" t-as="p" t-key="p.partner">
+                                <div class="bh-bank-row">
+                                    <div class="bh-bank-info">
+                                        <div class="bh-bank-name" t-esc="p.partner"/>
+                                        <span t-if="p.d90_plus" class="bh-badge danger">90+ days</span>
+                                        <span t-elif="p.d61_90" class="bh-badge warning">61-90 days</span>
+                                        <span t-elif="p.d31_60" class="bh-badge info">31-60 days</span>
+                                        <span t-elif="p.d1_30" class="bh-badge info">1-30 days</span>
+                                        <span t-else="1" class="bh-badge success">Not due</span>
+                                    </div>
+                                    <div class="bh-bank-balance" t-out="fmtCur(p.total)"/>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACCOUNTS PAYABLE — aging breakdown modal -->
+                <div t-if="state.showPayableModal" class="bh-modal-backdrop" t-on-click="closePayableModal">
+                    <div class="bh-modal-panel" t-on-click.stop="">
+                        <div class="bh-modal-header">
+                            <div>
+                                <div class="bh-modal-title">Accounts Payable — Aging</div>
+                                <div class="bh-modal-subtitle">As of <t t-esc="state.data.date_to"/></div>
+                            </div>
+                            <button class="bh-modal-close" t-on-click="closePayableModal">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                        <div class="bh-modal-total">
+                            <span class="bh-modal-total-label">Total Payable</span>
+                            <span class="bh-modal-total-value" t-out="fmtCur(state.data.finance.summary.total_payable)"/>
+                        </div>
+                        <div class="bh-aging-buckets">
+                            <div class="bh-aging-bucket">
+                                <div class="bh-aging-bucket-label">Not Due</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.payable_aging.buckets.not_due)"/>
+                            </div>
+                            <div class="bh-aging-bucket">
+                                <div class="bh-aging-bucket-label">1-30d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.payable_aging.buckets.d1_30)"/>
+                            </div>
+                            <div class="bh-aging-bucket">
+                                <div class="bh-aging-bucket-label">31-60d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.payable_aging.buckets.d31_60)"/>
+                            </div>
+                            <div class="bh-aging-bucket warn">
+                                <div class="bh-aging-bucket-label">61-90d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.payable_aging.buckets.d61_90)"/>
+                            </div>
+                            <div class="bh-aging-bucket danger">
+                                <div class="bh-aging-bucket-label">90+d</div>
+                                <div class="bh-aging-bucket-value" t-out="fmtCur(state.data.finance.payable_aging.buckets.d90_plus)"/>
+                            </div>
+                        </div>
+                        <div class="bh-modal-list">
+                            <div t-if="!state.data.finance.payable_aging.by_partner.length" class="bh-modal-empty">
+                                No open payables.
+                            </div>
+                            <t t-foreach="state.data.finance.payable_aging.by_partner" t-as="p" t-key="p.partner">
+                                <div class="bh-bank-row">
+                                    <div class="bh-bank-info">
+                                        <div class="bh-bank-name" t-esc="p.partner"/>
+                                        <span t-if="p.d90_plus" class="bh-badge danger">90+ days</span>
+                                        <span t-elif="p.d61_90" class="bh-badge warning">61-90 days</span>
+                                        <span t-elif="p.d31_60" class="bh-badge info">31-60 days</span>
+                                        <span t-elif="p.d1_30" class="bh-badge info">1-30 days</span>
+                                        <span t-else="1" class="bh-badge success">Not due</span>
+                                    </div>
+                                    <div class="bh-bank-balance" t-out="fmtCur(p.total)"/>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- PURCHASE TAB -->
@@ -502,6 +633,11 @@
                         <div class="bh-kpi-icon"><i class="fa fa-credit-card"/></div>
                         <div class="bh-kpi-label">Total Spent</div>
                         <div class="bh-kpi-value" t-out="fmtCur(state.data.purchase.summary.total_spent)"/>
+                        <div t-if="state.data.purchase.summary.total_spent" t-att-class="'bh-trend-chip ' + trendClass(state.data.purchase.comparison.spent_change_pct, true)">
+                            <i t-att-class="trendIcon(state.data.purchase.comparison.spent_change_pct)"/>
+                            <t t-esc="fmtPct(state.data.purchase.comparison.spent_change_pct)"/>
+                            <span class="bh-trend-vs">vs prior period</span>
+                        </div>
                     </div>
                     <div class="bh-kpi-card blue">
                         <div class="bh-kpi-icon"><i class="fa fa-list-alt"/></div>

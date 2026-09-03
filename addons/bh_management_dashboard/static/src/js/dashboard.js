@@ -21,6 +21,29 @@ function fmt(n, decimals = 0) {
 // wrapping it is safe.
 function fmtCur(n) { return markup(fmt(n, 2) + '<sub class="bh-br-sub">Br</sub>'); }
 
+// ── Trend chips (period-over-period % change) ──────────────────────────────
+// `invert`: for metrics where an increase is BAD news (e.g. spend) rather
+// than good (e.g. revenue) — flips which direction is shown as "up"/green.
+function trendClass(pct, invert = false) {
+    if (pct === null || pct === undefined) return "neutral";
+    if (pct === 0) return "flat";
+    const isUp = pct > 0;
+    return (isUp !== invert) ? "up" : "down";
+}
+
+function trendIcon(pct) {
+    if (pct === null || pct === undefined) return "fa fa-minus";
+    if (pct > 0) return "fa fa-arrow-up";
+    if (pct < 0) return "fa fa-arrow-down";
+    return "fa fa-minus";
+}
+
+function fmtPct(pct) {
+    if (pct === null || pct === undefined) return "New";
+    const sign = pct > 0 ? "+" : "";
+    return sign + pct + "%";
+}
+
 // Simple client-side pagination helpers, shared by any table on the
 // dashboard that needs "load more than 5 rows -> paginate" behavior.
 const BH_PAGE_SIZE = 5;
@@ -48,8 +71,14 @@ export class BhManagementDashboard extends Component {
         this.notification = useService("notification");
 
         const today    = new Date();
-        // Default: 1st of current month -> today (captures all current-month data)
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+        // Default: last 3 calendar months -> today, NOT just "this month".
+        // "This month" alone was showing all-zero KPIs on first login whenever
+        // no activity had happened yet in the current month — looked broken
+        // even though the app was working correctly. A 3-month rolling window
+        // almost always has real data to show, so the dashboard tells a story
+        // right away; the user can still pick "This Month" (or anything else)
+        // from the filter afterwards.
+        const firstDay = new Date(today.getFullYear(), today.getMonth() - 2, 1)
                             .toISOString().split("T")[0];
         const todayStr = today.toISOString().split("T")[0];
 
@@ -60,7 +89,7 @@ export class BhManagementDashboard extends Component {
             dateFrom:         firstDay,
             dateTo:           todayStr,
             error:            null,
-            selectedPeriod:   "this_month",
+            selectedPeriod:   "last_3_months",
             periods:          [],
             periodsLoading:   false,
             // Pagination — Finance tab Customer Credit / Customer Deposits tables
@@ -68,6 +97,9 @@ export class BhManagementDashboard extends Component {
             depositPage:      1,
             // Cash at Bank — per-journal breakdown modal
             showCashModal:    false,
+            // Receivable / Payable — per-partner aging breakdown modals
+            showReceivableModal: false,
+            showPayableModal:    false,
         });
 
         this.charts         = {};
@@ -187,6 +219,11 @@ export class BhManagementDashboard extends Component {
     openCashModal()  { this.state.showCashModal = true; }
     closeCashModal() { this.state.showCashModal = false; }
 
+    openReceivableModal()  { this.state.showReceivableModal = true; }
+    closeReceivableModal() { this.state.showReceivableModal = false; }
+    openPayableModal()     { this.state.showPayableModal = true; }
+    closePayableModal()    { this.state.showPayableModal = false; }
+
     // ── Period selector ───────────────────────────────────────────────────────
 
     async _loadPeriods() {
@@ -204,6 +241,8 @@ export class BhManagementDashboard extends Component {
               date_start: iso(firstOf(y, m)),         date_end: iso(lastOf(y, m)) },
             { key: "last_month",    label: "Last Month",
               date_start: iso(firstOf(y, m - 1)),     date_end: iso(lastOf(y, m - 1)) },
+            { key: "last_3_months", label: "Last 3 Months",
+              date_start: iso(firstOf(y, m - 2)),     date_end: iso(t) },
             { key: "this_quarter",  label: "This Quarter",
               date_start: iso(firstOf(y, Math.floor(m / 3) * 3)),
               date_end:   iso(lastOf(y,  Math.floor(m / 3) * 3 + 2)) },
@@ -483,6 +522,6 @@ export class BhManagementDashboard extends Component {
 BhManagementDashboard.template = "bh_management_dashboard.Dashboard";
 
 
-Object.assign(BhManagementDashboard.prototype, { fmt, fmtCur });
+Object.assign(BhManagementDashboard.prototype, { fmt, fmtCur, trendClass, trendIcon, fmtPct });
 
 registry.category("actions").add("bh_management_dashboard", BhManagementDashboard);

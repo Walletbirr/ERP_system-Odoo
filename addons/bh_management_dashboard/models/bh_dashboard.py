@@ -15,8 +15,17 @@ class BhManagementDashboard(models.Model):
         """Main method to fetch all KPI data for the dashboard."""
         today = datetime.today()
         if not date_from:
-            # Default: first day of current month
-            date_from = today.replace(day=1).strftime('%Y-%m-%d')
+            # Default: 3 calendar months back -> today. Both clients now
+            # always send explicit dates (see dashboard.js / periods.js), so
+            # this only fires if a caller omits them entirely; kept in sync
+            # anyway so nothing silently reverts to an all-zero "this month"
+            # view.
+            month = today.month - 2
+            year = today.year
+            while month <= 0:
+                month += 12
+                year -= 1
+            date_from = today.replace(year=year, month=month, day=1).strftime('%Y-%m-%d')
         if not date_to:
             date_to = today.strftime('%Y-%m-%d')
 
@@ -39,6 +48,10 @@ class BhManagementDashboard(models.Model):
         rp = self._get_receivable_payable_data(date_to)
         finance_data['summary']['total_receivable'] = rp['total_receivable']
         finance_data['summary']['total_payable'] = rp['total_payable']
+        # Drill-down detail for the Receivable/Payable modals (per-partner,
+        # bucketed by days overdue) — see _get_receivable_payable_data.
+        finance_data['receivable_aging'] = rp['receivable_aging']
+        finance_data['payable_aging'] = rp['payable_aging']
 
         return {
             'sales':         self._get_sales_data(date_from, date_to),
@@ -50,6 +63,27 @@ class BhManagementDashboard(models.Model):
             'date_from':     date_from,
             'date_to':       date_to,
         }
+
+    def _get_previous_period(self, date_from, date_to):
+        """Return (prev_from, prev_to): the period immediately preceding
+        [date_from, date_to], same length in days — e.g. 1-30 Sep's
+        previous period is 1-31 Aug (31 days back-to-back, no gap/overlap).
+        Used to compute period-over-period % change for headline KPIs."""
+        d_from = fields.Date.from_string(date_from)
+        d_to = fields.Date.from_string(date_to)
+        length_days = (d_to - d_from).days + 1
+        prev_to = d_from - timedelta(days=1)
+        prev_from = prev_to - timedelta(days=length_days - 1)
+        return fields.Date.to_string(prev_from), fields.Date.to_string(prev_to)
+
+    def _pct_change(self, current, previous):
+        """% change from previous -> current, rounded to 1 decimal. None
+        when previous is 0/falsy — you can't compute a meaningful percent
+        change from a zero base, so the UI shows 'New' instead of a
+        divide-by-zero artifact (e.g. infinite % growth)."""
+        if not previous:
+            return None
+        return round(((current - previous) / previous) * 100, 1)
 
     # ─────────────────────────────────────────────────────────────────────
     # SALES
@@ -87,7 +121,27 @@ class BhManagementDashboard(models.Model):
         """, (date_from, date_to))
         summary = self.env.cr.dictfetchone()
 
-        # ── Monthly trend — last 6 full months + current partial month ──
+        # ── Period-over-period comparison (previous period, same length) ──
+        prev_from, prev_to = self._get_previous_period(date_from, date_to)
+        self.env.cr.execute("""
+            SELECT
+                COUNT(id)                                                   AS total_orders,
+                COALESCE(SUM(amount_total), 0)                              AS total_revenue
+            FROM sale_order
+            WHERE
+                (date_order AT TIME ZONE 'UTC')::date >= %s::date
+                AND (date_order AT TIME ZONE 'UTC')::date <= %s::date
+                AND state NOT IN ('cancel')
+        """, (prev_from, prev_to))
+        prev = self.env.cr.dictfetchone()
+        comparison = {
+            'prev_date_from':    prev_from,
+            'prev_date_to':      prev_to,
+            'revenue_prev':      prev['total_revenue'],
+            'revenue_change_pct': self._pct_change(summary['total_revenue'], prev['total_revenue']),
+            'orders_prev':       prev['total_orders'],
+            'orders_change_pct': self._pct_change(summary['total_orders'], prev['total_orders']),
+        }
         self.env.cr.execute("""
             SELECT
                 TO_CHAR(DATE_TRUNC('month', date_order AT TIME ZONE 'UTC'), 'Mon YYYY') AS month,
@@ -122,6 +176,7 @@ class BhManagementDashboard(models.Model):
 
         return {
             'summary':       summary,
+            'comparison':    comparison,
             'monthly_trend': monthly_trend,
             'top_customers': top_customers,
         }
@@ -221,6 +276,25 @@ class BhManagementDashboard(models.Model):
         """, (date_from, date_to))
         summary = self.env.cr.dictfetchone()
 
+        # ── Period-over-period comparison (previous period, same length) ──
+        prev_from, prev_to = self._get_previous_period(date_from, date_to)
+        self.env.cr.execute("""
+            SELECT
+                COALESCE(SUM(
+                    CASE WHEN move_type = 'out_invoice' AND state = 'posted'
+                         THEN amount_total ELSE 0 END
+                ), 0)                                           AS total_invoiced
+            FROM account_move
+            WHERE invoice_date BETWEEN %s::date AND %s::date
+        """, (prev_from, prev_to))
+        prev = self.env.cr.dictfetchone()
+        comparison = {
+            'prev_date_from':     prev_from,
+            'prev_date_to':       prev_to,
+            'invoiced_prev':      prev['total_invoiced'],
+            'invoiced_change_pct': self._pct_change(summary['total_invoiced'], prev['total_invoiced']),
+        }
+
         # Monthly trend — last 6 months
         self.env.cr.execute("""
             SELECT
@@ -243,6 +317,7 @@ class BhManagementDashboard(models.Model):
 
         return {
             'summary':       summary,
+            'comparison':    comparison,
             'monthly_trend': monthly_trend,
         }
 
@@ -356,6 +431,22 @@ class BhManagementDashboard(models.Model):
         total_payable is reported as a positive "amount owed" figure,
         matching how total_receivable reads and how the mobile/web UI
         already expects it.
+
+        Also returns a partner-level AGING breakdown for the drill-down
+        modal (receivable_aging / payable_aging), bucketed off each line's
+        due date (date_maturity, falling back to the entry date when no
+        due date is set) relative to date_to: Not Due, 1-30, 31-60, 61-90,
+        90+ days overdue.
+
+        The aging breakdown is built from OPEN (unreconciled) lines only —
+        the standard "Aged Partner Balance" approach — while the
+        total_receivable/total_payable KPIs above stay computed from ALL
+        posted lines as before, so existing behavior doesn't change; the
+        aging figures are additive drill-down detail. In practice the two
+        should match closely since reconciled entries net to zero, but
+        they can differ by small amounts in edge cases (partial
+        reconciliation, exchange adjustments) — the KPI totals remain the
+        source of truth.
         """
         self.env.cr.execute("""
             SELECT
@@ -381,6 +472,85 @@ class BhManagementDashboard(models.Model):
             'total_receivable': row['total_receivable'],
             'total_payable':    row['total_payable'],
             'as_of':            date_to,
+            'receivable_aging': self._format_aging(
+                self._aging_breakdown('asset_receivable', date_to, negate=False)
+            ),
+            'payable_aging': self._format_aging(
+                self._aging_breakdown('liability_payable', date_to, negate=True)
+            ),
+        }
+
+    def _aging_breakdown(self, account_type, date_to, negate=False):
+        """Per-partner open-balance rows for one account type, pre-bucketed
+        into aging columns by Postgres so no per-row Python math is needed.
+        `negate` flips the sign for liability_payable (credit-normal) so
+        amounts read as positive "amount owed", matching the KPI totals.
+        `sign` below is a hardcoded '1'/'-1' set internally — never user
+        input — so splicing it into the query text is safe.
+        """
+        sign = '-1' if negate else '1'
+        self.env.cr.execute(f"""
+            SELECT
+                COALESCE(rp.id, 0)                          AS partner_id,
+                COALESCE(rp.name, 'Unknown Partner')         AS partner_name,
+                COALESCE(SUM(CASE
+                    WHEN COALESCE(aml.date_maturity, aml.date) > %(date_to)s::date
+                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS not_due,
+                COALESCE(SUM(CASE
+                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date)
+                         BETWEEN 1 AND 30
+                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d1_30,
+                COALESCE(SUM(CASE
+                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date)
+                         BETWEEN 31 AND 60
+                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d31_60,
+                COALESCE(SUM(CASE
+                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date)
+                         BETWEEN 61 AND 90
+                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d61_90,
+                COALESCE(SUM(CASE
+                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date) > 90
+                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d90_plus,
+                COALESCE(SUM({sign} * aml.balance), 0)         AS total
+            FROM account_move_line aml
+            JOIN account_account aa
+              ON aa.id = aml.account_id
+            LEFT JOIN res_partner rp
+              ON rp.id = aml.partner_id
+            WHERE aa.account_type = %(account_type)s
+              AND aml.parent_state = 'posted'
+              AND aml.company_id  = %(company_id)s
+              AND aml.date       <= %(date_to)s::date
+              AND aml.reconciled  = false
+            GROUP BY rp.id, rp.name
+            HAVING COALESCE(SUM({sign} * aml.balance), 0) != 0
+            ORDER BY total DESC
+        """, {
+            'date_to':      date_to,
+            'account_type': account_type,
+            'company_id':   self.env.company.id,
+        })
+        return self.env.cr.dictfetchall()
+
+    def _format_aging(self, rows):
+        """Roll per-partner aging rows (from _aging_breakdown) up into
+        overall bucket totals, and cap the partner list at 15 rows for
+        the modal (already ordered by total desc)."""
+        buckets = {'not_due': 0.0, 'd1_30': 0.0, 'd31_60': 0.0, 'd61_90': 0.0, 'd90_plus': 0.0}
+        for r in rows:
+            for key in buckets:
+                buckets[key] += r[key]
+        return {
+            'buckets':    buckets,
+            'by_partner': [{
+                'partner':  r['partner_name'],
+                'total':    r['total'],
+                'not_due':  r['not_due'],
+                'd1_30':    r['d1_30'],
+                'd31_60':   r['d31_60'],
+                'd61_90':   r['d61_90'],
+                'd90_plus': r['d90_plus'],
+            } for r in rows[:15]],
         }
 
     # ─────────────────────────────────────────────────────────────────────
@@ -489,6 +659,25 @@ class BhManagementDashboard(models.Model):
         """, (date_from, date_to))
         summary = self.env.cr.dictfetchone()
 
+        # ── Period-over-period comparison (previous period, same length) ──
+        prev_from, prev_to = self._get_previous_period(date_from, date_to)
+        self.env.cr.execute("""
+            SELECT
+                COALESCE(SUM(amount_total), 0)  AS total_spent
+            FROM purchase_order
+            WHERE
+                (date_order AT TIME ZONE 'UTC')::date >= %s::date
+                AND (date_order AT TIME ZONE 'UTC')::date <= %s::date
+                AND state NOT IN ('cancel')
+        """, (prev_from, prev_to))
+        prev = self.env.cr.dictfetchone()
+        comparison = {
+            'prev_date_from':  prev_from,
+            'prev_date_to':    prev_to,
+            'spent_prev':      prev['total_spent'],
+            'spent_change_pct': self._pct_change(summary['total_spent'], prev['total_spent']),
+        }
+
         self.env.cr.execute("""
             SELECT
                 rp.name                            AS vendor,
@@ -507,6 +696,7 @@ class BhManagementDashboard(models.Model):
 
         return {
             'summary':    summary,
+            'comparison': comparison,
             'top_vendors': top_vendors,
         }
 
