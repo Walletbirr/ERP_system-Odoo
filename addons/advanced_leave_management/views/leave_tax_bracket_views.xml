@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_leave_tax_bracket_tree" model="ir.ui.view">
+        <field name="name">leave.tax.bracket.tree</field>
+        <field name="model">leave.tax.bracket</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="min_amount"/>
+                <field name="max_amount"/>
+                <field name="rate"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_leave_tax_bracket" model="ir.actions.act_window">
+        <field name="name">Tax Brackets</field>
+        <field name="res_model">leave.tax.bracket</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smart_action">
+                Define the income tax brackets used to auto-select the withholding rate
+                for leave encashments, based on the employee's monthly salary.
+                Leave "Max Amount" at 0 for the top ("and above") bracket.
+            </p>
+        </field>
+    </record>
+</odoo>

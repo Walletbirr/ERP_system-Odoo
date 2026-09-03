@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_leave_encashment_form" model="ir.ui.view">
+        <field name="name">leave.encashment.form</field>
+        <field name="model">leave.encashment</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_post" type="object" string="Post"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="employee_id"
+                                   domain="[('eligible_for_leave_encashment', '=', True)]"/>
+                            <field name="leave_type_id"/>
+                            <field name="available_balance"/>
+                            <field name="date"/>
+                        </group>
+                        <group>
+                            <field name="days"/>
+                            <field name="basic_salary"/>
+                            <field name="days_in_month"/>
+                            <field name="daily_rate"/>
+                            <field name="amount"/>
+                            <field name="tax_rate"/>
+                            <field name="tax_amount"/>
+                            <field name="net_amount"/>
+                        </group>
+                    </group>
+                    <group string="Accounting" invisible="not move_id">
+                        <field name="move_id" readonly="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_leave_encashment_tree" model="ir.ui.view">
+        <field name="name">leave.encashment.tree</field>
+        <field name="model">leave.encashment</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'posted'" decoration-muted="state == 'cancelled'">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="leave_type_id"/>
+                <field name="date"/>
+                <field name="days"/>
+                <field name="amount"/>
+                <field name="tax_amount"/>
+                <field name="net_amount"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_leave_encashment" model="ir.actions.act_window">
+        <field name="name">Leave Encashment</field>
+        <field name="res_model">leave.encashment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_leave_encashment_settings_form" model="ir.ui.view">
+        <field name="name">leave.encashment.settings.form</field>
+        <field name="model">leave.encashment.settings</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_save" type="object" string="Save" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Leave Encashment Accounting Settings</h1>
+                    </div>
+                    <group>
+                        <field name="company_id" invisible="1"/>
+                        <field name="expense_account_id"/>
+                        <field name="payable_account_id"/>
+                        <field name="tax_payable_account_id"/>
+                        <field name="journal_id"/>
+                        <field name="days_in_month"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_leave_encashment_settings" model="ir.actions.act_window">
+        <field name="name">Encashment Settings</field>
+        <field name="res_model">leave.encashment.settings</field>
+        <field name="view_mode">form</field>
+    </record>
+</odoo>

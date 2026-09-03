@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- Annual Leave: accrues per the Ethiopian Labour Proclamation baseline -
+         14 days in year 1, +1 day per additional year of service. This is the
+         only type Leave Encashment defaults to (see leave.encashment.leave_type_id). -->
+    <record id="leave_type_annual" model="leave.type">
+        <field name="name">Annual Leave</field>
+        <field name="code">AL</field>
+        <field name="sequence">10</field>
+        <field name="allocation_type">accrual_bank</field>
+        <field name="base_days">14.0</field>
+        <field name="increment_per_year">1.0</field>
+        <field name="increment_frequency_months">12</field>
+        <field name="carry_over_allowed">True</field>
+    </record>
+
+    <!-- Sick Leave: Ethiopian law tiers this at 1 month full pay / 2 months half
+         pay / 3 months unpaid within a 12-month window (6 months total). This
+         model tracks a flat day count only - the pay-rate tiering itself is NOT
+         automated here and still needs manual handling in payroll. -->
+    <record id="leave_type_sick" model="leave.type">
+        <field name="name">Sick Leave</field>
+        <field name="code">SL</field>
+        <field name="sequence">20</field>
+        <field name="allocation_type">fixed_quota</field>
+        <field name="quota_days">180.0</field>
+        <field name="quota_reset">yearly</field>
+        <field name="requires_justification">True</field>
+    </record>
+
+    <record id="leave_type_maternity" model="leave.type">
+        <field name="name">Maternity Leave</field>
+        <field name="code">ML</field>
+        <field name="sequence">30</field>
+        <field name="allocation_type">fixed_quota</field>
+        <field name="quota_days">120.0</field>
+        <field name="quota_reset">per_event</field>
+        <field name="applicable_gender">female</field>
+        <field name="requires_justification">True</field>
+    </record>
+
+    <record id="leave_type_paternity" model="leave.type">
+        <field name="name">Paternity Leave</field>
+        <field name="code">PL</field>
+        <field name="sequence">40</field>
+        <field name="allocation_type">fixed_quota</field>
+        <field name="quota_days">3.0</field>
+        <field name="quota_reset">per_event</field>
+        <field name="applicable_gender">male</field>
+    </record>
+
+    <record id="leave_type_marriage" model="leave.type">
+        <field name="name">Marriage Leave</field>
+        <field name="code">MAR</field>
+        <field name="sequence">50</field>
+        <field name="allocation_type">fixed_quota</field>
+        <field name="quota_days">3.0</field>
+        <field name="quota_reset">per_event</field>
+    </record>
+
+    <record id="leave_type_special" model="leave.type">
+        <field name="name">Special / Bereavement Leave</field>
+        <field name="code">SPL</field>
+        <field name="sequence">60</field>
+        <field name="allocation_type">fixed_quota</field>
+        <field name="quota_days">5.0</field>
+        <field name="quota_reset">per_event</field>
+    </record>
+
+    <record id="leave_type_unpaid" model="leave.type">
+        <field name="name">Unpaid Leave</field>
+        <field name="code">UL</field>
+        <field name="sequence">70</field>
+        <field name="allocation_type">no_allocation</field>
+    </record>
+
+</odoo>

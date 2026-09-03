@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_leave_root" name="Leave Management" sequence="60"/>
+
+    <menuitem id="menu_leave_my" name="My Leaves" parent="menu_leave_root" sequence="10"
+              action="action_leave_request_my"
+              groups="advanced_leave_management.group_leave_self_service"/>
+
+    <menuitem id="menu_leave_approvals" name="Approvals Inbox" parent="menu_leave_root" sequence="20"
+              action="action_leave_request_approvals"
+              groups="advanced_leave_management.group_leave_officer"/>
+
+    <menuitem id="menu_leave_all_requests" name="All Requests" parent="menu_leave_root" sequence="30"
+              action="action_leave_request_all"
+              groups="advanced_leave_management.group_leave_hr_officer"/>
+
+    <menuitem id="menu_leave_balances" name="Leave Balances" parent="menu_leave_root" sequence="40"
+              action="action_leave_allocation"
+              groups="advanced_leave_management.group_leave_hr_officer"/>
+
+    <menuitem id="menu_leave_config" name="Configuration" parent="menu_leave_root" sequence="90"
+              groups="advanced_leave_management.group_leave_hr_officer"/>
+
+    <menuitem id="menu_leave_config_types" name="Leave Types" parent="menu_leave_config" sequence="10"
+              action="action_leave_type"/>
+
+    <menuitem id="menu_leave_config_policies" name="Leave Policies" parent="menu_leave_config" sequence="20"
+              action="action_leave_policy"/>
+
+    <menuitem id="menu_leave_config_import" name="Import Opening Balances" parent="menu_leave_config" sequence="30"
+              action="action_leave_opening_balance_import"/>
+
+    <menuitem id="menu_leave_config_tax_brackets" name="Tax Brackets" parent="menu_leave_config"
+              sequence="40" action="action_leave_tax_bracket"/>
+
+    <!-- Leave Encashment lives in Accounting, not Leave Management, since it posts a
+         real journal entry and is an accountant's job here, not HR's. Nested under the
+         standard Odoo "Accounting" entries menu (next to Journal Entries) so it sits
+         where the Cybrosys accounting kit's own menus do.
+         CAVEAT: account.menu_finance_entries is stock Odoo's technical ID for that
+         menu; the Cybrosys kit is assumed to extend it rather than replace it. If
+         install/upgrade fails with an "external ID not found" error, that's the
+         signal - go to Settings > Technical > User Interface > Menu Items, search
+         "Accounting", and send the actual external ID so this can be corrected. -->
+    <menuitem id="menu_leave_encashment_accounting_root" name="Leave Encashment"
+              parent="account.menu_finance_entries" sequence="25"
+              groups="advanced_leave_management.group_leave_accountant"/>
+
+    <menuitem id="menu_leave_encashment_accounting" name="Leave Encashment"
+              parent="menu_leave_encashment_accounting_root" sequence="10"
+              action="action_leave_encashment"
+              groups="advanced_leave_management.group_leave_accountant"/>
+
+    <menuitem id="menu_leave_encashment_settings_accounting" name="Encashment Settings"
+              parent="menu_leave_encashment_accounting_root" sequence="20"
+              action="action_leave_encashment_settings"
+              groups="advanced_leave_management.group_leave_accountant"/>
+</odoo>

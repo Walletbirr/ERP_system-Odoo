@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="module_category_leave_management" model="ir.module.category">
+        <field name="name">Leave Management</field>
+        <field name="sequence">15</field>
+    </record>
+
+    <!-- HR Officer: full rights - enters/confirms leave, configures types/policies,
+         manages allocations and opening-balance overrides. This is the "HR does HR's
+         job" group; membership here does NOT grant approval rights over self-service
+         requests unless also added to the Leave Officer group below. -->
+    <record id="group_leave_hr_officer" model="res.groups">
+        <field name="name">HR Officer</field>
+        <field name="category_id" ref="module_category_leave_management"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <!-- Leave Officer: flat, multi-member approval pool for employee self-service
+         requests. Deliberately decoupled from the manager/org-chart. Any member
+         may approve any pending self-service request, unless a leave.type
+         restricts approval to specific officers via responsible_officer_ids. -->
+    <record id="group_leave_officer" model="res.groups">
+        <field name="name">Leave Officer (Approver)</field>
+        <field name="category_id" ref="module_category_leave_management"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <!-- Base access: any internal user with a login can submit/view their own
+         self-service requests. Employees without a login never need this group -
+         HR enters their leave directly. -->
+    <record id="group_leave_self_service" model="res.groups">
+        <field name="name">Employee Self-Service</field>
+        <field name="category_id" ref="module_category_leave_management"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <!-- Accountant: leave encashment posts a real journal entry, so it belongs to
+         accounting, not HR. Members get the encashment record + its accounting
+         settings (expense/payable/tax accounts, journal) and nothing else in this
+         module. Implies the standard Accounting Administrator group so members
+         also have the underlying account.move/account.account access the posting
+         logic needs. -->
+    <record id="group_leave_accountant" model="res.groups">
+        <field name="name">Leave Encashment Accountant</field>
+        <field name="category_id" ref="module_category_leave_management"/>
+        <field name="implied_ids" eval="[(4, ref('account.group_account_manager'))]"/>
+    </record>
+
+    <record id="leave_request_rule_own" model="ir.rule">
+        <field name="name">Leave Request: self-service users see/create only their own</field>
+        <field name="model_id" ref="model_leave_request"/>
+        <field name="domain_force">[('employee_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_leave_self_service'))]"/>
+    </record>
+
+    <record id="leave_request_rule_hr_all" model="ir.rule">
+        <field name="name">Leave Request: HR Officers and Leave Officers see all</field>
+        <field name="model_id" ref="model_leave_request"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_leave_hr_officer')), (4, ref('group_leave_officer'))]"/>
+    </record>
+</odoo>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_leave_type_form" model="ir.ui.view">
+        <field name="name">leave.type.form</field>
+        <field name="model">leave.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger"
+                            invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Annual Leave"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="active" invisible="1"/>
+                            <field name="allocation_type" widget="radio"/>
+                            <field name="request_unit"/>
+                        </group>
+                        <group>
+                            <field name="requires_justification"/>
+                            <field name="min_notice_days"/>
+                            <field name="applicable_gender"/>
+                            <field name="applicable_contract_type_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+
+                    <group string="Accrual Bank Configuration" invisible="allocation_type != 'accrual_bank'">
+                        <group>
+                            <field name="base_days"/>
+                            <field name="increment_per_year"/>
+                            <field name="increment_frequency_months"/>
+                        </group>
+                        <group>
+                            <field name="max_days"/>
+                            <field name="allow_negative_balance"/>
+                        </group>
+                    </group>
+
+                    <group string="Fixed Quota Configuration" invisible="allocation_type != 'fixed_quota'">
+                        <group>
+                            <field name="quota_days"/>
+                            <field name="quota_reset"/>
+                        </group>
+                    </group>
+
+                    <group string="Carry-Over"
+                           invisible="allocation_type not in ('accrual_bank', 'fixed_quota')">
+                        <group>
+                            <field name="carry_over_allowed"/>
+                        </group>
+                        <group invisible="not carry_over_allowed">
+                            <field name="carry_over_max_days"/>
+                            <field name="carry_over_expiry_months"/>
+                        </group>
+                    </group>
+
+                    <group string="Approval Routing">
+                        <field name="responsible_officer_ids" widget="many2many_tags"
+                               placeholder="Leave empty: any Leave Officer may approve"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_leave_type_tree" model="ir.ui.view">
+        <field name="name">leave.type.tree</field>
+        <field name="model">leave.type</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="allocation_type"/>
+                <field name="requires_justification"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_leave_type" model="ir.actions.act_window">
+        <field name="name">Leave Types</field>
+        <field name="res_model">leave.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_leave_policy_form" model="ir.ui.view">
+        <field name="name">leave.policy.form</field>
+        <field name="model">leave.policy</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="leave_type_id"/>
+                        <field name="department_ids" widget="many2many_tags"/>
+                        <field name="active" invisible="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_leave_policy_tree" model="ir.ui.view">
+        <field name="name">leave.policy.tree</field>
+        <field name="model">leave.policy</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="leave_type_id"/>
+                <field name="department_ids" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_leave_policy" model="ir.actions.act_window">
+        <field name="name">Leave Policies</field>
+        <field name="res_model">leave.policy</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
