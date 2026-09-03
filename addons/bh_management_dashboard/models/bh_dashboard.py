@@ -481,18 +481,43 @@ class BhManagementDashboard(models.Model):
         }
 
     def _aging_breakdown(self, account_type, date_to, negate=False):
-        """Per-partner open-balance rows for one account type, pre-bucketed
-        into aging columns by Postgres so no per-row Python math is needed.
+        """Per-partner (or per-account, when no partner is set) open-balance
+        rows for one account type, pre-bucketed into aging columns by
+        Postgres so no per-row Python math is needed.
+
+        Many lines here have no res.partner attached at all — this company's
+        Chart of Accounts uses a dedicated named account per payee instead
+        (e.g. "221001 — Ousman Endrise" as its own Payable account), rather
+        than always tagging a partner on the journal item. So the row label
+        falls back to the GL account's own name in that case, instead of a
+        generic "Unknown Partner" that would lump unrelated payees together.
+        Grouping by account (not just partner) keeps those rows separate.
+
         `negate` flips the sign for liability_payable (credit-normal) so
         amounts read as positive "amount owed", matching the KPI totals.
         `sign` below is a hardcoded '1'/'-1' set internally — never user
         input — so splicing it into the query text is safe.
+
+        account_account.name is a TRANSLATABLE field, stored as jsonb
+        (e.g. {"en_US": "Ousman Endrise"}) — unlike res_partner.name, a
+        plain varchar. COALESCE(rp.name, aa.name) mixes those two types
+        and Postgres rejects it outright ("COALESCE types character
+        varying and jsonb cannot be matched"). aa.name->>lang pulls the
+        text out for one language, with a chain of fallbacks in case the
+        user's language has no translation stored for that account.
         """
         sign = '-1' if negate else '1'
+        lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
         self.env.cr.execute(f"""
             SELECT
-                COALESCE(rp.id, 0)                          AS partner_id,
-                COALESCE(rp.name, 'Unknown Partner')         AS partner_name,
+                COALESCE(rp.id, 0)                                  AS partner_id,
+                aa.id                                                AS account_id,
+                COALESCE(
+                    rp.name,
+                    aa.name->>%(lang)s,
+                    aa.name->>'en_US',
+                    (SELECT v FROM jsonb_each_text(aa.name) AS t(k, v) LIMIT 1)
+                )                                                    AS partner_name,
                 COALESCE(SUM(CASE
                     WHEN COALESCE(aml.date_maturity, aml.date) > %(date_to)s::date
                     THEN {sign} * aml.balance ELSE 0 END), 0)  AS not_due,
@@ -522,13 +547,14 @@ class BhManagementDashboard(models.Model):
               AND aml.company_id  = %(company_id)s
               AND aml.date       <= %(date_to)s::date
               AND aml.reconciled  = false
-            GROUP BY rp.id, rp.name
+            GROUP BY rp.id, rp.name, aa.id, aa.name
             HAVING COALESCE(SUM({sign} * aml.balance), 0) != 0
             ORDER BY total DESC
         """, {
             'date_to':      date_to,
             'account_type': account_type,
             'company_id':   self.env.company.id,
+            'lang':         lang,
         })
         return self.env.cr.dictfetchall()
 
