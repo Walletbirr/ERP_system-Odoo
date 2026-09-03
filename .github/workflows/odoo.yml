@@ -1,4 +1,4 @@
-name: Odoo 18 Deploy
+name: Deploy Odoo
 
 on:
   push:
@@ -10,43 +10,41 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Debug runner
-        run: |
-          echo "=== Runner Information ==="
-          whoami
-          id
-          groups
-          echo "=== Odoo service status before deployment ==="
-          systemctl status odoo --no-pager || echo "Odoo service not active or not found"
-          echo "=== Stopping Odoo for deployment ==="
-
       - name: Stop Odoo
-        run: systemctl stop odoo
-
-      - name: Sync project
-        run: rsync -av --delete ./ /data/ERP_system-Odoo/
-
-      - name: Install dependencies
         run: |
-          source /data/ERP_system-Odoo/venv/bin/activate
-          pip install -r /data/ERP_system-Odoo/requirements.txt
+          sudo systemctl stop odoo
 
-      - name: Upgrade modules
+      - name: Deploy Odoo source
         run: |
-          /data/ERP_system-Odoo/venv/bin/python /opt/odoo/odoo-bin \
-            -c /etc/odoo.conf \
-            -d erpodoo \
-            -u all \
-            --stop-after-init
+          sudo rsync -a \
+            --exclude='.git' \
+            --exclude='venv' \
+            --exclude='__pycache__' \
+            ./ /opt/odoo/
+
+      - name: Set permissions
+        run: |
+          sudo chown -R walletadmin:walletadmin /opt/odoo
+
+      - name: Install Python dependencies
+        run: |
+          cd /opt/odoo
+          source venv/bin/activate
+          pip install -r requirements.txt
 
       - name: Start Odoo
-        run: systemctl start odoo
-
-      - name: Verify Odoo
         run: |
-          echo "=== Waiting for Odoo to start ==="
-          sleep 8
-          systemctl status odoo --no-pager
+          sudo systemctl start odoo
+
+      - name: Check Odoo service
+        run: |
+          sudo systemctl is-active --quiet odoo
+
+      - name: Show Odoo status
+        if: always()
+        run: |
+          sudo systemctl status odoo --no-pager
+          sudo journalctl -u odoo -n 50 --no-pager
