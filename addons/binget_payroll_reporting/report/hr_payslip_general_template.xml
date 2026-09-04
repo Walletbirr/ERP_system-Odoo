@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <template id="report_hr_payslip_general">
+        <t t-call="web.html_container">
+            <t t-foreach="pages" t-as="page">
+                <div
+                    class="page"
+                    t-att-style="'max-width: none; width: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif;' + (' page-break-after: always;' if not page['is_last'] else ' page-break-after: auto;')"
+                >
+                    <div style="text-align: center; margin-bottom: 8px;">
+                        <div style="font-size: 18px; font-weight: bold; line-height: 1.15;" t-esc="company.name"/>
+                        <div style="color: #8B5E02; font-size: 14px; margin-top: 1px; font-weight: bold;">General Payroll Report</div>
+                        <div style="border-bottom: 2px solid #8B5E02; width: 110px; margin: 4px auto 0;"/>
+                    </div>
+
+                    <table style="width: 100%; margin-bottom: 6px; font-size: 10px; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 1px 3px;"><strong>Period:</strong> <span t-esc="period_from"/> - <span t-esc="period_to"/></td>
+                            <td style="padding: 1px 3px; text-align: right;">
+                                <strong>Generated:</strong> <span t-esc="generated_on.strftime('%Y-%m-%d %H:%M')"/>
+                                <span style="margin-left: 10px;">Page <t t-esc="page['page_num']"/> / <t t-esc="total_pages"/></span>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table style="font-size: 12px; width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #8B5E02; font-family: Arial, Helvetica, sans-serif;">
+                        <colgroup>
+                            <col style="width: 60%;"/>
+                            <col style="width: 40%;"/>
+                        </colgroup>
+                        <thead>
+                            <tr style="background-color: #8B5E02; color: white;">
+                                <th style="padding: 7px 5px; vertical-align: middle; text-align: left; border: 1px solid #6B4A01; line-height: 1.25; font-size: 13px;">Employee</th>
+                                <th style="padding: 7px 5px; vertical-align: middle; text-align: center; border: 1px solid #6B4A01; line-height: 1.25; font-size: 13px;">Settled Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="page['rows']" t-as="row">
+                                <tr t-att-style="'background-color: #F7F0E0;' if row_index % 2 else 'background-color: #FFFFFF;'">
+                                    <td style="padding: 6px 5px; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.3; border: 1px solid #D4C4A0; font-size: 12px;">
+                                        <t t-foreach="row['employee_lines']" t-as="eline"><div t-esc="eline"/></t>
+                                    </td>
+                                    <td style="padding: 6px 5px; vertical-align: middle; text-align: right; white-space: nowrap; border: 1px solid #D4C4A0; font-size: 12px; font-weight: bold;"
+                                        t-esc="'{:,.2f}'.format(row['grand_total'])"/>
+                                </tr>
+                            </t>
+                        </tbody>
+                        <tfoot>
+                            <tr style="background-color: #EDE0C4; font-weight: bold; color: #4A3200;">
+                                <th style="padding: 7px 5px; vertical-align: middle; text-align: left; border: 1px solid #C4A86A; font-size: 12px;">Page Total</th>
+                                <th style="padding: 7px 5px; vertical-align: middle; text-align: right; white-space: nowrap; border: 1px solid #C4A86A; font-size: 12px;"
+                                    t-esc="'{:,.2f}'.format(page['page_totals']['grand_total'])"/>
+                            </tr>
+                            <t t-if="page['is_last']">
+                                <tr style="background-color: #E0C98A; font-weight: bold; color: #3D2800;">
+                                    <th style="padding: 8px 5px; vertical-align: middle; text-align: left; border: 1px solid #B8954A; font-size: 13px;">Grand Total</th>
+                                    <th style="padding: 8px 5px; vertical-align: middle; text-align: right; white-space: nowrap; border: 1px solid #B8954A; font-size: 13px;"
+                                        t-esc="'{:,.2f}'.format(totals['grand_total'])"/>
+                                </tr>
+                            </t>
+                        </tfoot>
+                    </table>
+
+                    <t t-if="page['is_last']">
+                        <p style="font-size: 8.5px; color: #6c757d; margin-top: 6px;">
+                            Settled Amount = the employee's payslip Net Pay for the period, plus the net (after-tax) amount of any posted Annual Leave Encashment dated within the same period.
+                        </p>
+                    </t>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="hr_payslip_general_report_view_form" model="ir.ui.view">
+        <field name="name">hr.payslip.general.report.form</field>
+        <field name="model">hr.payslip.general.report</field>
+        <field name="arch" type="xml">
+            <form string="General Payroll Report">
+                <p class="text-muted">
+                    Combines every confirmed payslip's Net Pay with any
+                    posted Annual Leave Encashment for the same employee in
+                    the selected period - regardless of whether the payslip
+                    belongs to a batch.
+                </p>
+                <group>
+                    <group>
+                        <field name="date_from" />
+                        <field name="date_to" />
+                    </group>
+                    <group>
+                        <field name="employee_ids" widget="many2many_tags" />
+                        <field name="include_non_confirmed" />
+                    </group>
+                </group>
+                <footer>
+                    <button
+                        string="Print PDF"
+                        name="action_print_pdf"
+                        type="object"
+                        class="btn-primary"
+                    />
+                    <button
+                        string="Export Excel"
+                        name="action_export_xlsx"
+                        type="object"
+                        class="btn-primary"
+                    />
+                    <button string="Cancel" special="cancel" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="hr_payslip_general_report_action" model="ir.actions.act_window">
+        <field name="name">General Payroll Report</field>
+        <field name="res_model">hr.payslip.general.report</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem
+        id="hr_payslip_general_report_menu"
+        name="General Payroll Report"
+        action="hr_payslip_general_report_action"
+        parent="hr_payslip_reports_menu_root"
+        sequence="20"
+        groups="payroll.group_payroll_user"
+    />
+</odoo>

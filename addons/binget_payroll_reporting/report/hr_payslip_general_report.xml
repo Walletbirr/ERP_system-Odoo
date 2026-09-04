@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="action_report_hr_payslip_general" model="ir.actions.report">
+        <field name="name">General Payroll Report</field>
+        <field name="model">hr.payslip.general.report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">binget_payroll_reporting.report_hr_payslip_general</field>
+        <field name="report_file">binget_payroll_reporting.report_hr_payslip_general</field>
+        <field name="print_report_name">'General Payroll Report'</field>
+        <field name="paperformat_id" ref="paperformat_hr_payslip_general" />
+        <field name="binding_model_id" eval="False" />
+    </record>
+</odoo>

@@ -46,8 +46,8 @@
         id="hr_payslip_summary_report_menu"
         name="Payroll Summary Report"
         action="hr_payslip_summary_report_action"
-        parent="payroll.payroll_menu_root"
-        sequence="60"
+        parent="hr_payslip_reports_menu_root"
+        sequence="10"
         groups="payroll.group_payroll_user"
     />
 </odoo>

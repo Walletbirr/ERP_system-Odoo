@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <menuitem
+        id="hr_payslip_reports_menu_root"
+        name="Payroll Reports"
+        parent="payroll.payroll_menu_root"
+        sequence="60"
+        groups="payroll.group_payroll_user"
+    />
+</odoo>
