@@ -48,10 +48,11 @@ class BhManagementDashboard(models.Model):
         rp = self._get_receivable_payable_data(date_to)
         finance_data['summary']['total_receivable'] = rp['total_receivable']
         finance_data['summary']['total_payable'] = rp['total_payable']
-        # Drill-down detail for the Receivable/Payable modals (per-partner,
-        # bucketed by days overdue) — see _get_receivable_payable_data.
-        finance_data['receivable_aging'] = rp['receivable_aging']
-        finance_data['payable_aging'] = rp['payable_aging']
+        # Drill-down detail for the Receivable/Payable modals — simple
+        # per-partner/account open balance, no aging — see
+        # _get_receivable_payable_data.
+        finance_data['receivable_breakdown'] = rp['receivable_breakdown']
+        finance_data['payable_breakdown'] = rp['payable_breakdown']
 
         return {
             'sales':         self._get_sales_data(date_from, date_to),
@@ -432,17 +433,14 @@ class BhManagementDashboard(models.Model):
         matching how total_receivable reads and how the mobile/web UI
         already expects it.
 
-        Also returns a partner-level AGING breakdown for the drill-down
-        modal (receivable_aging / payable_aging), bucketed off each line's
-        due date (date_maturity, falling back to the entry date when no
-        due date is set) relative to date_to: Not Due, 1-30, 31-60, 61-90,
-        90+ days overdue.
+        Also returns a simple per-partner/account OPEN BALANCE breakdown
+        for the drill-down modal (receivable_breakdown / payable_breakdown)
+        — just "who" and "how much", no aging/due-date bucketing.
 
-        The aging breakdown is built from OPEN (unreconciled) lines only —
-        the standard "Aged Partner Balance" approach — while the
-        total_receivable/total_payable KPIs above stay computed from ALL
-        posted lines as before, so existing behavior doesn't change; the
-        aging figures are additive drill-down detail. In practice the two
+        The breakdown is built from OPEN (unreconciled) lines only, while
+        the total_receivable/total_payable KPIs above stay computed from
+        ALL posted lines as before, so existing behavior doesn't change;
+        the breakdown is additive drill-down detail. In practice the two
         should match closely since reconciled entries net to zero, but
         they can differ by small amounts in edge cases (partial
         reconciliation, exchange adjustments) — the KPI totals remain the
@@ -472,18 +470,18 @@ class BhManagementDashboard(models.Model):
             'total_receivable': row['total_receivable'],
             'total_payable':    row['total_payable'],
             'as_of':            date_to,
-            'receivable_aging': self._format_aging(
-                self._aging_breakdown('asset_receivable', date_to, negate=False)
+            'receivable_breakdown': self._partner_balance_breakdown(
+                'asset_receivable', date_to, negate=False
             ),
-            'payable_aging': self._format_aging(
-                self._aging_breakdown('liability_payable', date_to, negate=True)
+            'payable_breakdown': self._partner_balance_breakdown(
+                'liability_payable', date_to, negate=True
             ),
         }
 
-    def _aging_breakdown(self, account_type, date_to, negate=False):
-        """Per-partner (or per-account, when no partner is set) open-balance
-        rows for one account type, pre-bucketed into aging columns by
-        Postgres so no per-row Python math is needed.
+    def _partner_balance_breakdown(self, account_type, date_to, negate=False):
+        """Per-partner (or per-account, when no partner is set) open
+        balance for one account type — just a name and a total, capped at
+        15 rows for the modal, ordered by size. No due-date/aging logic.
 
         Many lines here have no res.partner attached at all — this company's
         Chart of Accounts uses a dedicated named account per payee instead
@@ -510,33 +508,13 @@ class BhManagementDashboard(models.Model):
         lang = self.env.user.lang or self.env.context.get('lang') or 'en_US'
         self.env.cr.execute(f"""
             SELECT
-                COALESCE(rp.id, 0)                                  AS partner_id,
-                aa.id                                                AS account_id,
                 COALESCE(
                     rp.name,
                     aa.name->>%(lang)s,
                     aa.name->>'en_US',
                     (SELECT v FROM jsonb_each_text(aa.name) AS t(k, v) LIMIT 1)
                 )                                                    AS partner_name,
-                COALESCE(SUM(CASE
-                    WHEN COALESCE(aml.date_maturity, aml.date) > %(date_to)s::date
-                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS not_due,
-                COALESCE(SUM(CASE
-                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date)
-                         BETWEEN 1 AND 30
-                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d1_30,
-                COALESCE(SUM(CASE
-                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date)
-                         BETWEEN 31 AND 60
-                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d31_60,
-                COALESCE(SUM(CASE
-                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date)
-                         BETWEEN 61 AND 90
-                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d61_90,
-                COALESCE(SUM(CASE
-                    WHEN %(date_to)s::date - COALESCE(aml.date_maturity, aml.date) > 90
-                    THEN {sign} * aml.balance ELSE 0 END), 0)  AS d90_plus,
-                COALESCE(SUM({sign} * aml.balance), 0)         AS total
+                COALESCE(SUM({sign} * aml.balance), 0)                AS total
             FROM account_move_line aml
             JOIN account_account aa
               ON aa.id = aml.account_id
@@ -550,6 +528,7 @@ class BhManagementDashboard(models.Model):
             GROUP BY rp.id, rp.name, aa.id, aa.name
             HAVING COALESCE(SUM({sign} * aml.balance), 0) != 0
             ORDER BY total DESC
+            LIMIT 15
         """, {
             'date_to':      date_to,
             'account_type': account_type,
@@ -557,27 +536,6 @@ class BhManagementDashboard(models.Model):
             'lang':         lang,
         })
         return self.env.cr.dictfetchall()
-
-    def _format_aging(self, rows):
-        """Roll per-partner aging rows (from _aging_breakdown) up into
-        overall bucket totals, and cap the partner list at 15 rows for
-        the modal (already ordered by total desc)."""
-        buckets = {'not_due': 0.0, 'd1_30': 0.0, 'd31_60': 0.0, 'd61_90': 0.0, 'd90_plus': 0.0}
-        for r in rows:
-            for key in buckets:
-                buckets[key] += r[key]
-        return {
-            'buckets':    buckets,
-            'by_partner': [{
-                'partner':  r['partner_name'],
-                'total':    r['total'],
-                'not_due':  r['not_due'],
-                'd1_30':    r['d1_30'],
-                'd31_60':   r['d31_60'],
-                'd61_90':   r['d61_90'],
-                'd90_plus': r['d90_plus'],
-            } for r in rows[:15]],
-        }
 
     # ─────────────────────────────────────────────────────────────────────
     # CUSTOMER CREDIT  (from the optional 'customer_credit_report' module)
