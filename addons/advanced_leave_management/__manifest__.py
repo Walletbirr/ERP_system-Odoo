@@ -38,7 +38,7 @@ Key features
 """,
     'author': 'Custom Development',
     'license': 'LGPL-3',
-    'depends': ['hr', 'hr_contract', 'mail', 'account'],
+    'depends': ['hr', 'hr_contract', 'mail', 'account', 'payroll'],
     'data': [
         'security/security_groups.xml',
         'security/ir.model.access.csv',

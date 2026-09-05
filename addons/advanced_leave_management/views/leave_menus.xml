@@ -33,17 +33,13 @@
     <menuitem id="menu_leave_config_tax_brackets" name="Tax Brackets" parent="menu_leave_config"
               sequence="40" action="action_leave_tax_bracket"/>
 
-    <!-- Leave Encashment lives in Accounting, not Leave Management, since it posts a
-         real journal entry and is an accountant's job here, not HR's. Nested under the
-         standard Odoo "Accounting" entries menu (next to Journal Entries) so it sits
-         where the Cybrosys accounting kit's own menus do.
-         CAVEAT: account.menu_finance_entries is stock Odoo's technical ID for that
-         menu; the Cybrosys kit is assumed to extend it rather than replace it. If
-         install/upgrade fails with an "external ID not found" error, that's the
-         signal - go to Settings > Technical > User Interface > Menu Items, search
-         "Accounting", and send the actual external ID so this can be corrected. -->
+    <!-- Leave Encashment lives in Payroll, not Leave Management, since it posts a
+         real journal entry and is a payroll/accounting job here, not HR's. Nested
+         directly under the Payroll app's own root menu (verified against the actual
+         payroll module: xmlid payroll.payroll_menu_root), alongside Employee
+         Payslips and Payslips Batches. -->
     <menuitem id="menu_leave_encashment_accounting_root" name="Leave Encashment"
-              parent="account.menu_finance_entries" sequence="25"
+              parent="payroll.payroll_menu_root" sequence="25"
               groups="advanced_leave_management.group_leave_accountant"/>
 
     <menuitem id="menu_leave_encashment_accounting" name="Leave Encashment"

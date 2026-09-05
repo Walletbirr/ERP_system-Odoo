@@ -101,13 +101,25 @@ class LeaveEncashment(models.Model):
         # cent (2718.39 x 18 = 48,931.02 vs the true 81,551.72/30 x 18 = 48,931.032,
         # i.e. 48,931.03). daily_rate stays as a rounded figure for display only.
         for rec in self:
-            rec.amount = (rec.basic_salary / rec.days_in_month * rec.days) if rec.days_in_month else 0.0
+            rec.amount = round(
+                (rec.basic_salary / rec.days_in_month * rec.days) if rec.days_in_month else 0.0, 2)
 
-    @api.onchange('amount', 'tax_rate')
+    @api.onchange('amount', 'tax_rate', 'basic_salary', 'days_in_month', 'days')
     def _onchange_tax(self):
+        # Tax is computed on a per-day basis and then scaled up: the per-day tax
+        # (basic_salary / days_in_month * tax_rate) is rounded to currency precision
+        # first, and THAT rounded per-day figure is multiplied by the number of days.
+        # This intentionally matches the payroll spreadsheet's method rather than
+        # applying the rate once to the full lump-sum amount, so it can differ by a
+        # cent or two from a straight amount * tax_rate calculation.
         for rec in self:
-            rec.tax_amount = rec.amount * (rec.tax_rate / 100.0)
-            rec.net_amount = rec.amount - rec.tax_amount
+            if rec.days_in_month:
+                per_day_tax = round(
+                    (rec.basic_salary / rec.days_in_month) * (rec.tax_rate / 100.0), 2)
+                rec.tax_amount = round(per_day_tax * rec.days, 2)
+            else:
+                rec.tax_amount = 0.0
+            rec.net_amount = round(rec.amount - rec.tax_amount, 2)
 
     def action_post(self):
         Company = self.env.company
