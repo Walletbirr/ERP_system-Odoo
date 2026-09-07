@@ -11,10 +11,11 @@ absent. No self check-in/check-out - entries are made by HR on behalf of
 each employee.
 
 - One record per employee per month (Month + auto Year, year is hidden)
-- Simple numeric "Days Absent" field, no daily grid
-- No approval workflow: HR enters the number and it's saved
-- Validation: days absent can't be negative or exceed the number of
-  calendar days in the selected month
+- HR picks the specific dates the employee was absent on a compact
+  calendar widget, instead of typing a number
+- "Days Absent" is computed automatically from the picked dates
+- No approval workflow: HR picks the dates and it's saved
+- Validation: picked dates must fall within the selected month/year
 - Menu lives under Employees, next to Org Chart / Contracts
 - Visible only to the HR Officer / HR Manager groups
 
@@ -28,6 +29,13 @@ done directly in the payroll rules once this is reviewed and installed.
         'security/ir.model.access.csv',
         'views/hr_employee_attendance_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'binget_attendance/static/src/js/attendance_calendar_field.js',
+            'binget_attendance/static/src/xml/attendance_calendar_field.xml',
+            'binget_attendance/static/src/scss/attendance_calendar_field.scss',
+        ],
+    },
     'installable': True,
     'application': False,
     'license': 'LGPL-3',

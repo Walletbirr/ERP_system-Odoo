@@ -1,0 +1,97 @@
+.o_attendance_calendar {
+    max-width: 360px;
+    padding: 4px 0 8px;
+
+    .o_attendance_calendar_header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .o_attendance_calendar_month {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--o-brand-primary, #714B67);
+    }
+
+    .o_attendance_calendar_count {
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .o_attendance_calendar_weekdays,
+    .o_attendance_calendar_grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+    }
+
+    .o_attendance_calendar_weekday {
+        text-align: center;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .02em;
+        color: #adb5bd;
+        text-transform: uppercase;
+        padding-bottom: 6px;
+    }
+
+    .o_attendance_calendar_cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        font-size: 13px;
+        color: #495057;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color .12s ease, color .12s ease, box-shadow .12s ease;
+
+        &:hover {
+            background-color: #f1eef2;
+        }
+
+        &_blank {
+            cursor: default;
+
+            &:hover {
+                background-color: transparent;
+            }
+        }
+
+        &_selected {
+            background-color: #e35d6a;
+            color: #fff;
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(227, 93, 106, .45);
+
+            &:hover {
+                background-color: #d64958;
+            }
+        }
+    }
+
+    .o_attendance_calendar_footer {
+        min-height: 22px;
+        margin-top: 6px;
+    }
+
+    .o_attendance_calendar_clear {
+        font-size: 12px;
+    }
+
+    &.o_attendance_calendar_readonly .o_attendance_calendar_cell {
+        cursor: default;
+
+        &:hover {
+            background-color: transparent;
+        }
+
+        &.o_attendance_calendar_cell_selected:hover {
+            background-color: #e35d6a;
+        }
+    }
+}

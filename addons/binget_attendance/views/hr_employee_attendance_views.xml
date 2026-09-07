@@ -5,7 +5,7 @@
         <field name="name">hr.employee.attendance.days.list</field>
         <field name="model">hr.employee.attendance.days</field>
         <field name="arch" type="xml">
-            <list string="Attendance" editable="bottom">
+            <list string="Attendance">
                 <field name="employee_id"/>
                 <field name="month"/>
                 <field name="days_absent"/>
@@ -22,7 +22,10 @@
                     <group>
                         <field name="employee_id"/>
                         <field name="month"/>
-                        <field name="days_absent"/>
+                        <field name="days_absent" readonly="1"/>
+                    </group>
+                    <group string="Absent Days">
+                        <field name="absence_dates" widget="attendance_calendar" nolabel="1" colspan="2"/>
                     </group>
                 </sheet>
             </form>
@@ -50,10 +53,10 @@
         <field name="context">{'search_default_group_month': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Record how many days an employee was absent this month
+                Record which days an employee was absent this month
             </p>
             <p>
-                This number feeds directly into that employee's payroll calculation.
+                Pick the specific dates on the calendar - the day count feeds directly into that employee's payroll calculation.
             </p>
         </field>
     </record>

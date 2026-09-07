@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="binget_attendance.AttendanceCalendarField">
+        <div class="o_attendance_calendar" t-att-class="{ o_attendance_calendar_readonly: props.readonly }">
+            <div class="o_attendance_calendar_header">
+                <span class="o_attendance_calendar_month" t-esc="monthLabel + ' ' + year"/>
+                <span class="o_attendance_calendar_count">
+                    <t t-esc="selectedCount"/> <t t-esc="selectedCount === 1 ? 'day' : 'days'"/> absent
+                </span>
+            </div>
+            <div class="o_attendance_calendar_weekdays">
+                <t t-foreach="weekdayLabels" t-as="wd" t-key="wd">
+                    <span class="o_attendance_calendar_weekday" t-esc="wd"/>
+                </t>
+            </div>
+            <div class="o_attendance_calendar_grid">
+                <t t-foreach="calendarCells" t-as="cell" t-key="cell.key">
+                    <span t-if="cell.blank" class="o_attendance_calendar_cell o_attendance_calendar_cell_blank"/>
+                    <span t-else=""
+                          class="o_attendance_calendar_cell"
+                          t-att-class="{ o_attendance_calendar_cell_selected: cell.selected }"
+                          t-on-click="() => this.onCellClick(cell)"
+                          t-esc="cell.day"/>
+                </t>
+            </div>
+            <div class="o_attendance_calendar_footer">
+                <button t-if="!props.readonly and selectedCount"
+                        type="button"
+                        class="btn btn-link p-0 o_attendance_calendar_clear"
+                        t-on-click="onClearAll">
+                    Clear all
+                </button>
+            </div>
+        </div>
+    </t>
+
+</templates>

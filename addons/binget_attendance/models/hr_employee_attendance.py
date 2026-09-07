@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import calendar
+import json
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
@@ -27,11 +27,18 @@ class HrEmployeeAttendanceDays(models.Model):
     year = fields.Integer(
         string='Year', required=True,
         default=lambda self: fields.Date.context_today(self).year)
+    absence_dates = fields.Text(
+        string='Absence Dates', default='[]',
+        help="Technical field: JSON list of ISO dates (YYYY-MM-DD) the "
+             "employee was marked absent, picked from the calendar widget. "
+             "Not meant to be edited directly.")
     days_absent = fields.Float(
-        string='Days Absent', required=True, default=0.0,
+        string='Days Absent', compute='_compute_days_absent', store=True,
         digits=(16, 1),
-        help="Number of days this employee was absent during the selected month. "
-             "Half days (e.g. 2.5) are allowed.")
+        help="Number of days this employee was absent during the selected "
+             "month. Derived automatically from the dates picked on the "
+             "calendar - pick the specific absent dates rather than "
+             "entering a number.")
     company_id = fields.Many2one(
         'res.company', string='Company', required=True,
         default=lambda self: self.env.company)
@@ -43,27 +50,50 @@ class HrEmployeeAttendanceDays(models.Model):
          'Edit the existing record instead of creating a new one.'),
     ]
 
-    @api.constrains('days_absent')
-    def _check_days_absent_not_negative(self):
-        for rec in self:
-            if rec.days_absent < 0:
-                raise ValidationError(_('Days absent cannot be negative.'))
+    def _get_absence_date_list(self):
+        """Return the sorted, de-duplicated list of ISO date strings stored
+        on this record. Defensive against malformed/empty JSON."""
+        self.ensure_one()
+        try:
+            raw = json.loads(self.absence_dates or '[]')
+        except ValueError:
+            return []
+        if not isinstance(raw, list):
+            return []
+        return sorted({d for d in raw if isinstance(d, str) and d})
 
-    @api.constrains('days_absent', 'month', 'year')
-    def _check_days_absent_within_month(self):
+    @api.depends('absence_dates')
+    def _compute_days_absent(self):
+        for rec in self:
+            rec.days_absent = len(rec._get_absence_date_list())
+
+    @api.constrains('absence_dates', 'month', 'year')
+    def _check_absence_dates_within_month(self):
         month_label = dict(MONTH_SELECTION)
         for rec in self:
-            days_in_month = calendar.monthrange(rec.year, int(rec.month))[1]
-            if rec.days_absent > days_in_month:
-                raise ValidationError(_(
-                    'Days absent (%(days)s) cannot exceed the number of days in '
-                    '%(month)s %(year)s (%(max)s days).'
-                ) % {
-                    'days': rec.days_absent,
-                    'month': month_label.get(rec.month),
-                    'year': rec.year,
-                    'max': days_in_month,
-                })
+            expected_prefix = '%04d-%02d-' % (rec.year, int(rec.month))
+            for date_str in rec._get_absence_date_list():
+                if not date_str.startswith(expected_prefix):
+                    raise ValidationError(_(
+                        'Absence date %(date)s is outside %(month)s %(year)s. '
+                        'Only dates within the selected month can be marked absent.'
+                    ) % {
+                        'date': date_str,
+                        'month': month_label.get(rec.month),
+                        'year': rec.year,
+                    })
+
+    @api.onchange('month', 'year')
+    def _onchange_month_year_prune_dates(self):
+        """If HR changes the month/year after already picking dates, drop
+        any picked dates that no longer belong to the newly selected month
+        instead of leaving stale/invalid dates behind."""
+        for rec in self:
+            if not rec.absence_dates or rec.absence_dates == '[]':
+                continue
+            expected_prefix = '%04d-%02d-' % (rec.year, int(rec.month))
+            kept = [d for d in rec._get_absence_date_list() if d.startswith(expected_prefix)]
+            rec.absence_dates = json.dumps(kept)
 
     def name_get(self):
         month_label = dict(MONTH_SELECTION)
