@@ -10,6 +10,10 @@
                             class="btn-primary" invisible="state != 'draft'"/>
                     <button name="action_cancel" type="object" string="Cancel"
                             invisible="state != 'draft'"/>
+                    <button name="action_reset_to_draft" type="object" string="Set to Draft"
+                            confirm="This will reset the journal entry to draft and PERMANENTLY DELETE it, then reopen this encashment for editing. This cannot be undone. Continue?"
+                            invisible="state != 'posted'"
+                            groups="base.group_system"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
                 </header>
                 <sheet>

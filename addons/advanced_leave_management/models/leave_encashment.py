@@ -104,21 +104,10 @@ class LeaveEncashment(models.Model):
             rec.amount = round(
                 (rec.basic_salary / rec.days_in_month * rec.days) if rec.days_in_month else 0.0, 2)
 
-    @api.onchange('amount', 'tax_rate', 'basic_salary', 'days_in_month', 'days')
+    @api.onchange('amount', 'tax_rate')
     def _onchange_tax(self):
-        # Tax is computed on a per-day basis and then scaled up: the per-day tax
-        # (basic_salary / days_in_month * tax_rate) is rounded to currency precision
-        # first, and THAT rounded per-day figure is multiplied by the number of days.
-        # This intentionally matches the payroll spreadsheet's method rather than
-        # applying the rate once to the full lump-sum amount, so it can differ by a
-        # cent or two from a straight amount * tax_rate calculation.
         for rec in self:
-            if rec.days_in_month:
-                per_day_tax = round(
-                    (rec.basic_salary / rec.days_in_month) * (rec.tax_rate / 100.0), 2)
-                rec.tax_amount = round(per_day_tax * rec.days, 2)
-            else:
-                rec.tax_amount = 0.0
+            rec.tax_amount = round(rec.amount * (rec.tax_rate / 100.0), 2)
             rec.net_amount = round(rec.amount - rec.tax_amount, 2)
 
     def action_post(self):
@@ -215,6 +204,23 @@ class LeaveEncashment(models.Model):
                     "has a real journal entry - reverse it from the Accounting app first, "
                     "then contact an administrator to correct the leave ledger."))
             rec.state = 'cancelled'
+
+    def action_reset_to_draft(self):
+        for rec in self:
+            if rec.state != 'posted':
+                raise UserError(_("Only posted encashments can be reset to draft."))
+            if rec.move_id:
+                move = rec.move_id.sudo()
+                # This button is admin-only (base.group_system), so it's trusted to
+                # handle the journal entry itself rather than requiring a manual trip
+                # to Accounting first. Odoo's own accounting-integrity checks (locked
+                # period, hashed/secured entries, etc.) still apply and will raise
+                # their own clear error here if this move genuinely can't be touched -
+                # that block is intentional and is not caught/bypassed.
+                if move.state == 'posted':
+                    move.button_draft()
+                move.unlink()
+            rec.write({'state': 'draft', 'move_id': False})
 
     def unlink(self):
         for rec in self:
