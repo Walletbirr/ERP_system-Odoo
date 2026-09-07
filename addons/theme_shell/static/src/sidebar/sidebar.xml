@@ -7,12 +7,8 @@
             <!-- Sticky header: does NOT live inside the scrollable area below -->
             <div class="o_theme_sidebar_header">
                 <div class="o_theme_sidebar_brand_wrap">
-                    <div class="o_theme_sidebar_logo_badge">
-                        <img src="/theme_shell/static/src/img/logo.png" alt="Binget"/>
-                    </div>
                     <div class="o_theme_sidebar_brand">
                         <span class="o_theme_sidebar_brand_main" t-esc="brandName.main"/>
-                        <span t-if="brandName.sub" class="o_theme_sidebar_brand_sub" t-esc="brandName.sub"/>
                     </div>
                 </div>
                 <div class="o_theme_sidebar_header_actions">
@@ -79,7 +75,7 @@
                         No matches for "<t t-esc="state.searchQuery"/>"
                     </div>
                     <t t-foreach="searchResults" t-as="result" t-key="result.id">
-                        <a href="#"
+                        <a t-att-href="getSearchResultHref(result)"
                            class="o_theme_sidebar_search_result"
                            t-att-class="{ 'highlighted': result_index === state.highlightedIndex }"
                            t-on-click.prevent="() => this.onSearchResultClick(result)">
@@ -92,7 +88,7 @@
                 <t t-else="">
                     <t t-foreach="state.apps" t-as="app" t-key="app.id">
                         <div class="o_theme_sidebar_app_group">
-                            <a href="#"
+                            <a t-att-href="getMenuHref(app)"
                                class="o_theme_sidebar_app"
                                t-att-class="{ 'active': app.id === state.currentAppId }"
                                t-att-title="state.collapsed ? app.name : ''"

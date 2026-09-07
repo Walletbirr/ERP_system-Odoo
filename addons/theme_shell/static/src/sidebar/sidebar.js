@@ -8,6 +8,24 @@ import { user } from "@web/core/user";
 
 const THEME_STORAGE_KEY = "o_theme_sidebar_theme";
 
+// Matches Odoo's own core NavBar.getMenuItemHref() exactly (see
+// addons/web/static/src/webclient/navbar/navbar.js) — actionPath first
+// (a readable slug, e.g. "purchase"), falling back to "action-<id>"
+// when the action has no path set. This is what makes right-click ->
+// "Open in new tab" / middle-click / Ctrl-click actually resolve to
+// the specific app or menu that was clicked, instead of just "#",
+// which opens a new tab pointed at the exact same URL you're already
+// on (i.e. a duplicate of the current page — the bug this replaces).
+// Used for BOTH the top-level app links and the recursive submenu
+// links below, since both were previously handling this differently
+// (apps used a hardcoded "#", submenus had their own separate guess).
+function resolveMenuHref(item) {
+    if (!item || !item.actionID) {
+        return "#";
+    }
+    return `/odoo/${item.actionPath || "action-" + item.actionID}`;
+}
+
 /**
  * The actual flyout content, rendered via usePopover — meaning it is
  * portalled to the document root, NOT nested inside the sidebar's
@@ -80,18 +98,8 @@ export class SidebarMenuItem extends Component {
         return !this.hasChildren && this.props.item.id === this.props.sidebarState.currentMenuId;
     }
 
-    // Best-effort real URL so right-click -> "Open in new tab" (and
-    // middle-click, and Ctrl/Cmd-click) work correctly. Odoo's own
-    // default menu links use a path like /odoo/action-<id> — confirmed
-    // from the hover-preview URL visible in earlier screenshots in this
-    // project (e.g. "localhost:9000/odoo/action-442#"). VERIFY: the
-    // exact property holding the action id on a menu-tree item
-    // (`actionID` here) is my best-confidence guess, not a guarantee —
-    // if new-tab still opens a blank/wrong page, console.log(this.props.item)
-    // in devtools and send me the real property names so I can fix the
-    // path construction.
     get href() {
-        return this.props.item.actionID ? `/odoo/action-${this.props.item.actionID}` : "#";
+        return resolveMenuHref(this.props.item);
     }
 
     onClick() {
@@ -387,16 +395,15 @@ export class Sidebar extends Component {
     }
 
     // Deliberately hardcoded rather than derived from the company
-    // record's name field: the wordmark is a fixed brand asset (see
-    // the reference logo — "BINGET" bold on top, "Group" tracked-out
-    // underneath), not a live reflection of res.company.name. Reading
-    // it off the company record meant it silently changed shape any
-    // time that record was renamed/re-lettered ("Binget Holding plc"
-    // -> "BINGET" / "Holding plc"), which drifted away from the actual
-    // logo. Edit BRAND_MAIN / BRAND_SUB below directly if the brand
-    // wordmark itself ever needs to change.
+    // record's name field: the wordmark is a fixed brand asset, not a
+    // live reflection of res.company.name. Reading it off the company
+    // record meant it silently changed shape any time that record was
+    // renamed/re-lettered. Logo image and the "HOLDING" sub-line were
+    // dropped per request — just the single wordmark now, freeing up
+    // width in the header. Edit BRAND_MAIN below if the wordmark
+    // itself ever needs to change.
     get brandName() {
-        return { main: "BINGET", sub: "HOLDING" };
+        return { main: "BINGET" };
     }
 
     get userName() {
@@ -567,6 +574,22 @@ export class Sidebar extends Component {
 
     logout() {
         window.location.href = "/web/session/logout";
+    }
+
+    // Real href for a top-level app link — previously these were a
+    // hardcoded href="#", which is why right-click -> "Open in new
+    // tab" on an app (e.g. Purchase, Inventory) opened a new tab
+    // pointed at whatever page you already had open, instead of that
+    // app. Left-click still goes through onClickApp() below via
+    // t-on-click.prevent, so normal in-app navigation is unaffected.
+    getMenuHref(item) {
+        return resolveMenuHref(item);
+    }
+
+    // Same fix applied to search results, since those are also plain
+    // click-driven links today for the same reason.
+    getSearchResultHref(result) {
+        return resolveMenuHref(result.isApp ? result.appObj : result.menuItem);
     }
 
     onClickApp(app) {

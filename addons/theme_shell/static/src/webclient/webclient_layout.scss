@@ -15,11 +15,37 @@
 }
 
 .o_action_manager {
-    margin-left: 284px;
+    // Reads the same --sb-width variable sidebar.scss defines, so this
+    // can never silently drift out of sync with the sidebar's actual
+    // width again (see the comment on --sb-width in sidebar.scss).
+    margin-left: var(--sb-width, 240px);
     transition: margin-left 0.15s ease;
 }
 
 // Mirror the collapsed state so content re-flows when the sidebar shrinks.
 body.o_theme_sidebar_is_collapsed .o_action_manager {
-    margin-left: 68px;
+    margin-left: var(--sb-width-collapsed, 68px);
+}
+
+// ---- Native Bootstrap modals/dialogs (wizards, "Print", confirm boxes,
+// etc.) ----
+// Bootstrap's own .modal is a fixed, full-viewport wrapper (inset: 0),
+// and it centers .modal-dialog inside itself using the FULL browser
+// width as the reference — it has no idea our sidebar is permanently
+// occupying the left var(--sb-width) of that width. That's what was
+// letting a dialog's left edge render underneath/behind the sidebar
+// (the clipped "Gen[eral] Ledger" title). Adding the same left inset
+// here that .o_action_manager already uses means Bootstrap centers
+// the dialog within the actual remaining content area instead of the
+// full window, so it can never start further left than the sidebar's
+// own right edge, expanded or collapsed. This only touches the centering
+// reference, not the dialog's own width/max-width, so it stays a plain
+// CSS fix rather than a layout override.
+.modal {
+    padding-left: var(--sb-width, 240px) !important;
+    transition: padding-left 0.15s ease;
+}
+
+body.o_theme_sidebar_is_collapsed .modal {
+    padding-left: var(--sb-width-collapsed, 68px) !important;
 }

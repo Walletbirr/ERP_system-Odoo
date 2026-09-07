@@ -16,6 +16,18 @@
 // converged on. Gold does more visual work here since it's the only
 // color against a neutral background.
 :root {
+  // Single source of truth for the sidebar's footprint. Every file
+  // that needs to know how wide the sidebar currently is (the content
+  // margin in webclient_layout.scss, the loading overlay's offset in
+  // transitions.scss) reads these same two variables instead of each
+  // carrying its own hardcoded copy of the number — which is exactly
+  // how the loader overlay drifted out of sync with the real sidebar
+  // width before (it was hardcoded to 244px while the sidebar itself
+  // was 284px, leaving a 40px strip where the blur overlay didn't
+  // actually cover the content, reading as a "cut off" edge right at
+  // the sidebar boundary). Change the width in ONE place now: here.
+  --sb-width: 240px;
+  --sb-width-collapsed: 68px;
   --sb-bg: #ffffff;
   --sb-submenu-bg: #f4f2ec;
   --sb-border-soft: rgba(20, 20, 15, 0.09);
@@ -108,8 +120,8 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
 .o_theme_sidebar {
   display: flex;
   flex-direction: column;
-  width: 284px;
-  min-width: 284px;
+  width: var(--sb-width);
+  min-width: var(--sb-width);
   height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -124,8 +136,8 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
   // the header/footer stay pinned in place.
 
   &.o_theme_sidebar_collapsed {
-    width: 68px;
-    min-width: 68px;
+    width: var(--sb-width-collapsed);
+    min-width: var(--sb-width-collapsed);
 
     .o_theme_sidebar_app_label,
     .o_theme_sidebar_brand,
@@ -143,9 +155,9 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
       margin-bottom: 0;
       width: 190px;
     }
-    // With the logo gone, only the two action buttons remain — stack
-    // them vertically and center the whole header, rather than leaving
-    // them squeezed into a horizontal row that doesn't fit 68px cleanly.
+    // Only the two action buttons remain when collapsed — stack them
+    // vertically and center the whole header, rather than leaving them
+    // squeezed into a horizontal row that doesn't fit 68px cleanly.
     .o_theme_sidebar_header {
       flex-direction: column;
       justify-content: center;
@@ -183,24 +195,6 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
     overflow: hidden;
   }
 
-  &_logo_badge {
-    flex: 0 0 auto;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: var(--sb-accent-12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-  }
-
   &_brand {
     display: flex;
     flex-direction: column;
@@ -217,26 +211,6 @@ body.o_theme_sidebar_dark .popover:has(.o_theme_sidebar_flyout_panel) {
     text-transform: uppercase;
     color: var(--sb-text);
     line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  &_brand_sub {
-    // Indented rather than flush-left under "B" — lines up closer to
-    // the "N" in BINGET, echoing the reference logo's optical balance
-    // (bold word on top, smaller word tucked in from the left edge,
-    // not dead-aligned with it). This is the same 18px the old gold
-    // dash + its gap used to take up before that accent was removed —
-    // kept here as plain spacing so the alignment stays put without
-    // the dash itself.
-    margin-left: 9px;
-    font-weight: 600;
-    font-size: 10.5px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--sb-accent);
-    line-height: 1.1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

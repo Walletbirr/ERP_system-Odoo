@@ -13,28 +13,34 @@
 // color without its own separate color declaration.
 
 // ---- Loader overlay ----
-// Deliberately pointer-events:none on the wrapper — this is a purely
-// visual cue, not a blocking modal. It never traps clicks on whatever
-// is still on screen underneath it while the next page loads.
+// While a page/wizard is loading, the overlay should actively block
+// clicks on the blurred content underneath it — the load is usually
+// well under a second, but clicking through the blur (e.g. a second
+// "Print" click, or a field that hasn't actually loaded yet) can
+// double-fire an action or interact with stale content. So this is a
+// real blocking layer while visible: pointer-events is only turned
+// off once .o_theme_loader_hidden is applied (see below), at which
+// point the overlay is invisible and out of the way again.
 //
-// Positioned to cover only the content area, not the sidebar — the
-// sidebar isn't what's reloading, so keeping it sharp/interactive
-// while the content blurs behind the spinner reads as more
-// intentional than blurring the whole viewport indiscriminately.
-// Mirrors the exact same left-offset values webclient_layout.scss
-// already uses for .o_action_manager, so this stays in sync with the
-// sidebar's collapsed/expanded state automatically.
+// Positioned to cover only the content area, not the sidebar. Reads
+// the same --sb-width / --sb-width-collapsed variables sidebar.scss
+// defines (the exact same ones webclient_layout.scss uses for
+// .o_action_manager's margin), so this can never drift out of sync
+// with the sidebar's real width again. It previously used a hardcoded
+// 244px against an actual sidebar width of 284px — that leftover
+// 40px strip is what was reading as the overlay/blur getting visibly
+// "cut off" right at the sidebar's edge.
 .o_theme_loader_overlay {
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  left: 244px;
+  left: var(--sb-width, 240px);
   z-index: 2000; // above the sidebar's own z-index:1000, below native browser UI
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+  cursor: wait;
   opacity: 1;
   transition: opacity 0.15s ease-out, left 0.15s ease;
   background: rgba(255, 255, 255, 0.5);
@@ -43,11 +49,15 @@
 }
 
 body.o_theme_sidebar_is_collapsed .o_theme_loader_overlay {
-  left: 68px;
+  left: var(--sb-width-collapsed, 68px);
 }
 
 .o_theme_loader_overlay.o_theme_loader_hidden {
   opacity: 0;
+  // Only turned off here, once the overlay is actually invisible —
+  // otherwise it would sit on top of the page permanently eating
+  // every click.
+  pointer-events: none;
 }
 
 // ---- 12-dot spinner ----
