@@ -31,8 +31,20 @@
 (function () {
     "use strict";
 
+    var wrap = document.getElementById("wrapwrap");
+
+    // Any page that shares the auth "card" chrome (login, signup,
+    // password reset) gets the critical-CSS hide added in
+    // views/login_templates.xml. This module only restyles /web/login,
+    // but it must still mark every one of those pages as "ready" —
+    // otherwise signup / reset-password would stay invisible forever,
+    // since nothing else ever adds this class for them.
+    if (wrap) {
+        wrap.classList.add("o_custom_login_ready");
+    }
+
     if (!/\/web\/login\b/.test(window.location.pathname)) {
-        return; // only ever runs on the login page itself
+        return; // only ever fully restyles the login page itself
     }
 
     function hide(el) {
@@ -211,6 +223,9 @@
         hideLinkAndEmptyParent('a[href*="/web/database/manager"]');
         hideLinkAndEmptyParent('a[href*="reset_password"]');
         hideLinkAndEmptyParent('a[href*="odoo.com"]');
+        // "Don't have an account?" — added by the auth_signup module to
+        // web.login via its own stable controller route (/web/signup).
+        hideLinkAndEmptyParent('a[href*="/web/signup"]');
 
         // "Choose a user" is Odoo core's web.user_switch Owl component
         // (web/static/src/core/user_switch/), which portals a button into

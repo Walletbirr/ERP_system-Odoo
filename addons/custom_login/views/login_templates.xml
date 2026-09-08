@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+    This is the one narrow exception to "no template edits" (see the
+    manifest description). Pure CSS/JS in the asset bundle can only ever
+    react AFTER the browser has already parsed and started painting the
+    raw HTML — which is exactly the gap that shows the bare
+    logo/divider/"Powered by Odoo" chrome (or, on /web/login itself, the
+    unstyled form) for an instant before login.js finishes its work.
+    The only way to close that gap is a tiny bit of CSS that exists
+    before the browser paints anything at all, which means it has to be
+    inside the HTML Odoo serves, not something loaded afterward.
+
+    This inserts a two-rule <style> block as early as possible inside
+    web.login_layout — the shared "card" chrome used by /web/login,
+    /web/signup, and /web/reset_password. It's anchored generically to
+    "the first child of the template's root element" (not any specific
+    class name) — the same structural, not-name-dependent approach
+    login.js already uses elsewhere — so it doesn't assume anything
+    about the chrome's internal markup and shouldn't break across minor
+    Odoo updates. (Targeting the root element itself doesn't work: it
+    has no parent within the template, and Odoo's inheritance engine
+    errors trying to insert "before" a node with no parent — hence one
+    level down, to the root's first child, which always has one.)
+
+    It hides #wrapwrap until login.js marks it ready (adds
+    .o_custom_login_ready) — and login.js adds that class on every page
+    using this layout, not only /web/login, so signup and password-reset
+    pages are never left blank. A 1.2s forced-reveal keyframe is a
+    safety net in case JS never runs for some reason (script blocked,
+    error, etc.) so a page can never stay permanently invisible.
+    -->
+    <template id="critical_hide_style" inherit_id="web.login_layout">
+        <xpath expr="(//*)[1]/*[1]" position="before">
+            <style>
+                #wrapwrap:not(.o_custom_login_ready) { opacity: 0 !important; }
+                @keyframes o_custom_login_force_reveal { to { opacity: 1; } }
+                #wrapwrap:not(.o_custom_login_ready) {
+                    animation: o_custom_login_force_reveal 0.01s 1.2s forwards;
+                }
+            </style>
+        </xpath>
+    </template>
+</odoo>
