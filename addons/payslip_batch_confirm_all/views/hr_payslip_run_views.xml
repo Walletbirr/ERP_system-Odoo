@@ -6,11 +6,13 @@
         <field name="inherit_id" ref="payroll.hr_payslip_run_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
+                <field name="pending_slip_count" invisible="1"/>
                 <button name="action_confirm_all_payslips"
                         string="Confirm All Payslips"
                         type="object"
                         class="oe_highlight"
-                        confirm="This will compute and confirm every payslip in this batch. Continue?"/>
+                        confirm="This will compute and confirm every payslip in this batch. Continue?"
+                        invisible="pending_slip_count == 0"/>
             </xpath>
         </field>
     </record>

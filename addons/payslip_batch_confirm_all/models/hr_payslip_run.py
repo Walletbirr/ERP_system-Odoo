@@ -7,6 +7,22 @@ class HrPayslipRun(models.Model):
     """Extends the payslip batch to add a one-click confirm-all action."""
     _inherit = 'hr.payslip.run'
 
+    pending_slip_count = fields.Integer(
+        string="Payslips Pending Confirmation",
+        compute='_compute_pending_slip_count',
+    )
+
+    @api.depends('slip_ids.state')
+    def _compute_pending_slip_count(self):
+        # Same filter used by action_confirm_all_payslips: anything not already
+        # done or cancelled. Used to hide the button once there's nothing left
+        # for it to do - e.g. right after "Confirm All" finishes, or once every
+        # slip in the batch has been confirmed individually.
+        for run in self:
+            run.pending_slip_count = len(run.slip_ids.filtered(
+                lambda slip: slip.state not in ('done', 'cancel')
+            ))
+
     def action_confirm_all_payslips(self):
         """Compute (if needed) and confirm every payslip in this batch
         that isn't already confirmed or cancelled. Payslips that fail
