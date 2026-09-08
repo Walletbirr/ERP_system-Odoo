@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        WHY THIS EXISTS:
+        sidebar.js already fixes the browser tab title to "BINGET" via
+        the "title" service (titleService.setParts({ zopenerp: ... })),
+        but that only runs once the Sidebar component mounts — i.e.
+        after the page's HTML has loaded, the JS bundle has been
+        fetched, and the Owl app has started rendering. Everything
+        before that point (the raw HTML the server sends back, visible
+        during the blank/loading screen on first load or a hard
+        refresh) still has the literal, hardcoded "Odoo" title baked
+        into web.layout — so the tab briefly reads "Odoo" before
+        flipping to "BINGET" once the JS takes over.
+
+        This template override changes that starting point itself, so
+        the tab reads "BINGET" from the very first byte the server
+        sends — no flash, no dependency on JS having run yet. The
+        titleService fix in sidebar.js still does its job afterwards,
+        composing "<Page> - BINGET" once the user is inside the app.
+
+        VERIFY: this assumes web.layout's <head> contains exactly one
+        <title> element (true across recent stable Odoo versions, and
+        the documented pattern for this kind of override). If a
+        future Odoo upgrade adds a second <title> tag somewhere in
+        this template, this xpath's "exactly one match" requirement
+        will fail loudly at module-update time rather than silently
+        misfiring — re-check the xpath if that happens.
+    -->
+    <template id="brand_page_title" inherit_id="web.layout">
+        <xpath expr="//title" position="replace">
+            <title>BINGET</title>
+        </xpath>
+    </template>
+</odoo>

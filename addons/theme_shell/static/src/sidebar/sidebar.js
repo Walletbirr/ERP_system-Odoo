@@ -23,7 +23,11 @@ function resolveMenuHref(item) {
     if (!item || !item.actionID) {
         return "#";
     }
-    return `/odoo/${item.actionPath || "action-" + item.actionID}`;
+    // "/binget/..." rather than "/odoo/...", to match the renamed prefix
+    // our forked router.js now builds and recognizes (see that file's
+    // header comment). Kept as its own literal here (not imported from
+    // router.js) since this only needs the string, not any router state.
+    return `/binget/${item.actionPath || "action-" + item.actionID}`;
 }
 
 /**
@@ -160,6 +164,23 @@ export class Sidebar extends Component {
         this.actionService = useService("action");
         this.orm = useService("orm");
         this.userService = user;
+        this.titleService = useService("title");
+
+        // Odoo's core webclient hardcodes this same part name ("zopenerp")
+        // to the literal string "Odoo" on boot (web/static/src/webclient/
+        // webclient.js), which is what makes every browser tab read
+        // "<Page> - Odoo" no matter what route you're on. Overriding the
+        // same part here (rather than adding a new one) replaces it in
+        // place instead of appending a second " - Odoo" alongside it.
+        // Safe to call on every mount: setParts merges/overwrites by key.
+        this.titleService.setParts({ zopenerp: this.brandName.main });
+
+        // Same idea for the favicon: the default Odoo icon is rendered
+        // server-side into the page <head> and isn't controlled by any
+        // JS asset, so the only way to rebrand it from here is to swap
+        // the <link> tag's href directly. Done once per mount; harmless
+        // if it runs again on client-side navigation since it's idempotent.
+        this._applyBrandFavicon();
 
         // Read saved theme preference. Wrapped in try/catch since
         // localStorage can throw in some contexts (e.g. private
@@ -404,6 +425,21 @@ export class Sidebar extends Component {
     // itself ever needs to change.
     get brandName() {
         return { main: "BINGET" };
+    }
+
+    // Reuses the existing sidebar wordmark logo rather than a separate
+    // dedicated favicon asset — one fewer file to keep in sync if the
+    // brand image ever changes. Browsers happily scale a PNG for the
+    // tab icon; a proper multi-size .ico is a nice-to-have, not a
+    // requirement. VERIFY: "link[rel='shortcut icon']" is Odoo's
+    // long-standing selector for this tag in the base layout template;
+    // if some page adds a second icon link with rel="icon" instead,
+    // widen the selector below to match both.
+    _applyBrandFavicon() {
+        const link = document.querySelector("link[rel='shortcut icon'], link[rel='icon']");
+        if (link) {
+            link.href = "/theme_shell/static/src/img/logo.png";
+        }
     }
 
     get userName() {

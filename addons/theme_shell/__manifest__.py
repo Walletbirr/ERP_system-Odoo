@@ -27,6 +27,11 @@
     "depends": ["web"],
     "assets": {
         "web.assets_backend": [
+            # Patches the router's URL builder/parser to use "/binget"
+            # instead of "/odoo", without forking web's router.js.
+            # See the file's own header comment for why a full-file
+            # replace doesn't work for a module this widely imported.
+            "theme_shell/static/src/core/browser/router_patch.js",
             "theme_shell/static/src/sidebar/sidebar.js",
             "theme_shell/static/src/sidebar/sidebar.scss",
             "theme_shell/static/src/sidebar/sidebar.xml",
