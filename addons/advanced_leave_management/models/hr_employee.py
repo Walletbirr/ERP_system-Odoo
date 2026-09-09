@@ -6,13 +6,25 @@ from odoo import api, fields, models, _
 class HrEmployee(models.Model):
     _inherit = 'hr.employee'
 
-    # If the Contracts module is installed you may prefer a related field to
-    # hr.contract.date_start instead - kept as a plain field here so this
-    # module has no hard dependency on hr_contract.
+    # Auto-derived from the employee's contract(s) - the module already depends on
+    # hr_contract, so there's no reason to make someone type this in by hand.
+    # Uses the EARLIEST contract on file (not just employee_id.contract_id, which is
+    # only the current/active one) so a contract renewal doesn't reset an employee's
+    # accrual anchor and wipe out their seniority.
     leave_contract_start_date = fields.Date(
         string="Contract Start Date (for Leave Accrual)",
-        help="Anchor date used by the leave accrual engine. If the Contracts module is "
-             "installed, sync this from the employee's active contract; otherwise set manually.")
+        compute='_compute_leave_contract_start_date', store=True,
+        help="Anchor date used by the leave accrual engine - the start date of this "
+             "employee's earliest contract on file.")
+
+    @api.depends('contract_ids.date_start')
+    def _compute_leave_contract_start_date(self):
+        Contract = self.env['hr.contract'].sudo()
+        for emp in self:
+            first_contract = Contract.search([
+                ('employee_id', '=', emp.id), ('date_start', '!=', False),
+            ], order='date_start asc', limit=1)
+            emp.leave_contract_start_date = first_contract.date_start or False
 
     leave_allocation_ids = fields.One2many('leave.allocation', 'employee_id', string="Leave Balances")
     leave_allocation_count = fields.Integer(compute='_compute_leave_allocation_count')

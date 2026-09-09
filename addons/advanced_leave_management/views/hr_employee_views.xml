@@ -11,11 +11,6 @@
                     <field name="leave_allocation_count" widget="statinfo" string="Leave Balances"/>
                 </button>
             </xpath>
-            <xpath expr="//sheet" position="inside">
-                <group string="Leave Accrual" name="leave_accrual">
-                    <field name="leave_contract_start_date"/>
-                </group>
-            </xpath>
         </field>
     </record>
 </odoo>
