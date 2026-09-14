@@ -295,7 +295,10 @@ class BingetStockDashboard(models.AbstractModel):
                              favorite_only=False, offset=0, limit=24):
         """Premium product cards for the Inventory > Products gallery."""
         Product = self.env['product.product']
-        domain = [('is_storable', '=', True), ('active', '=', True)]
+        # Show all Goods (storable or not) so nothing already created is
+        # hidden just because "Track Inventory" wasn't checked. Non-tracked
+        # items simply show 0 on-hand/reserved/free, which is accurate.
+        domain = [('type', '=', 'consu'), ('active', '=', True)]
         if search:
             domain += ['|', '|',
                        ('name', 'ilike', search),

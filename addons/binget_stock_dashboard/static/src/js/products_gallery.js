@@ -192,20 +192,26 @@ class BingetProductsGallery extends Component {
         });
     }
 
-    openNewProduct() {
-        this.action.doAction({
-            type: "ir.actions.act_window",
-            res_model: "product.template",
-            views: [[false, "form"]],
-            target: "new",
-        });
-    }
-
-    openStockList() {
-        this.action.doAction({
-            type: "ir.actions.client",
-            tag: "binget_stock_dashboard",
-        });
+    async openNewProduct() {
+        // The gallery only lists is_storable (="Track Inventory") products.
+        // The standard form leaves that checkbox unticked by default, so a
+        // product created here would silently vanish from this list even
+        // though it saved fine (visible in Sales/Inventory). Default it on,
+        // since anything created from a stock dashboard should be tracked.
+        await this.action.doAction(
+            {
+                type: "ir.actions.act_window",
+                res_model: "product.template",
+                views: [[false, "form"]],
+                target: "new",
+                context: {
+                    default_is_storable: true,
+                },
+            },
+            {
+                onClose: () => this.load(),
+            }
+        );
     }
 
     fmtNumber(value) {

@@ -160,19 +160,6 @@
                 </button>
             </div>
         </div>
-
-        <div class="o_bp_banner">
-            <div class="o_bp_banner_left">
-                <div class="o_bp_banner_icon"><i class="fa fa-trophy"/></div>
-                <div class="o_bp_banner_copy">
-                    <strong>Smart Inventory Management</strong>
-                    <span>Track, manage and optimize inventory across all locations in real-time</span>
-                </div>
-            </div>
-            <button class="o_bp_banner_btn" t-on-click="openStockList">
-                <i class="fa fa-bar-chart"/> View Inventory Analytics
-            </button>
-        </div>
     </div>
 </t>
 
