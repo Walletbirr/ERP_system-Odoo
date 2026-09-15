@@ -19,6 +19,23 @@ access-controlled contact management.
 - New kanban card design: category badge, color-coded avatar, condensed
   contact info.
 - New list view grouped by category by default.
+- Filters the Customer/Vendor picker in Sales, Purchase, and Invoicing so
+  each app only offers the relevant categories:
+  - Sales (Quotations/Orders) Customer field -> Client + Customer
+  - Purchase (RFQ/Orders) Vendor field -> Vendor
+  - Invoicing Customer Invoices -> Client + Customer,
+    Vendor Bills -> Vendor (plain journal entries stay unrestricted)
+  - Payments (account.payment): Customer Payments -> Client + Customer,
+    Vendor Payments -> Vendor
+  - Accounting > Customers > Customers, and Accounting > Vendors > Vendors
+    (the stock partner-list pages, `account.res_partner_action_customer` /
+    `account.res_partner_action_supplier`): replaced their rank-based
+    default filter with a hard `contact_type_code` domain
+  - This is a **view/action-level** domain (it narrows what shows up in the
+    dropdown/search) — it does not by itself grant visibility. See
+    "Assign security groups" below; `security/app_group_links.xml` grants
+    the needed visibility automatically to base Sales/Purchase/Invoicing
+    users, but double check it matches how your teams are actually set up.
 
 ## Install
 1. Copy the `custom_contacts_manager` folder into your Odoo `addons` path.
@@ -41,6 +58,13 @@ access-controlled contact management.
    the categories they should see (Can View Clients, Can View Vendors,
    etc.). Everyone in `base.group_user` sees Customers by default only.
    Admins (`base.group_system`) get full access automatically.
+   `security/app_group_links.xml` additionally grants: anyone with basic
+   Sales access -> can see Clients, anyone with basic Purchase access ->
+   can see Vendors, anyone with basic Invoicing access -> can see both.
+   This was an assumption made to match how the Sales/Purchase/Invoicing
+   pickers were scoped — adjust `app_group_links.xml` if your team
+   structure needs something different (e.g. only specific sales reps
+   should see Clients).
 3. **Review the search-view patch.** `views/res_partner_views.xml` patches
    `base.view_res_partner_filter` by inserting after the `category_id`
    field. If your Odoo 18 build has a customized base Contacts search view,

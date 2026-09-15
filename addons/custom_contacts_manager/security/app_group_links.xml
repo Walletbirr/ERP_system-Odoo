@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <!--
+            The record rules in security.xml restrict base.group_user to
+            'customer' category contacts only. That's the right default for
+            the general Contacts app, but it means the domains added in
+            views/sale_purchase_account_views.xml would show an EMPTY
+            dropdown for anyone who isn't in group_contacts_manager_full,
+            since ir.rule is enforced at the ORM level regardless of what
+            the view's field domain allows.
+
+            To fix that without loosening visibility for everyone, we grant
+            the contact-visibility groups directly to the base app groups
+            that actually need them. Odoo computes implied groups
+            transitively, so Sales/Purchase/Accounting managers inherit
+            this automatically through their own group hierarchy (manager
+            implies user implies these).
+        -->
+
+        <!-- Sales: anyone with basic Sales access can see Clients
+             (Customers are already visible via rule_partner_default_employee) -->
+        <record id="sales_team.group_sale_salesman" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('group_contacts_view_clients'))]"/>
+        </record>
+
+        <!-- Purchase: anyone with basic Purchase access can see Vendors -->
+        <record id="purchase.group_purchase_user" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('group_contacts_view_vendors'))]"/>
+        </record>
+
+        <!-- Accounting/Invoicing: needs both sides (Customer Invoices + Vendor Bills) -->
+        <record id="account.group_account_invoice" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('group_contacts_view_clients')),
+                                              (4, ref('group_contacts_view_vendors'))]"/>
+        </record>
+
+    </data>
+</odoo>

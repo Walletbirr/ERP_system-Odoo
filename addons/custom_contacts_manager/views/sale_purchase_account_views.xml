@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Sales: Quotations / Sales Orders.
+        Customer field should only offer Clients + Customers, since both
+        represent sales-side contacts.
+    -->
+    <record id="view_order_form_contact_category_domain" model="ir.ui.view">
+        <field name="name">sale.order.form.contact.category.domain</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="attributes">
+                <attribute name="domain">[('contact_type_code', 'in', ['client', 'customer'])]</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!--
+        Purchase: Requests for Quotation / Purchase Orders.
+        Vendor field should only offer Vendors.
+    -->
+    <record id="purchase_order_form_contact_category_domain" model="ir.ui.view">
+        <field name="name">purchase.order.form.contact.category.domain</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="attributes">
+                <attribute name="domain">[('contact_type_code', '=', 'vendor')]</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!--
+        Invoicing/Accounting: account.move covers Customer Invoices, Vendor
+        Bills, Credit/Debit Notes and plain Journal Entries all through the
+        same form view, so the domain has to branch on move_type:
+          - out_invoice / out_refund / out_receipt -> Client + Customer
+          - in_invoice / in_refund / in_receipt     -> Vendor only
+          - anything else (misc journal entries)    -> unrestricted
+    -->
+    <record id="view_move_form_contact_category_domain" model="ir.ui.view">
+        <field name="name">account.move.form.contact.category.domain</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="attributes">
+                <attribute name="domain">[('contact_type_code', 'in', ['client', 'customer'])] if move_type in ('out_invoice', 'out_refund', 'out_receipt') else [('contact_type_code', '=', 'vendor')] if move_type in ('in_invoice', 'in_refund', 'in_receipt') else []</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!--
+        Payments (Accounting > Customers > Payments / Vendors > Payments).
+        account.payment is a separate model from account.move, and its
+        partner side is driven by partner_type ('customer' / 'supplier')
+        rather than a move_type.
+    -->
+    <record id="view_account_payment_form_contact_category_domain" model="ir.ui.view">
+        <field name="name">account.payment.form.contact.category.domain</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <field name="partner_id" position="attributes">
+                <attribute name="domain">[('contact_type_code', 'in', ['client', 'customer'])] if partner_type == 'customer' else [('contact_type_code', '=', 'vendor')] if partner_type == 'supplier' else []</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!--
+        Accounting > Customers > Customers, and Accounting > Vendors >
+        Vendors: the stock "Customers"/"Vendors" partner-list actions.
+
+        These ship with NO hard domain by default — they only rely on a
+        context-activated search filter (search_default_customer /
+        search_default_supplier), which filters by customer_rank/
+        supplier_rank and can be cleared by the user from the search bar.
+        We replace that with a real domain on contact_type_code, and drop
+        the rank-based default filter so the two don't stack and silently
+        exclude a Client/Vendor contact that just hasn't been invoiced yet.
+    -->
+    <record id="account.res_partner_action_customer" model="ir.actions.act_window">
+        <field name="domain">[('contact_type_code', 'in', ['client', 'customer'])]</field>
+        <field name="context">{'default_is_company': True}</field>
+    </record>
+
+    <record id="account.res_partner_action_supplier" model="ir.actions.act_window">
+        <field name="domain">[('contact_type_code', '=', 'vendor')]</field>
+        <field name="context">{'default_is_company': True}</field>
+    </record>
+
+</odoo>

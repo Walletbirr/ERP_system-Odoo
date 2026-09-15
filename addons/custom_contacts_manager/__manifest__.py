@@ -1,6 +1,6 @@
 {
     'name': 'Custom Contacts Manager',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.2.0',
     'category': 'Sales/CRM',
     'summary': 'Categorized, secured, and redesigned Contacts app for Binget Holding',
     'description': """
@@ -19,15 +19,17 @@ Splits the stock Odoo Contacts (res.partner) list into proper categories
     'author': 'Binget Holding',
     'website': '',
     'license': 'LGPL-3',
-    'depends': ['base', 'contacts', 'mail'],
+    'depends': ['base', 'contacts', 'mail', 'sale', 'purchase', 'account'],
     'data': [
         'security/security.xml',
+        'security/app_group_links.xml',
         'security/ir.model.access.csv',
         'data/classification_data.xml',
         'views/res_partner_classification_views.xml',
         'wizards/res_partner_classification_wizard_views.xml',
         'views/res_partner_views.xml',
         'views/menu_views.xml',
+        'views/sale_purchase_account_views.xml',
     ],
     'installable': True,
     'application': True,
