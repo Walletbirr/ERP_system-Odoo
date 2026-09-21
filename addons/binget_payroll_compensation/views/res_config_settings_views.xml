@@ -49,6 +49,19 @@
                                 </div>
                                 <field name="payroll_analytic_account_id" />
                             </div>
+                            <div class="o_binget_settings_field">
+                                <label
+                                    for="alternate_net_payment_account_id"
+                                    string="Alternate Net Payment Account"
+                                />
+                                <div class="text-muted">
+                                    Credit account used for Net Salary instead
+                                    of the Net Salary rule's own Credit
+                                    Account, for any employees paid through a
+                                    different bank.
+                                </div>
+                                <field name="alternate_net_payment_account_id" />
+                            </div>
                         </div>
                     </div>
                 </div>

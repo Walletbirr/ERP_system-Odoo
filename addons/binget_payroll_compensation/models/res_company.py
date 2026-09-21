@@ -38,3 +38,15 @@ class ResCompany(models.Model):
             "for every contract individually."
         ),
     )
+    alternate_net_payment_account_id = fields.Many2one(
+        "account.account",
+        string="Alternate Net Payment Account",
+        help=(
+            "Credit account used for the Net Salary line of any employee "
+            "flagged 'Use Alternate Net Payment Account' on their Employee "
+            "profile (e.g. an employee paid through Commercial Bank instead "
+            "of the company's default bank, set on the Net Salary rule's own "
+            "Credit Account). Every other employee keeps using the Net "
+            "Salary rule's own Credit Account, unaffected by this setting."
+        ),
+    )

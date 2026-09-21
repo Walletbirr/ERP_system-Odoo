@@ -22,3 +22,8 @@ class ResConfigSettings(models.TransientModel):
         readonly=False,
         string="Default Salary Structure",
     )
+    alternate_net_payment_account_id = fields.Many2one(
+        related="company_id.alternate_net_payment_account_id",
+        readonly=False,
+        string="Alternate Net Payment Account",
+    )

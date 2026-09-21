@@ -316,8 +316,9 @@
 .o_employee_profile_card {
   background: #ffffff;
   border: 1px solid #eceef1;
+  margin-top: 0.5rem;
   border-radius: 14px;
-  padding: 18px 20px;
+  padding: 12px 10px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
@@ -325,7 +326,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
 }
 
 .o_employee_profile_card_title {
@@ -373,11 +374,19 @@
 }
 
 .o_employee_profile_card .o_employee_profile_row .o_employee_profile_label {
-  color: #8a93a3;
+  color: #111827;
+  /* color: #8a93a3; */
+  text-align: left;
+  /* margin-top: 0.5rem; */
+}
+.o_employee_profile_card .o_employee_profile_row.o_employee_profile_row_tight {
+  grid-template-columns: max-content max-content;
+  justify-content: start;
+  column-gap: 16px;
 }
 
 .o_employee_profile_card .o_employee_profile_row .o_field_widget {
-  color: #111827;
+  color: #8a93a3;
   font-weight: 500;
   text-align: left;
   width: 100%;
@@ -387,7 +396,10 @@
    background so an editable field renders at the exact same x-position and
    line-height as the read-only text - the only visual change on unlock is
    the text becoming clickable, not a layout shift. */
-.o_employee_profile_card .o_employee_profile_row .o_field_widget input,
+.o_employee_profile_card
+  .o_employee_profile_row
+  .o_field_widget
+  input:not([type="checkbox"]):not([type="radio"]),
 .o_employee_profile_card .o_employee_profile_row .o_field_widget select,
 .o_employee_profile_card .o_employee_profile_row .o_field_widget textarea {
   padding: 0 !important;
@@ -403,6 +415,54 @@
   height: auto !important;
   min-height: 0 !important;
   width: 100%;
+}
+
+/* Checkboxes (e.g. "Use Alternate Net Payment Account") need their native
+   browser appearance kept - the blanket input reset above (border: none,
+   background: transparent, width: 100%) makes a checkbox's own box
+   invisible/misshapen. Give it back a normal, fixed-size, left-aligned
+   look instead of the "text field" treatment used for everything else. */
+.o_employee_profile_card
+  .o_employee_profile_row
+  .o_field_widget
+  input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  min-height: 0 !important;
+  margin: 0;
+  margin-top: 0.4rem;
+  margin-left: 0rem;
+  flex: none;
+  accent-color: #a06e03;
+  cursor: pointer;
+}
+
+.o_employee_profile_card .o_employee_profile_row .o_field_boolean {
+  width: auto !important;
+  display: flex;
+  align-items: center;
+}
+
+/* Compact variant for label+checkbox rows (e.g. Bank Pay): sit the
+   checkbox right next to its label instead of using the 40/60 column
+   split meant for label/value text rows. */
+.o_employee_profile_card
+  .o_employee_profile_row.o_employee_profile_row_checkbox {
+  grid-template-columns: max-content max-content;
+  justify-content: start;
+  column-gap: 10px;
+}
+
+/* Checkbox rows (e.g. "Pay via Alternate Bank") shouldn't stretch the
+   checkbox across the standard 40%/60% label/value grid - that grid is
+   built for long text/date/dropdown values, and leaves a huge empty gap
+   between a short label and a tiny 16px checkbox. Rows containing a
+   boolean field instead hug their own content, so the label and its
+   checkbox sit right next to each other. */
+.o_employee_profile_card .o_employee_profile_row:has(.o_field_boolean) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Subtle affordance on focus so it's still clear the field is editable,
@@ -437,7 +497,9 @@
    the row's 2-column grid) so no layout shift happens when the pencil
    icon unlocks the section and the real field/native placeholder takes
    over. */
-.o_employee_profile_card .o_employee_profile_row .o_employee_profile_placeholder_text {
+.o_employee_profile_card
+  .o_employee_profile_row
+  .o_employee_profile_placeholder_text {
   grid-column: 2;
   grid-row: 1;
   color: #9aa3af;

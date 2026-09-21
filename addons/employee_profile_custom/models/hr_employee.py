@@ -92,6 +92,16 @@ class HrEmployee(models.Model):
         return super().write(vals)
 
     # ------------------------------------------------------------------
+    # Payroll: per-employee override of the Net Salary credit account.
+    #
+    # The actual field (use_alternate_net_payment_account) and the
+    # accounting logic that reads it live in binget_payroll_compensation
+    # (a dependency of this module) - see its models/hr_employee.py and
+    # models/hr_payslip.py. It's only *displayed* here, on the profile's
+    # Contract tab - see hr_employee_views.xml.
+    # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
     # Allowance / Commitment / Education / Certification
     # ------------------------------------------------------------------
     allowance_ids = fields.One2many('hr.employee.allowance', 'employee_id', string='Allowances')
@@ -491,3 +501,16 @@ class HrEmployee(models.Model):
             'target': 'new',
             'context': default_vals,
         }
+
+# ------------------------------------------------------------------
+    # Employee Leave Status (Contract tab, right-hand card next to
+    # Bank Payment). Add these two lines to whichever existing
+    # hr.employee extension file already declares fields like
+    # use_alternate_net_payment_account / locked_personal / etc.
+    # ------------------------------------------------------------------
+    is_on_leave = fields.Boolean(string="Leave")
+    leave_date = fields.Date(
+        string="Leave Date",
+        default=lambda self: fields.Date.context_today(self),
+    )
+ 

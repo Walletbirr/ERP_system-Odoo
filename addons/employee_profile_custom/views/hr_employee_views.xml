@@ -30,6 +30,9 @@
                 <field name="locked_commitment" invisible="1"/>
                 <field name="first_contract_date" invisible="1"/>
                 <field name="contract_warning" invisible="1"/>
+                <!-- NEW: Employee Leave Status fields (Contract tab) -->
+                <field name="is_on_leave" invisible="1"/>
+                <field name="leave_date" invisible="1"/>
             </xpath>
 
             <!-- Contract access now lives entirely inside the "Contract" tab
@@ -877,11 +880,49 @@
                                            decoration-danger="state == 'cancel'"/>
                                 </list>
                             </field>
-                            <p class="text-muted mt-2 mb-0" style="font-size:12px;">
-                                Click the pencil icon above to open this employee's
-                                existing contract (wage, start/end date, salary
-                                structure, ...), whatever its status.
-                            </p>
+                        </div>
+
+                        <!-- NEW: two-column grid - Bank Payment (left) +
+                             Employee Leave Status (right). Reuses the same
+                             .o_employee_profile_grid used in Personal
+                             Information, so both cards get identical
+                             padding/border/shadow and stack on top of each
+                             other automatically on narrow screens
+                             (see the max-width: 1100px rule in the CSS). -->
+                        <div class="o_employee_profile_grid">
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Bank Payment</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Payment Done Using Bank</span>
+                                    <field name="use_alternate_net_payment_account" nolabel="1"/>
+                                </div>
+                                <p class="text-muted mt-2 mb-0" style="font-size:12px;">
+                                    Check this if this employee is paid through the
+                                    bank account (e.g. Commercial Bank).
+                                </p>
+                            </div>
+
+                            <div class="o_employee_profile_card">
+                                <div class="o_employee_profile_card_header">
+                                    <span class="o_employee_profile_card_title">Employee Leave Status</span>
+                                </div>
+                                <div class="o_employee_profile_row">
+                                    <span class="o_employee_profile_label">Leave</span>
+                                    <field name="is_on_leave" nolabel="1"/>
+                                </div>
+                                <div class="o_employee_profile_row o_employee_profile_row_tight" invisible="not is_on_leave">
+                                    <span class="o_employee_profile_label_leave">Leave Date</span>
+                                    <field name="leave_date" nolabel="1"/>
+                                </div>
+                                <p class="text-muted mt-2 mb-0" style="font-size:12px;">
+                                    Check this if the employee is currently on leave,
+                                    then confirm or adjust the date.
+                                </p>
+                            </div>
+
                         </div>
 
                         <div class="o_employee_profile_step_nav">
