@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Common Report Header Template -->
+    <template id="report_header_standard">
+        <div style="text-align: center; margin-bottom: 30px; margin-top: 20px;">
+            <h2 style="margin: 0; font-size: 18px; font-weight: bold;">
+                <span t-esc="company_name or env.company.name"/>
+            </h2>
+            <h3 style="margin: 5px 0; font-size: 16px; font-weight: bold;">
+                <span t-esc="report_title"/>
+            </h3>
+            <p style="margin: 5px 0; font-size: 13px;">
+                <span t-if="date_label" t-esc="date_label"/>
+            </p>
+        </div>
+    </template>
+</odoo>

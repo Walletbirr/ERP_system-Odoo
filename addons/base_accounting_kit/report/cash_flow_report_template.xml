@@ -3,85 +3,90 @@
     <template id="report_cash_flow">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-call="web.internal_layout">
-                    <div class="page">
-                        <h2 t-esc="data['account_report_id'][1]"/>
-
-                        <div class="row mt32 mb32">
-                            <div class="col-4">
-                                <strong>Target Moves:</strong>
-                                <p>
-                                    <span t-if="data['target_move'] == 'all'">All Entries</span>
-                                    <span t-if="data['target_move'] == 'posted'">All Posted Entries</span>
-                                </p>
-                            </div>
-                            <div class="col-4">
-                                <p>
-                                    <strong>Date from :</strong>
-                                    <span t-esc="data['date_from']"/>
-                                    <br/>
-                                    <strong>Date to :</strong>
-                                    <span t-esc="data['date_to']"/>
-                                </p>
-                            </div>
+                <t t-set="data_report_margin_top" t-value="15"/>
+                <t t-set="data_report_header_spacing" t-value="0"/>
+                <t t-set="data_report_dpi" t-value="110"/>
+                
+                <!-- Custom clean layout - no default Odoo header -->
+                <div class="page" style="padding-top: 5px;">
+                
+                    <!-- FULL HEADER -->
+                    <div style="text-align: center; margin-bottom: 18px;">
+                        <div style="font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #111; margin-bottom: 4px;">
+                            <span t-esc="env.company.name"/>
                         </div>
-                        <table class="table table-sm table-reports">
-                            <thead>
-                                <tr>
-                                    <th>
-                                        <strong>Name</strong>
-                                    </th>
-                                    <th class="text-right" t-if="data['debit_credit']">
-                                        <strong>Debit</strong>
-                                    </th>
-                                    <th class="text-right" t-if="data['debit_credit']">
-                                        <strong>Credit</strong>
-                                    </th>
-                                    <th class="text-right">
-                                        <strong>Balance</strong>
-                                    </th>
-                                    <th class="text-right" t-if="data['enable_filter']">
-                                        <strong t-esc="data['label_filter']"/>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr t-foreach="get_account_lines" t-as="a">
-                                    <t t-if="a['level'] != 0">
-                                        <t t-if="a.get('level') &gt; 3">
-                                            <t t-set="style" t-value="'font-weight: normal;'"/>
-                                        </t>
-                                        <t t-if="not a.get('level') &gt; 3">
-                                            <t t-set="style" t-value="'font-weight: bold;'"/>
-                                        </t>
-                                        <td>
-                                            <span style="color: white;" t-esc="'..' * a.get('level', 0)"/>
-                                            <span t-att-style="style" t-esc="a.get('name')"/>
-                                        </td>
-                                        <td t-if="data['debit_credit']" class="text-right" style="white-space: text-nowrap;">
-                                            <span t-att-style="style" t-esc="a.get('debit')" t-if="data['debit_credit']"
-                                                  t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                        </td>
-                                        <td t-if="data['debit_credit']" class="text-right" style="white-space: text-nowrap;">
-                                            <span t-att-style="style" t-esc="a.get('credit')"
-                                                  t-if="data['debit_credit']"
-                                                  t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                        </td>
-                                        <td class="text-right" style="white-space: text-nowrap;">
-                                            <span t-att-style="style" t-esc="a.get('balance')"
-                                                  t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                        </td>
-                                        <td class="text-right" t-if="data['enable_filter']">
-                                            <span t-att-style="style" t-esc="a.get('balance_cmp')"
-                                                  t-if="data['enable_filter']"
-                                                  t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                        </td>
-                                    </t>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div style="font-size: 18px; font-weight: 600; color: #222; margin-bottom: 3px;">
+                            <span t-esc="data['account_report_id'][1]"/>
+                        </div>
+                        <div style="font-size: 14px; font-weight: 500; color: #444;">
+                            <t t-if="data.get('date_to')">
+                                As of <span t-esc="datetime.datetime.strptime(data['date_to'], '%Y-%m-%d').strftime('%B %Y')"/>
+                            </t>
+                            <t t-else="">
+                                As of <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%B %Y')"/>
+                            </t>
+                        </div>
                     </div>
-                </t>
+                    
+                    <!-- Page number footer -->
+                    <div class="footer" style="width: 100%; text-align: right; font-size: 10px; color: #555;">
+                        <span class="page"/> / <span class="topage"/>
+                    </div>
+
+                    <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;">
+                        <thead>
+                            <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
+                                <th style="padding:7px; border:1px solid #999;">
+                                    Name
+                                </th>
+                                <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;" t-if="data['debit_credit']">
+                                    Debit
+                                </th>
+                                <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;" t-if="data['debit_credit']">
+                                    Credit
+                                </th>
+                                <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">
+                                    Balance
+                                </th>
+                                <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;" t-if="data['enable_filter']">
+                                    <span t-esc="data['label_filter']"/>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="get_account_lines" t-as="a">
+                                <t t-if="a['level'] != 0">
+                                    <t t-if="a.get('level') &gt; 3">
+                                        <t t-set="style" t-value="'font-weight: normal;'"/>
+                                    </t>
+                                    <t t-if="not a.get('level') &gt; 3">
+                                        <t t-set="style" t-value="'font-weight: bold;'"/>
+                                    </t>
+                                    <td style="padding:6px; border:1px solid #ddd;">
+                                        <span style="color: white;" t-esc="'..' * a.get('level', 0)"/>
+                                        <span t-att-style="style" t-esc="a.get('name')"/>
+                                    </td>
+                                    <td t-if="data['debit_credit']" class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999; white-space: nowrap;">
+                                        <span t-att-style="style" t-esc="'{:,.2f}'.format(a.get('debit'))"/>
+                                        <span t-att-style="style" t-esc="env.company.currency_id.symbol"/>
+                                    </td>
+                                    <td t-if="data['debit_credit']" class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999; white-space: nowrap;">
+                                        <span t-att-style="style" t-esc="'{:,.2f}'.format(a.get('credit'))"/>
+                                        <span t-att-style="style" t-esc="env.company.currency_id.symbol"/>
+                                    </td>
+                                    <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999; white-space: nowrap;">
+                                        <span t-att-style="style" t-esc="'{:,.2f}'.format(a.get('balance'))"/>
+                                        <span t-att-style="style" t-esc="env.company.currency_id.symbol"/>
+                                    </td>
+                                    <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;" t-if="data['enable_filter']">
+                                        <span t-att-style="style" t-esc="'{:,.2f}'.format(a.get('balance_cmp'))"/>
+                                        <span t-att-style="style" t-esc="env.company.currency_id.symbol"/>
+                                    </td>
+                                </t>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </t>
         </t>
     </template>

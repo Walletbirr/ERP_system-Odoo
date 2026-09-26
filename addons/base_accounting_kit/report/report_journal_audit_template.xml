@@ -2,146 +2,133 @@
 <odoo>
     <template id="report_journal_audit">
         <t t-call="web.html_container">
-            <t t-call="web.internal_layout">
-                <t t-foreach="docs" t-as="o">
-                    <t t-set="data_report_margin_top" t-value="12"/>
-                    <t t-set="data_report_header_spacing" t-value="9"/>
-                    <t t-set="data_report_dpi" t-value="110"/>
-                    <div class="page">
-                        <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%Y-%m-%d %H:%M')"/>
-                        <h2>
-                            <t t-esc="o.name"/>
-                            Journal
-                        </h2>
-
-                        <div class="row mt32">
-
-                            <div class="col-3">
-                                <strong>Company:</strong>
-                                <p t-esc="env.company.name"/>
-                            </div>
-
-                            <div class="col-3">
-                                <strong>Journal:</strong>
-                                <p t-esc="o.name"/>
-                            </div>
-
-                            <div class="col-3">
-                                <strong>Entries Sorted By:</strong>
-                                <p t-if="data['form'].get('sort_selection') != 'l.date'">Journal Entry Number</p>
-                                <p t-if="data['form'].get('sort_selection') == 'l.date'">Date</p>
-                            </div>
-
-                            <div class="col-3">
-                                <strong>Target Moves:</strong>
-                                <p t-if="data['form']['target_move'] == 'all'">All Entries</p>
-                                <p t-if="data['form']['target_move'] == 'posted'">All Posted Entries</p>
-                            </div>
-
+            <t t-foreach="docs" t-as="o">
+                <t t-set="data_report_margin_top" t-value="15"/>
+                <t t-set="data_report_header_spacing" t-value="0"/>
+                <t t-set="data_report_dpi" t-value="110"/>
+                
+                <!-- Custom clean layout - no default Odoo header -->
+                <div class="page" style="padding-top: 5px;">
+                
+                    <!-- FULL HEADER -->
+                    <div style="text-align: center; margin-bottom: 18px;">
+                        <div style="font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #111; margin-bottom: 4px;">
+                            <span t-esc="env.company.name"/>
                         </div>
+                        <div style="font-size: 18px; font-weight: 600; color: #222; margin-bottom: 3px;">
+                            <span t-esc="o.name"/> Journal Audit
+                        </div>
+                        <div style="font-size: 14px; font-weight: 500; color: #444;">
+                            <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%B %Y')"/>
+                        </div>
+                    </div>
+                    
+                    <!-- Page number footer -->
+                    <div class="footer" style="width: 100%; text-align: right; font-size: 10px; color: #555;">
+                        <span class="page"/> / <span class="topage"/>
+                    </div>
 
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Move</th>
-                                    <th>Date</th>
-                                    <th>Account</th>
-                                    <th>Partner</th>
-                                    <th>Label</th>
-                                    <th>Debit</th>
-                                    <th>Credit</th>
-                                    <th t-if="data['form']['amount_currency']">Currency</th>
+                    <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;">
+                        <thead>
+                            <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
+                                <th style="padding:7px; border:1px solid #999;">Move</th>
+                                <th style="padding:7px; border:1px solid #999;">Date</th>
+                                <th style="padding:7px; border:1px solid #999;">Account</th>
+                                <th style="padding:7px; border:1px solid #999;">Partner</th>
+                                <th style="padding:7px; border:1px solid #999;">Label</th>
+                                <th style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">Debit</th>
+                                <th style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">Credit</th>
+                                <th style="padding:7px; border:1px solid #999;" t-if="data['form']['amount_currency']">Currency</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr t-foreach="lines[o.id]" t-as="aml">
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="aml.move_id.name != '/' and aml.move_id.name or ('*'+str(aml.move_id.id))"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-field="aml.date"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-field="aml.account_id.code"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="aml.sudo().partner_id and aml.sudo().partner_id.name and aml.sudo().partner_id.name[:23] or ''"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="aml.name and aml.name[:35]"/>
+                                </td>
+                                <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                    <span t-esc="'{:,.2f}'.format(aml.debit)"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                    <span t-esc="'{:,.2f}'.format(aml.credit)"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;" t-if="data['form']['amount_currency'] and aml.amount_currency">
+                                    <span t-esc="'{:,.2f}'.format(aml.amount_currency)"/>
+                                    <span t-esc="aml.currency_id.symbol"/>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="row" style="margin-top:20px;">
+                        <div class="col-4 pull-right">
+                            <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;">
+                                <tr style="background:#f5f5f5; font-weight:bold;">
+                                    <td style="padding:8px; border:1px solid #bbb;">
+                                        Total
+                                    </td>
+                                    <td class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                        <span t-esc="'{:,.2f}'.format(sum_debit(data, o))"/>
+                                        <span t-esc="env.company.currency_id.symbol"/>
+                                    </td>
+                                    <td class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                        <span t-esc="'{:,.2f}'.format(sum_credit(data, o))"/>
+                                        <span t-esc="env.company.currency_id.symbol"/>
+                                    </td>
                                 </tr>
-                            </thead>
+                            </table>
+                        </div>
+                    </div>
 
-                            <tbody>
-                                <tr t-foreach="lines[o.id]" t-as="aml">
-                                    <td>
-                                        <span t-esc="aml.move_id.name != '/' and aml.move_id.name or ('*'+str(aml.move_id.id))"/>
-                                    </td>
-                                    <td>
-                                        <span t-field="aml.date"/>
-                                    </td>
-                                    <td>
-                                        <span t-field="aml.account_id.code"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="aml.sudo().partner_id and aml.sudo().partner_id.name and aml.sudo().partner_id.name[:23] or ''"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="aml.name and aml.name[:35]"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="aml.debit"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="aml.credit"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td t-if="data['form']['amount_currency'] and aml.amount_currency">
-                                        <span t-esc="aml.amount_currency"
-                                              t-options="{'widget': 'monetary', 'display_currency': aml.currency_id}"/>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <div class="row">
-                            <div class="col-4 pull-right">
-                                <table class="table table-sm">
-                                    <tr>
-                                        <td>
-                                            <strong>Total</strong>
+                    <div class="row" style="margin-top:20px;">
+                        <div class="col-4">
+                            <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;">
+                                <thead>
+                                    <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;" colspan="3">
+                                        <th colspan="3" style="padding:7px; border:1px solid #999;">Tax Declaration</th>
+                                    </tr>
+                                    <tr style="background:#ececec; font-weight:bold;">
+                                        <th style="padding:7px; border:1px solid #bbb;">Name</th>
+                                        <th style="padding:7px; border:1px solid #bbb; text-align:right;">Base Amount</th>
+                                        <th style="padding:7px; border:1px solid #bbb; text-align:right;">Tax Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-set="taxes" t-value="get_taxes(data, o)"/>
+                                    <tr t-foreach="taxes" t-as="tax">
+                                        <td style="padding:6px; border:1px solid #ddd;">
+                                            <span t-esc="tax.name"/>
                                         </td>
-                                        <td>
-                                            <span t-esc="sum_debit(data, o)"
-                                                  t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
+                                        <td class="text-end" style="padding:6px; border:1px solid #ddd;">
+                                            <span t-esc="'{:,.2f}'.format(taxes[tax]['base_amount'])"/>
+                                            <span t-esc="env.company.currency_id.symbol"/>
                                         </td>
-                                        <td>
-                                            <span t-esc="sum_credit(data, o)"
-                                                  t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
+                                        <td class="text-end" style="padding:6px; border:1px solid #ddd;">
+                                            <span t-esc="'{:,.2f}'.format(taxes[tax]['tax_amount'])"/>
+                                            <span t-esc="env.company.currency_id.symbol"/>
                                         </td>
                                     </tr>
-                                </table>
-                            </div>
+                                </tbody>
+                            </table>
                         </div>
-
-                        <div class="row">
-                            <div class="col-4">
-                                <table class="table table-sm table-reports">
-                                    <thead>
-                                        <tr>
-                                            <th colspan="3">Tax Declaration</th>
-                                        </tr>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Base Amount</th>
-                                            <th>Tax Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <t t-set="taxes" t-value="get_taxes(data, o)"/>
-                                        <tr t-foreach="taxes" t-as="tax">
-                                            <td>
-                                                <span t-esc="tax.name"/>
-                                            </td>
-                                            <td>
-                                                <span t-esc="taxes[tax]['base_amount']"
-                                                      t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                            </td>
-                                            <td>
-                                                <span t-esc="taxes[tax]['tax_amount']"
-                                                      t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <p style="page-break-after: always;"/>
                     </div>
-                </t>
+                    <p style="page-break-after: always;"/>
+                </div>
             </t>
         </t>
     </template>

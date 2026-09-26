@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_account_fiscalyear_closing_accountant,account.fiscalyear.closing accountant,model_account_fiscalyear_closing,account.group_account_user,1,1,1,0
+access_account_fiscalyear_closing_manager,account.fiscalyear.closing manager,model_account_fiscalyear_closing,account.group_account_manager,1,1,1,1
+access_account_fiscalyear_closing_line_accountant,account.fiscalyear.closing.line accountant,model_account_fiscalyear_closing_line,account.group_account_user,1,1,1,0
+access_account_fiscalyear_closing_line_manager,account.fiscalyear.closing.line manager,model_account_fiscalyear_closing_line,account.group_account_manager,1,1,1,1
+access_account_retained_earnings_config_manager,account.retained.earnings.config manager,model_account_retained_earnings_config,account.group_account_manager,1,1,1,1

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_retained_earnings_config_form" model="ir.ui.view">
+        <field name="name">account.retained.earnings.config.form</field>
+        <field name="model">account.retained.earnings.config</field>
+        <field name="arch" type="xml">
+            <form string="Retained Earnings Setup">
+                <p class="text-muted">
+                    Configure once. Every Income and Expense account is
+                    already tracked automatically by Odoo - this screen only
+                    tells the system where to post each fiscal year's net
+                    result when your accountants close the year.
+                </p>
+                <group>
+                    <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                    <field name="retained_earnings_account_id"/>
+                    <field name="closing_journal_id"/>
+                </group>
+                <group string="Automatic Yearly Closing (optional)">
+                    <p class="text-muted" colspan="2">
+                        Most companies should leave this off and close each
+                        year manually and deliberately from
+                        <b>Accounting &gt; Fiscal Year Closing</b>, after
+                        reviewing the period's figures. Only enable this if
+                        you want the system to close and post automatically
+                        without a human review step.
+                    </p>
+                    <field name="auto_close_fiscalyear"/>
+                    <field name="auto_close_month" required="auto_close_fiscalyear"
+                           invisible="not auto_close_fiscalyear"/>
+                    <field name="auto_close_day" required="auto_close_fiscalyear"
+                           invisible="not auto_close_fiscalyear"/>
+                </group>
+                <footer>
+                    <button name="action_save" string="Save" type="object" class="btn-primary"/>
+                    <button string="Discard" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_retained_earnings_config" model="ir.actions.act_window">
+        <field name="name">Retained Earnings Setup</field>
+        <field name="res_model">account.retained.earnings.config</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

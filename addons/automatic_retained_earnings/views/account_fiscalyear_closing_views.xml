@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_account_fiscalyear_closing_tree" model="ir.ui.view">
+        <field name="name">account.fiscalyear.closing.tree</field>
+        <field name="model">account.fiscalyear.closing</field>
+        <field name="arch" type="xml">
+            <list string="Fiscal Year Closings" decoration-success="state == 'posted'" decoration-muted="state == 'reversed'">
+                <field name="name"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="total_income"/>
+                <field name="total_expense"/>
+                <field name="net_result"/>
+                <field name="state" widget="badge" decoration-success="state == 'posted'" decoration-info="state == 'computed'" decoration-muted="state == 'reversed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_account_fiscalyear_closing_form" model="ir.ui.view">
+        <field name="name">account.fiscalyear.closing.form</field>
+        <field name="model">account.fiscalyear.closing</field>
+        <field name="arch" type="xml">
+            <form string="Fiscal Year Closing">
+                <header>
+                    <button name="action_compute_lines" string="Compute Balances" type="object"
+                            class="btn-secondary" invisible="state == 'posted'"/>
+                    <button name="action_post" string="Post Closing Entry" type="object"
+                            class="btn-primary" invisible="state == 'posted'"
+                            confirm="This will post a balanced journal entry that zeroes out every Income and Expense account for this period and moves the net result into Retained Earnings. This cannot be edited afterwards (only reversed). Are you sure the balances above are correct and this period is ready to close?"/>
+                    <button name="action_reverse" string="Reverse Closing" type="object"
+                            groups="account.group_account_manager"
+                            confirm="This will create a reversal entry and re-open the P&amp;L accounts for this period. Continue?"
+                            invisible="state != 'posted'"/>
+                    <button name="action_reset_to_draft" string="Reset to Draft" type="object"
+                            confirm="This clears the computed account balances so you can adjust the period and recompute. Continue?"
+                            invisible="state in ('posted', 'reversed')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,computed,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_move" type="object" class="oe_stat_button" icon="fa-book"
+                                invisible="not move_id">
+                            <span>Closing Entry</span>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <field name="currency_id" invisible="1"/>
+                    <group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="period_type" widget="radio" options="{'horizontal': true}"
+                                   readonly="state == 'posted'"/>
+                            <field name="fiscal_year"
+                                   invisible="period_type == 'custom'"
+                                   required="period_type == 'year' and state != 'posted'"
+                                   readonly="state == 'posted'"/>
+                            <field name="period_month" placeholder="Full Year"
+                                   invisible="period_type == 'custom'"
+                                   readonly="state == 'posted'"/>
+                            <field name="date_from" readonly="state == 'posted' or period_type == 'year'"/>
+                            <field name="date_to" readonly="state == 'posted' or period_type == 'year'"/>
+                        </group>
+                        <group>
+                            <field name="journal_id" readonly="state == 'posted'"/>
+                            <field name="retained_earnings_account_id" readonly="state == 'posted'"/>
+                            <field name="auto_generated"/>
+                        </group>
+                    </group>
+                    <group string="Result">
+                        <group>
+                            <field name="total_income"/>
+                            <field name="total_expense"/>
+                            <field name="net_result"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Account Balances Before Closing">
+                            <field name="line_ids" readonly="1">
+                                <list editable="bottom" create="0" delete="0">
+                                    <field name="account_id"/>
+                                    <field name="account_type"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="balance"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_account_fiscalyear_closing" model="ir.actions.act_window">
+        <field name="name">Fiscal Year Closing (Retained Earnings)</field>
+        <field name="res_model">account.fiscalyear.closing</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Close a fiscal year and post its net result to Retained Earnings
+            </p>
+            <p>
+                Create a new closing, pick the period, click "Compute Balances" to
+                preview every Income/Expense account that will be zeroed out, then
+                "Post Closing Entry" to book the balanced journal entry.
+            </p>
+        </field>
+    </record>
+
+</odoo>

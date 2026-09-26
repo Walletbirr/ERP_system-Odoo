@@ -2,114 +2,112 @@
 <odoo>
     <template id="day_book_report_template">
         <t t-call="web.html_container">
-            <t t-set="data_report_margin_top" t-value="12"/>
-            <t t-set="data_report_header_spacing" t-value="9"/>
+            <t t-set="data_report_margin_top" t-value="15"/>
+            <t t-set="data_report_header_spacing" t-value="0"/>
             <t t-set="data_report_dpi" t-value="110"/>
-            <t t-call="web.internal_layout">
-                <div class="page"><br/>
-                    <h2><span t-esc="env.company.name"/>: Day Book Report
-                    </h2>
-                    <div class="row mt32" style="margin-bottom:3%;">
-                        <div class="col-7">
-                            <strong>Journals:</strong>
-                            <p t-esc="', '.join([ lt or '' for lt in print_journal ])"/>
-                        </div>
-                        <div class="col-2">
-                            <strong>Target Moves:</strong>
-                            <p t-if="data['target_move'] == 'all'">All Entries</p>
-                            <p t-if="data['target_move'] == 'posted'">All Posted Entries</p>
-                        </div>
-                        <div class="col-3">
-                            <t t-if="data['date_from']">
-                                <strong>Date from :</strong>
-                                <span t-esc="data['date_from']"/>
-                                <br/>
-                            </t>
-                            <t t-if="data['date_to']">
-                                <strong>Date to :</strong>
-                                <span t-esc="data['date_to']"/>
-                            </t>
-                        </div>
+            
+            <!-- Custom clean layout - no default Odoo header -->
+            <div class="page" style="padding-top: 5px;">
+            
+                <!-- FULL HEADER -->
+                <div style="text-align: center; margin-bottom: 18px;">
+                    <div style="font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #111; margin-bottom: 4px;">
+                        <span t-esc="env.company.name"/>
                     </div>
-
-                    <table class="table table-condensed">
-                        <thead>
-                            <tr class="text-center">
-                                <th>Date</th>
-                                <th>JRNL</th>
-                                <th>Partner</th>
-                                <th>Ref</th>
-                                <th>Move</th>
-                                <th>Entry Label</th>
-                                <th>Debit</th>
-                                <th>Credit</th>
-                                <th>Balance</th>
-                                <th groups="base.group_multi_currency">Currency</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <t t-foreach="Accounts" t-as="account">
-                                <tr style="font-weight: bold;background: #ededed;">
-                                    <td colspan="6">
-                                        <span style="color: white;" t-esc="'..'"/>
-                                        <span t-esc="account['date']"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="account['debit']"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="account['credit']"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="account['balance']"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td groups="base.group_multi_currency"/>
-                                </tr>
-                                <tr t-foreach="account['child_lines']" t-as="line">
-                                    <td>
-                                        <span t-esc="line['ldate']"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="line['lcode']"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="line['partner_name']"/>
-                                    </td>
-                                    <td>
-                                        <span t-if="line['lref']" t-esc="line['lref']"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="line['move_name']"/>
-                                    </td>
-                                    <td>
-                                        <span t-esc="line['lname']"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="line['debit']"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="line['credit']"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-esc="line['balance']"
-                                              t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                    </td>
-                                    <td t-if="line['amount_currency']" class="text-end" groups="base.group_multi_currency">
-                                        <span t-esc="line['amount_currency'] if line['amount_currency'] > 0.00 else ''"/>
-                                        <span t-esc="line['currency_code'] if line['amount_currency'] > 0.00 else ''"/>
-                                    </td>
-                                </tr>
-                            </t>
-                        </tbody>
-                    </table>
+                    <div style="font-size: 18px; font-weight: 600; color: #222; margin-bottom: 3px;">
+                        Day Book
+                    </div>
+                    <div style="font-size: 14px; font-weight: 500; color: #444;">
+                        <t t-if="data.get('date_to')">
+                            As of <span t-esc="datetime.datetime.strptime(data['date_to'], '%Y-%m-%d').strftime('%B %Y')"/>
+                        </t>
+                        <t t-else="">
+                            As of <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%B %Y')"/>
+                        </t>
+                    </div>
                 </div>
-            </t>
+                
+                <!-- Page number footer -->
+                <div class="footer" style="width: 100%; text-align: right; font-size: 10px; color: #555;">
+                    <span class="page"/> / <span class="topage"/>
+                </div>
+
+                <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;">
+                    <thead>
+                        <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
+                            <th style="padding:7px; border:1px solid #999;">Date</th>
+                            <th style="padding:7px; border:1px solid #999;">JRNL</th>
+                            <th style="padding:7px; border:1px solid #999;">Partner</th>
+                            <th style="padding:7px; border:1px solid #999;">Ref</th>
+                            <th style="padding:7px; border:1px solid #999;">Move</th>
+                            <th style="padding:7px; border:1px solid #999;">Entry Label</th>
+                            <th style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">Debit</th>
+                            <th style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">Credit</th>
+                            <th style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">Balance</th>
+                            <th style="padding:7px; border:1px solid #999;" groups="base.group_multi_currency">Currency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="Accounts" t-as="account">
+                            <tr style="background:#ececec; font-weight:bold; border-top:2px solid #666;">
+                                <td colspan="6" style="padding:8px; border:1px solid #bbb;">
+                                    <span style="color: white;" t-esc="'..'"/>
+                                    <span t-esc="account['date']"/>
+                                </td>
+                                <td class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                    <span t-esc="'{:,.2f}'.format(account['debit'])"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                    <span t-esc="'{:,.2f}'.format(account['credit'])"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                    <span t-esc="'{:,.2f}'.format(account['balance'])"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td groups="base.group_multi_currency" style="padding:8px; border:1px solid #bbb;"/>
+                            </tr>
+                            <tr t-foreach="account['child_lines']" t-as="line">
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="line['ldate']"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="line['lcode']"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="line['partner_name']"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-if="line['lref']" t-esc="line['lref']"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="line['move_name']"/>
+                                </td>
+                                <td style="padding:6px; border:1px solid #ddd;">
+                                    <span t-esc="line['lname']"/>
+                                </td>
+                                <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                    <span t-esc="'{:,.2f}'.format(line['debit'])"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                    <span t-esc="'{:,.2f}'.format(line['credit'])"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                    <span t-esc="'{:,.2f}'.format(line['balance'])"/>
+                                    <span t-esc="env.company.currency_id.symbol"/>
+                                </td>
+                                <td t-if="line['amount_currency']" class="text-end" style="padding:6px; border:1px solid #ddd;" groups="base.group_multi_currency">
+                                    <span t-esc="'{:,.2f}'.format(line['amount_currency']) if line['amount_currency'] > 0.00 else ''"/>
+                                    <span t-esc="line['currency_code'] if line['amount_currency'] > 0.00 else ''"/>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
         </t>
     </template>
 </odoo>
-

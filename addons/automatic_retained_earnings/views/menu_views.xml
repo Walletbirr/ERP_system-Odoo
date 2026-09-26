@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Both menus hang off the Accounting app root (account.menu_finance),
+         which is a very stable id across Odoo versions and accounting-kit
+         customisations. Feel free to drag them into a deeper submenu
+         (e.g. next to "Year-End Closing") from Settings > Technical > Menus
+         once installed - that's a safe UI action, unlike guessing a
+         submenu's xmlid in this file. -->
+
+    <!-- Accounting Managers only: where the retained earnings account,
+         closing journal and auto-close behaviour are configured. -->
+    <menuitem id="menu_retained_earnings_config"
+              name="Retained Earnings Setup"
+              action="action_retained_earnings_config"
+              parent="account.menu_finance"
+              groups="account.group_account_manager"
+              sequence="91"/>
+
+    <!-- Accountants (and Managers): where the year is actually closed. -->
+    <menuitem id="menu_account_fiscalyear_closing"
+              name="Fiscal Year Closing"
+              action="action_account_fiscalyear_closing"
+              parent="account.menu_finance"
+              groups="account.group_account_user"
+              sequence="92"/>
+</odoo>

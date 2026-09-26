@@ -2,103 +2,119 @@
 <odoo>
     <template id="report_agedpartnerbalance">
         <t t-call="web.html_container">
-            <t t-set="data_report_margin_top" t-value="12"/>
-            <t t-set="data_report_header_spacing" t-value="9"/>
+            <t t-set="data_report_margin_top" t-value="15"/>
+            <t t-set="data_report_header_spacing" t-value="0"/>
             <t t-set="data_report_dpi" t-value="110"/>
-            <t t-call="web.internal_layout">
-                <div class="page"><br/>
-                    <h2>Aged Partner Balance</h2>
-                    <div class="row mt32">
-                        <div class="col-3">
-                            <strong>Start Date:</strong>
-                            <p t-esc="data['date_from']"/>
-                        </div>
-                        <div class="col-3">
-                            <strong>Period Length (days)</strong>
-                            <p t-esc="data['period_length']"/>
-                        </div>
+            
+            <!-- Custom clean layout - no default Odoo header -->
+            <div class="page" style="padding-top: 5px;">
+            
+                <!-- FULL HEADER -->
+                <div style="text-align: center; margin-bottom: 18px;">
+                    <div style="font-size: 24px; font-weight: 700; letter-spacing: 0.5px; color: #111; margin-bottom: 4px;">
+                        <span t-esc="env.company.name"/>
                     </div>
-                    <div class="row mb32">
-                        <div class="col-3">
-                            <strong>Partner's:</strong>
-                            <p>
-                                <span t-if="data['result_selection'] == 'customer'">Receivable Accounts</span>
-                                <span t-if="data['result_selection'] == 'supplier'">Payable Accounts</span>
-                                <span t-if="data['result_selection'] == 'customer_supplier'">Receivable and Payable Accounts</span>
-                            </p>
-                        </div>
-                        <div class="col-3">
-                            <strong>Target Moves:</strong>
-                            <p>
-                                <span t-if="data['target_move'] == 'all'">All Entries</span>
-                                <span t-if="data['target_move'] == 'posted'">All Posted Entries</span>
-                            </p>
-                        </div>
+                    <div style="font-size: 18px; font-weight: 600; color: #222; margin-bottom: 3px;">
+                        Aged Partner Balance
                     </div>
-
-                    <table class="table table-sm table-reports">
-                        <thead>
-                            <tr>
-                                <th>Partners</th>
-                                <th class="text-right">
-                                    <span>Not due</span>
-                                </th>
-                                <th class="text-right"><span t-esc="data['4']['name']"/></th>
-                                <th class="text-right"><span t-esc="data['3']['name']"/></th>
-                                <th class="text-right"><span t-esc="data['2']['name']"/></th>
-                                <th class="text-right"><span t-esc="data['1']['name']"/></th>
-                                <th class="text-right"><span t-esc="data['0']['name']"/></th>
-                                <th class="text-right">Total</th>
-                            </tr>
-                            <tr t-if="get_partner_lines">
-                                <th>Account Total</th>
-                                <th class="text-right"><span t-esc="get_direction[6]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                                <th class="text-right"><span t-esc="get_direction[4]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                                <th class="text-right"><span t-esc="get_direction[3]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                                <th class="text-right"><span t-esc="get_direction[2]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                                <th class="text-right"><span t-esc="get_direction[1]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                                <th class="text-right"><span t-esc="get_direction[0]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                                <th class="text-right"><span t-esc="get_direction[5]" t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr t-foreach="get_partner_lines" t-as="partner">
-                                <td>
-                                    <span t-esc="partner['name']"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['direction']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['4']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['3']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['2']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['1']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['0']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                                <td class="text-start">
-                                    <span t-esc="partner['total']"
-                                          t-options="{'widget': 'monetary', 'display_currency': env.company.currency_id}"/>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div style="font-size: 14px; font-weight: 500; color: #444;">
+                        <t t-if="data.get('date_from')">
+                            As of <span t-esc="datetime.datetime.strptime(data['date_from'], '%Y-%m-%d').strftime('%B %Y')"/>
+                        </t>
+                        <t t-else="">
+                            As of <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%B %Y')"/>
+                        </t>
+                    </div>
                 </div>
-            </t>
+                
+                <!-- Page number footer -->
+                <div class="footer" style="width: 100%; text-align: right; font-size: 10px; color: #555;">
+                    <span class="page"/> / <span class="topage"/>
+                </div>
+
+                <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;">
+                    <thead>
+                        <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
+                            <th style="padding:7px; border:1px solid #999;">Partners</th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">
+                                <span>Not due</span>
+                            </th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;"><span t-esc="data['4']['name']"/></th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;"><span t-esc="data['3']['name']"/></th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;"><span t-esc="data['2']['name']"/></th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;"><span t-esc="data['1']['name']"/></th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;"><span t-esc="data['0']['name']"/></th>
+                            <th class="text-end" style="padding:7px; border:1px solid #999; border-left:2px solid #666; text-align:right;">Total</th>
+                        </tr>
+                        <tr t-if="get_partner_lines" style="background:#ececec; font-weight:bold;">
+                            <th style="padding:8px; border:1px solid #bbb;">Account Total</th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[6])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[4])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[3])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[2])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[1])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[0])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                            <th class="text-end" style="padding:8px; border:1px solid #bbb; border-left:2px solid #666;">
+                                <span t-esc="'{:,.2f}'.format(get_direction[5])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="get_partner_lines" t-as="partner">
+                            <td style="padding:6px; border:1px solid #ddd;">
+                                <span t-esc="partner['name']"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['direction'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['4'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['3'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['2'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['1'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['0'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                            <td class="text-end" style="padding:6px; border:1px solid #ddd; border-left:2px solid #999;">
+                                <span t-esc="'{:,.2f}'.format(partner['total'])"/>
+                                <span t-esc="env.company.currency_id.symbol"/>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </t>
     </template>
 </odoo>

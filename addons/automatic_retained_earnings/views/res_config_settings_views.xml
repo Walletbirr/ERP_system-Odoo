@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_retained_earnings" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.retained.earnings</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="Retained Earnings" string="Retained Earnings" data-key="account">
+                    <h2>Automatic Retained Earnings</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="retained_earnings_account_id" string="Retained Earnings Account"/>
+                                <div class="text-muted">
+                                    Equity account that receives the net profit/loss when a fiscal year is closed.
+                                </div>
+                                <field name="retained_earnings_account_id"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="closing_journal_id" string="Closing Journal"/>
+                                <div class="text-muted">
+                                    Journal used to post the year-end closing entry.
+                                </div>
+                                <field name="closing_journal_id"/>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <field name="auto_close_fiscalyear"/>
+                                <label for="auto_close_fiscalyear"/>
+                                <div class="text-muted">
+                                    Automatically generate and post the closing entry the day after each fiscal year ends.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

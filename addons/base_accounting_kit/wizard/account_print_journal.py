@@ -47,9 +47,83 @@ class AccountPrintJournal(models.TransientModel):
                                        'account.journal'].search(
                                        [('type', 'in', ['sale', 'purchase'])]))
 
+    def action_view_report(self):
+        """View button - opens HTML report"""
+        self.ensure_one()
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+        data['form'] = self.read(
+            ['date_from', 'date_to', 'journal_ids', 'target_move',
+             'sort_selection', 'amount_currency', 'company_id'])[0]
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = used_context
+        data = self.pre_print_report(data)
+        data['form'].update({'sort_selection': self.sort_selection, 'amount_currency': self.amount_currency})
+        
+        return self.env.ref(
+            'base_accounting_kit.action_report_journal_html'
+        ).report_action(self, data=data)
+
+    def print_xlsx(self):
+        """Excel export button"""
+        self.ensure_one()
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+        data['form'] = self.read(
+            ['date_from', 'date_to', 'journal_ids', 'target_move',
+             'sort_selection', 'amount_currency', 'company_id'])[0]
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = used_context
+        data = self.pre_print_report(data)
+        data['form'].update({'sort_selection': self.sort_selection, 'amount_currency': self.amount_currency})
+        
+        return self.env.ref(
+            'base_accounting_kit.action_report_journal_xlsx'
+        ).report_action(self, data=data)
+
     def _print_report(self, data):
         data = self.pre_print_report(data)
         data['form'].update({'sort_selection': self.sort_selection})
         return self.env.ref(
             'base_accounting_kit.action_report_journal').with_context(
             landscape=True).report_action(self, data=data)
+
+
+class JournalAuditXlsx(models.AbstractModel):
+    """Excel export for Journal Audit"""
+    _name = 'report.base_accounting_kit.report_journal_audit_xlsx'
+    _inherit = 'report.report_xlsx.abstract'
+    _description = 'Journal Audit Excel'
+
+    def generate_xlsx_report(self, workbook, data, objects):
+        """Generate Excel report for Journal Audit"""
+        sheet = workbook.add_worksheet('Journal Audit')
+        sheet.set_landscape()
+        
+        # Formats
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 14})
+        header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D9D9D9', 'border': 1})
+        money_fmt = workbook.add_format({'num_format': '#,##0.00'})
+        
+        # Title
+        sheet.write(0, 0, 'Journal Audit', title_fmt)
+        row = 2
+        
+        # Headers
+        sheet.write(row, 0, 'Date', header_fmt)
+        sheet.write(row, 1, 'Journal', header_fmt)
+        sheet.write(row, 2, 'Partner', header_fmt)
+        sheet.write(row, 3, 'Account', header_fmt)
+        sheet.write(row, 4, 'Entry Label', header_fmt)
+        sheet.write(row, 5, 'Debit', header_fmt)
+        sheet.write(row, 6, 'Credit', header_fmt)
+        
+        sheet.set_column(0, 0, 12)
+        sheet.set_column(1, 4, 18)
+        sheet.set_column(5, 6, 15)
+        
+        row += 1
+        # Note: Actual data rendering would need the report data structure
+        # This is a basic template - full implementation would iterate through journal entries

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_form_retained_earnings" model="ir.ui.view">
+        <field name="name">res.company.form.retained.earnings</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Retained Earnings" name="retained_earnings_page">
+                    <group>
+                        <group string="Year-End Closing">
+                            <field name="retained_earnings_account_id"/>
+                            <field name="closing_journal_id"/>
+                            <field name="auto_close_fiscalyear"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">
+                        These settings control the "Fiscal Year Closing" tool under
+                        Accounting. Every Income/Other Income/Expense/COGS/Depreciation
+                        account is automatically zeroed out into the Retained Earnings
+                        account when a fiscal year is closed.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

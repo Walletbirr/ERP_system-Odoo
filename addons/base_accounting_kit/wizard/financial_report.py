@@ -20,7 +20,8 @@
 #
 #############################################################################
 import re
-from odoo import api, models, fields
+from odoo import api, models, fields, _
+from odoo.exceptions import UserError
 
 
 class FinancialReport(models.TransientModel):
@@ -96,6 +97,73 @@ class FinancialReport(models.TransientModel):
         string='Company',
         index=True,
         default=lambda self: self.env.company.id)
+
+    def action_view_report(self):
+        """View button - opens HTML report same as General Ledger"""
+        self.ensure_one()
+        
+        data = dict()
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+        data['form'] = self.read(
+            ['date_from', 'enable_filter', 'debit_credit', 'date_to',
+             'account_report_id', 'target_move', 'view_format',
+             'company_id'])[0]
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = dict(
+            used_context,
+            lang=self.env.context.get('lang') or 'en_US')
+
+        records = self.env[data['model']].browse(data.get('ids', []))
+        
+        return self.env.ref(
+            'base_accounting_kit.financial_report_html'
+        ).report_action(records, data=data)
+
+    def print_xlsx(self):
+        """Excel export button"""
+        self.ensure_one()
+        data = dict()
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+        data['form'] = self.read(
+            ['date_from', 'enable_filter', 'debit_credit', 'date_to',
+             'account_report_id', 'target_move', 'view_format',
+             'company_id'])[0]
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = dict(
+            used_context,
+            lang=self.env.context.get('lang') or 'en_US')
+
+        # Process report data for Excel
+        report_lines = self.get_account_lines(data['form'])
+        journal_items = self.find_journal_items(report_lines, data['form'])
+
+        def set_report_level(rec):
+            level = 1
+            if not rec['parent']:
+                return level
+            else:
+                for line in report_lines:
+                    key = 'a_id' if line['type'] == 'account' else 'id'
+                    if line[key] == rec['parent']:
+                        return level + set_report_level(line)
+
+        for item in report_lines:
+            item['balance'] = round(item['balance'], 2)
+            if not item['parent']:
+                item['level'] = 1
+            else:
+                item['level'] = set_report_level(item)
+
+        currency = self._get_currency()
+        data['currency'] = currency
+        data['journal_items'] = journal_items
+        data['report_lines'] = report_lines
+
+        return self.env.ref(
+            'base_accounting_kit.financial_report_xlsx'
+        ).report_action(self, data=data)
 
     def view_report_pdf(self):
         """This function will be executed when we click the view button
@@ -427,12 +495,137 @@ class ProfitLossPdf(models.AbstractModel):
 
     @api.model
     def _get_report_values(self, docids, data=None):
-        """ Provide report values to template """
-        ctx = {
-            'data': data,
-            'journal_items': data['journal_items'],
-            'report_lines': data['report_lines'],
+        """ Provide report values to template - compute report lines here like GL does """
+        if not data.get('form'):
+            raise UserError(_("Form content is missing, this report cannot be printed."))
+        
+        model = self.env.context.get('active_model')
+        docs = self.env[model].browse(self.env.context.get('active_ids', []))
+        
+        # Get wizard record to access methods
+        wizard = self.env['financial.report'].browse(docids)
+        
+        # Compute report lines and journal items
+        report_lines = wizard.get_account_lines(data['form'])
+        journal_items = wizard.find_journal_items(report_lines, data['form'])
+
+        def set_report_level(rec):
+            level = 1
+            if not rec['parent']:
+                return level
+            else:
+                for line in report_lines:
+                    key = 'a_id' if line['type'] == 'account' else 'id'
+                    if line[key] == rec['parent']:
+                        return level + set_report_level(line)
+
+        for item in report_lines:
+            item['balance'] = round(item['balance'], 2)
+            if not item['parent']:
+                item['level'] = 1
+            else:
+                item['level'] = set_report_level(item)
+
+        currency = wizard._get_currency()
+        
+        return {
+            'doc_ids': docids,
+            'doc_model': model,
+            'data': data['form'],
+            'docs': docs,
+            'report_lines': report_lines,
+            'journal_items': journal_items,
             'account_report': data['form']['account_report_id'][1],
-            'currency': data['currency'],
+            'currency': currency,
         }
-        return ctx
+
+
+class FinancialReportXlsx(models.AbstractModel):
+    """Excel export for Financial Reports"""
+    _name = 'report.base_accounting_kit.report_financial_xlsx'
+    _inherit = 'report.report_xlsx.abstract'
+    _description = 'Financial Report Excel'
+
+    def generate_xlsx_report(self, workbook, data, objects):
+        """Generate Excel report with same data as PDF/HTML"""
+        
+        # Get form data
+        form = data.get('form', {})
+        
+        # Get report lines and journal items (already computed and passed in data)
+        report_lines = data.get('report_lines', [])
+        currency_symbol = data.get('currency', '$')
+        
+        # Create worksheet
+        sheet = workbook.add_worksheet('Financial Report')
+        sheet.set_landscape()
+        
+        # Formats
+        title_fmt = workbook.add_format({
+            'bold': True,
+            'font_size': 16,
+            'align': 'center',
+        })
+        header_fmt = workbook.add_format({
+            'bold': True,
+            'bg_color': '#D9D9D9',
+            'border': 1,
+            'align': 'center',
+        })
+        bold_fmt = workbook.add_format({'bold': True})
+        money_fmt = workbook.add_format({'num_format': '#,##0.00'})
+        money_bold_fmt = workbook.add_format({
+            'num_format': '#,##0.00',
+            'bold': True,
+        })
+        
+        # Title
+        sheet.merge_range(0, 0, 0, 3, form.get('account_report_id', ['', 'Financial Report'])[1], title_fmt)
+        sheet.set_column(0, 0, 50)  # Name column width
+        sheet.set_column(1, 3, 15)  # Number columns width
+        
+        row = 2
+        
+        # Headers
+        col = 0
+        sheet.write(row, col, 'Name', header_fmt)
+        col += 1
+        
+        if form.get('debit_credit'):
+            sheet.write(row, col, 'Debit', header_fmt)
+            col += 1
+            sheet.write(row, col, 'Credit', header_fmt)
+            col += 1
+        
+        sheet.write(row, col, 'Balance', header_fmt)
+        row += 1
+        
+        # Report lines
+        for line in report_lines:
+            if line.get('level', 0) == 0:
+                continue
+                
+            col = 0
+            level = line.get('level', 1)
+            indent = '  ' * (level - 1)
+            name = indent + line.get('name', '')
+            
+            # Determine if bold (parent lines)
+            is_bold = level <= 3
+            name_fmt = bold_fmt if is_bold else None
+            balance_fmt = money_bold_fmt if is_bold else money_fmt
+            
+            sheet.write(row, col, name, name_fmt)
+            col += 1
+            
+            if form.get('debit_credit'):
+                debit = line.get('debit', 0.0)
+                credit = line.get('credit', 0.0)
+                sheet.write(row, col, debit, balance_fmt)
+                col += 1
+                sheet.write(row, col, credit, balance_fmt)
+                col += 1
+            
+            balance = line.get('balance', 0.0)
+            sheet.write(row, col, balance, balance_fmt)
+            row += 1
