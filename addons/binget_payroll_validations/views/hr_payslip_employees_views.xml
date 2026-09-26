@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_payslip_by_employees_domain" model="ir.ui.view">
+        <field name="name">hr.payslip.employees.form.domain</field>
+        <field name="model">hr.payslip.employees</field>
+        <field name="inherit_id" ref="payroll.view_hr_payslip_by_employees"/>
+        <field name="arch" type="xml">
+            <!--
+                Same rule as the single payslip form's Employee field:
+                only people with a currently Running contract can be
+                picked. The real enforcement is still
+                _check_employee_payable on hr.payslip (fires on the
+                create() this wizard calls for each employee) - this
+                is just so a departed/expired employee is never picked
+                in the first place, instead of being picked and then
+                failing loudly at Generate.
+            -->
+            <xpath expr="//field[@name='employee_ids']" position="attributes">
+                <attribute name="domain">[('contract_ids.state', '=', 'open')]</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_payslip_view_form_hide_worked_days" model="ir.ui.view">
+        <field name="name">hr.payslip.form.hide.worked.days</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="payroll.hr_payslip_view_form"/>
+        <field name="arch" type="xml">
+            <!--
+                Matched by which field the page actually contains
+                (worked_days_line_ids), rather than a guessed page
+                name/id/string - so this keeps working even if the
+                base view's page is renamed later.
+            -->
+            <xpath expr="//page[.//field[@name='worked_days_line_ids']]"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!--
+                Credit Note checkbox: hidden per the earlier decision -
+                the field itself is left untouched, so refund_sheet()
+                (which sets it via code, not this checkbox) keeps
+                working exactly as before.
+            -->
+            <xpath expr="//field[@name='credit_note']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!--
+                Refund button: hidden from the header. The underlying
+                refund_sheet() method is untouched - if it's ever
+                needed again (e.g. from a server action, or once the
+                looping issue is actually traced and fixed), it still
+                exists and can be re-exposed by removing this xpath.
+            -->
+            <xpath expr="//button[@name='refund_sheet']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!--
+                Employee picker: only people with an actual contract
+                are payable, full stop - this is what naturally
+                excludes Administrator (no contract) without hardcoding
+                a name/user check that would break for any other
+                non-payroll admin account later.
+            -->
+            <xpath expr="//field[@name='employee_id']" position="attributes">
+                <attribute name="domain">[('contract_ids.state', '=', 'open')]</attribute>
+            </xpath>
+
+            <!--
+                Contract field on the payslip itself: readonly so it
+                can only ever be whatever auto-fills from the selected
+                employee - stops someone manually swapping in a
+                different contract than the one the employee actually
+                has.
+            -->
+            <xpath expr="//field[@name='contract_id']" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

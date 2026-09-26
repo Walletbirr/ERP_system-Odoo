@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_contract_view_form_readonly_when_open" model="ir.ui.view">
+        <field name="name">hr.contract.form.readonly.when.open</field>
+        <field name="model">hr.contract</field>
+        <field name="inherit_id" ref="hr_contract.hr_contract_view_form"/>
+        <field name="arch" type="xml">
+            <!--
+                UI-only greying-out so users see it's locked before they
+                even try to type - the real enforcement is the write()
+                override in hr_contract.py, which blocks the save
+                regardless of what the form allows clicking into.
+            -->
+            <xpath expr="/form/sheet" position="attributes">
+                <attribute name="readonly">state == 'open'</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
