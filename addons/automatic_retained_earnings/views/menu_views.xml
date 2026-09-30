@@ -23,4 +23,9 @@
               parent="account.menu_finance"
               groups="account.group_account_user"
               sequence="92"/>
+
+    <!-- Nest the two menus inside the Accounting app's Configuration /
+         Accounting submenus. Done here (not in post_init_hook) so it is
+         re-applied on every upgrade, not only on a fresh install. -->
+    <function model="account.fiscalyear.closing" name="_place_menus"/>
 </odoo>

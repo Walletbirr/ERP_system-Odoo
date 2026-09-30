@@ -22,8 +22,6 @@ What it does
   a chosen period, generates a balanced journal entry that zeroes out every
   one of those accounts, and posts the net result (profit or loss) to the
   Retained Earnings account.
-* Optional scheduled action to run this automatically a day after each
-  fiscal year ends.
 * Every closing is reversible with one click (creates a clean reversal
   entry instead of touching/deleting the original).
 """,
@@ -33,7 +31,6 @@ What it does
     'depends': ['account', 'base_accounting_kit'],
     'data': [
         'security/ir.model.access.csv',
-        'data/ir_cron_data.xml',
         'views/retained_earnings_config_views.xml',
         'views/account_fiscalyear_closing_views.xml',
         'views/menu_views.xml',

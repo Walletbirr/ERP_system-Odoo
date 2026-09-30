@@ -94,7 +94,7 @@ class HrContract(models.Model):
         self._binget_apply_company_defaults()
 
     def _binget_apply_company_defaults(self):
-        """Fill journal_id / analytic_account_id / struct_id from the
+        """Fill analytic_account_id / struct_id from the
         employee's department and the company-wide Payroll configuration -
         but only when not already set, so this never overwrites a
         deliberate manual override."""
@@ -106,8 +106,6 @@ class HrContract(models.Model):
                     department.analytic_account_id
                     or company.payroll_analytic_account_id
                 )
-            if not contract.journal_id:
-                contract.journal_id = company.payroll_journal_id
             if not contract.struct_id:
                 contract.struct_id = company.payroll_structure_id
 

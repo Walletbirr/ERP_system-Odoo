@@ -5,7 +5,7 @@
     "summary": "Job Position compensation defaults (overridable per contract), "
     "department-based analytic accounts, and a single global Payroll "
     "configuration for the salary journal and fallback analytic account.",
-    "version": "18.0.3.7.0",
+    "version": "18.0.3.9.0",
     "category": "Human Resources/Payroll",
     "author": "Binget Holding",
     "license": "AGPL-3",

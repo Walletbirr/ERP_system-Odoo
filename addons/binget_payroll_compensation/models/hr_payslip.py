@@ -3,13 +3,50 @@
 
 import logging
 
-from odoo import models
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
 
 class HrPayslip(models.Model):
     _inherit = "hr.payslip"
+
+    # ------------------------------------------------------------------
+    # Salary Journal on the payslip: ONE journal for everybody, taken from
+    # Settings > Payroll > Salary Journal (res.company.payroll_journal_id).
+    #
+    # payroll_account defines this field as a related copy of
+    # contract_id.journal_id, so a payslip depended on its contract
+    # having a journal - and showed "Invalid fields: Salary Journal" when
+    # the contract was blank or had none, even with Settings configured.
+    # The contract is no longer consulted at all. Change the journal in
+    # Settings and every payslip that is not Done yet follows it. A Done
+    # payslip keeps the journal its accounting entry was posted with.
+    # ------------------------------------------------------------------
+    journal_id = fields.Many2one(
+        "account.journal",
+        string="Salary Journal",
+        related=False,
+        compute="_compute_journal_id_binget",
+        store=True,
+        readonly=True,
+    )
+
+    @api.depends("company_id.payroll_journal_id", "employee_id.company_id")
+    def _compute_journal_id_binget(self):
+        for slip in self:
+            if slip.state == "done" and slip.journal_id:
+                continue
+            company = slip.company_id or slip.employee_id.company_id
+            slip.journal_id = company.payroll_journal_id or slip.journal_id
+
+    @api.onchange("contract_id")
+    def onchange_contract(self):
+        # payroll_account copies the contract's journal here; put the
+        # Settings journal back so the contract never decides it.
+        res = super().onchange_contract()
+        self._compute_journal_id_binget()
+        return res
 
     # ------------------------------------------------------------------
     # Per-employee override of the Net Salary Credit Account.

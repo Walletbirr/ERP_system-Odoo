@@ -1,23 +1,20 @@
 # -*- coding: utf-8 -*-
 import calendar
+import logging
+from datetime import date
 
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError, ValidationError
 
+_logger = logging.getLogger(__name__)
+
 # Odoo 18 account_type values that make up the Profit & Loss report.
 PL_ACCOUNT_TYPES = (
     'income', 'income_other',
     'expense', 'expense_depreciation', 'expense_direct_cost',
 )
-
-MONTH_SELECTION = [
-    ('1', 'January'), ('2', 'February'), ('3', 'March'), ('4', 'April'),
-    ('5', 'May'), ('6', 'June'), ('7', 'July'), ('8', 'August'),
-    ('9', 'September'), ('10', 'October'), ('11', 'November'), ('12', 'December'),
-]
-
 
 class AccountFiscalyearClosing(models.Model):
     _name = 'account.fiscalyear.closing'
@@ -31,18 +28,24 @@ class AccountFiscalyearClosing(models.Model):
     period_type = fields.Selection([
         ('year', 'Fiscal Year'),
         ('custom', 'Custom Range'),
-    ], default='year', required=True, tracking=True,
-        help="Pick a Fiscal Year (optionally narrowed to one month) and the "
-             "dates below fill in automatically, or switch to Custom Range "
-             "to set Date From/To by hand.")
+    ], default='year', required=True,
+        help="Fiscal Year: pick a year and the dates below are filled in for "
+             "you (the whole fiscal year). Custom Range: type Date From / "
+             "Date To yourself.")
     fiscal_year = fields.Selection(
-        selection='_selection_fiscal_years', string='Fiscal Year')
-    period_month = fields.Selection(
-        MONTH_SELECTION, string='Month',
-        help="Leave empty to close the full fiscal year. Pick a month to "
-             "close just that month instead (e.g. to close September only).")
-    date_from = fields.Date(required=True, tracking=True)
-    date_to = fields.Date(required=True, tracking=True)
+        selection='_selection_fiscal_years', string='Fiscal Year',
+        help="The year the fiscal year ENDS in (for a January-December "
+             "fiscal year that is simply the calendar year).")
+    # Server-computed from the picked year, but still editable for Custom
+    # Range. Being stored+computed means the dates are always derived on the
+    # server whenever the year changes - they no longer depend on the browser
+    # sending them back (read-only fields are not saved by the web client).
+    date_from = fields.Date(
+        compute='_compute_period_dates', store=True, readonly=False,
+        precompute=True, required=True)
+    date_to = fields.Date(
+        compute='_compute_period_dates', store=True, readonly=False,
+        precompute=True, required=True)
     journal_id = fields.Many2one(
         'account.journal', required=True, string='Closing Journal',
         domain="[('type', '=', 'general'), ('company_id', '=', company_id)]")
@@ -64,8 +67,6 @@ class AccountFiscalyearClosing(models.Model):
     net_result = fields.Monetary(
         compute='_compute_totals', store=True,
         help="Positive = net profit for the period, Negative = net loss.")
-    auto_generated = fields.Boolean(default=False, readonly=True,
-                                     help="Created automatically by the scheduled action.")
 
     _sql_constraints = [
         ('period_company_uniq', 'unique(company_id, date_from, date_to)',
@@ -100,9 +101,24 @@ class AccountFiscalyearClosing(models.Model):
 
     @api.model
     def _selection_fiscal_years(self):
-        """Recent + upcoming years, newest first, for the Fiscal Year picker."""
-        current_year = fields.Date.context_today(self).year
-        return [(str(y), str(y)) for y in range(current_year + 1, current_year - 7, -1)]
+        """Every year from the earliest posted entry in the database (and at
+        least 10 years back) up to 20 years ahead, newest first."""
+        this_year = fields.Date.context_today(self).year
+        first_move = self.env['account.move'].sudo().search(
+            [('state', '=', 'posted')], order='date asc', limit=1)
+        first_year = first_move.date.year if first_move else this_year
+        start = min(first_year, this_year - 10)
+        return [(str(y), str(y)) for y in range(this_year + 20, start - 1, -1)]
+
+    @api.model
+    def _fiscal_year_dates(self, company, year):
+        """(date_from, date_to) of the fiscal year that ENDS in calendar
+        `year`, using the company's own fiscal year end (Dec 31 by default)."""
+        last_month = int(company.fiscalyear_last_month or 12)
+        last_day = min(company.fiscalyear_last_day or 31,
+                       calendar.monthrange(year, last_month)[1])
+        fy = company.compute_fiscalyear_dates(date(year, last_month, last_day))
+        return fy['date_from'], fy['date_to']
 
     @api.model
     def _get_prior_fiscalyear_dates(self, company):
@@ -112,24 +128,17 @@ class AccountFiscalyearClosing(models.Model):
         prior_reference = current_dates['date_from'] - relativedelta(days=1)
         return company.compute_fiscalyear_dates(prior_reference)
 
-    def _dates_for_fiscal_year(self, year, month=None):
-        """Date range for a picked (Fiscal Year, optional Month), scoped to
-        company_id's actual fiscal year window (handles non-calendar fiscal
-        years, e.g. one starting in July)."""
-        self.ensure_one()
-        company = self.company_id or self.env.company
-        fy_dates = company.compute_fiscalyear_dates(fields.Date.to_date('%s-12-31' % year))
-        date_from, date_to = fy_dates['date_from'], fy_dates['date_to']
-        if month:
-            month = int(month)
-            last_day = calendar.monthrange(year, month)[1]
-            month_from = fields.Date.to_date('%04d-%02d-01' % (year, month))
-            month_to = fields.Date.to_date('%04d-%02d-%02d' % (year, month, last_day))
-            # clip to the fiscal year window in case the month falls just
-            # outside it (e.g. fiscal year not aligned to the calendar year)
-            date_from = max(date_from, month_from)
-            date_to = min(date_to, month_to)
-        return date_from, date_to
+    @api.depends('period_type', 'fiscal_year', 'company_id')
+    def _compute_period_dates(self):
+        for rec in self:
+            if rec.period_type == 'year' and rec.fiscal_year:
+                company = rec.company_id or self.env.company
+                rec.date_from, rec.date_to = self._fiscal_year_dates(
+                    company, int(rec.fiscal_year))
+            else:
+                # Custom Range: keep exactly what was typed in.
+                rec.date_from = rec.date_from
+                rec.date_to = rec.date_to
 
     @api.model
     def default_get(self, fields_list):
@@ -140,13 +149,12 @@ class AccountFiscalyearClosing(models.Model):
             res['journal_id'] = company.closing_journal_id.id
         if 'retained_earnings_account_id' in fields_list and not res.get('retained_earnings_account_id'):
             res['retained_earnings_account_id'] = company.retained_earnings_account_id.id
-
-        needs_period = {'date_from', 'date_to', 'fiscal_year'} & set(fields_list)
-        if needs_period and res.get('period_type', 'year') == 'year':
+        # Only the year is defaulted (the most recently completed fiscal
+        # year); date_from/date_to are then derived from it by
+        # _compute_period_dates, so the two can never disagree.
+        if 'fiscal_year' in fields_list and not res.get('fiscal_year'):
             prior_dates = self._get_prior_fiscalyear_dates(company)
-            res.setdefault('date_from', prior_dates['date_from'])
-            res.setdefault('date_to', prior_dates['date_to'])
-            res.setdefault('fiscal_year', str(prior_dates['date_to'].year))
+            res['fiscal_year'] = str(prior_dates['date_to'].year)
         return res
 
     @api.onchange('company_id')
@@ -154,19 +162,65 @@ class AccountFiscalyearClosing(models.Model):
         for rec in self:
             rec.journal_id = rec.company_id.closing_journal_id
             rec.retained_earnings_account_id = rec.company_id.retained_earnings_account_id
-            if rec.period_type == 'year' and rec.fiscal_year:
-                date_from, date_to = rec._dates_for_fiscal_year(
-                    int(rec.fiscal_year), rec.period_month)
-                rec.date_from, rec.date_to = date_from, date_to
 
-    @api.onchange('period_type', 'fiscal_year', 'period_month')
-    def _onchange_period_selection(self):
-        for rec in self:
-            if rec.period_type != 'year' or not rec.fiscal_year:
+    @api.model
+    def _repair_stale_periods(self):
+        """Runs on upgrade. Draft/Computed records saved by an older build
+        can show one Fiscal Year while still storing the dates of another
+        (the old form never saved the auto-filled dates). Re-derive their
+        dates from the year; a record that had already been computed is put
+        back to Draft because its balances belonged to the wrong period."""
+        stale = self.sudo().search([
+            ('period_type', '=', 'year'), ('fiscal_year', '!=', False),
+            ('state', 'in', ('draft', 'computed'))])
+        for rec in stale:
+            date_from, date_to = self._fiscal_year_dates(rec.company_id, int(rec.fiscal_year))
+            if (rec.date_from, rec.date_to) == (date_from, date_to):
                 continue
-            date_from, date_to = rec._dates_for_fiscal_year(
-                int(rec.fiscal_year), rec.period_month)
-            rec.date_from, rec.date_to = date_from, date_to
+            try:
+                with self.env.cr.savepoint():
+                    rec.line_ids.unlink()
+                    rec.write({'date_from': date_from, 'date_to': date_to, 'state': 'draft'})
+            except Exception:  # e.g. another closing already owns that period
+                _logger.warning("Could not realign closing %s to fiscal year %s", rec.id, rec.fiscal_year)
+
+    @api.model
+    def _place_menus(self):
+        """Nest our two menus inside the Accounting app's real Configuration /
+        Accounting submenus. Called from menu_views.xml, so it runs on every
+        install AND upgrade (a post_init_hook only runs on a fresh install,
+        while every upgrade re-loads the XML and resets the parent to the
+        app root). Submenus are found by name under the Accounting app root,
+        so no xmlid has to be guessed; if one isn't found the menu simply
+        stays directly under the app root."""
+        Menu = self.env['ir.ui.menu'].sudo()
+        root = self.env.ref('account.menu_finance', raise_if_not_found=False)
+        setup_menu = self.env.ref(
+            'automatic_retained_earnings.menu_retained_earnings_config', raise_if_not_found=False)
+        closing_menu = self.env.ref(
+            'automatic_retained_earnings.menu_account_fiscalyear_closing', raise_if_not_found=False)
+        if not root:
+            return
+
+        def find(label):
+            candidates = Menu.search([
+                ('id', 'child_of', root.id), ('id', '!=', root.id),
+                ('name', '=ilike', label)])
+            if not candidates:
+                return Menu.browse()
+
+            def depth(menu):
+                d, cur = 0, menu
+                while cur.parent_id and cur.id != root.id and d < 20:
+                    cur, d = cur.parent_id, d + 1
+                return d
+            return Menu.browse(min(candidates, key=depth).id)
+
+        config_menu, accounting_menu = find('Configuration'), find('Accounting')
+        if setup_menu and config_menu:
+            setup_menu.sudo().write({'parent_id': config_menu.id, 'sequence': 99})
+        if closing_menu and accounting_menu:
+            closing_menu.sudo().write({'parent_id': accounting_menu.id, 'sequence': 99})
 
     def _get_pl_move_lines(self):
         self.ensure_one()
@@ -183,25 +237,8 @@ class AccountFiscalyearClosing(models.Model):
         ]
         return self.env['account.move.line'].search(domain)
 
-    def _sync_dates_from_period(self):
-        """Server-side source of truth for the period. Whenever period_type
-        is 'year', derive date_from/date_to from Fiscal Year (+ optional
-        Month) right before they're used, instead of trusting whatever is
-        already stored on the record - so a period picked in the form
-        always wins, even if the client-side onchange never made it into
-        the saved values. Custom Range periods are left exactly as entered.
-        """
-        for rec in self:
-            if rec.period_type != 'year' or not rec.fiscal_year:
-                continue
-            date_from, date_to = rec._dates_for_fiscal_year(
-                int(rec.fiscal_year), rec.period_month)
-            if rec.date_from != date_from or rec.date_to != date_to:
-                rec.write({'date_from': date_from, 'date_to': date_to})
-
     def action_compute_lines(self):
         self.ensure_one()
-        self._sync_dates_from_period()
         if self.state == 'posted':
             raise UserError(_('This closing has already been posted. Reverse it first to recompute.'))
 
@@ -227,7 +264,6 @@ class AccountFiscalyearClosing(models.Model):
 
     def action_post(self):
         self.ensure_one()
-        self._sync_dates_from_period()
         if self.state == 'posted':
             raise UserError(_('This closing has already been posted.'))
         if not self.line_ids:
@@ -276,11 +312,15 @@ class AccountFiscalyearClosing(models.Model):
         self.ensure_one()
         if self.state != 'posted' or not self.move_id:
             raise UserError(_('Only a posted closing can be reversed.'))
-        today = fields.Date.context_today(self)
+        # Dated the SAME day as the closing so the period is genuinely
+        # re-opened (a reversal dated later would push the old year's P&L
+        # into the current year). Flagged like the closing itself, so both
+        # are ignored when the period is computed again.
         reversal = self.move_id._reverse_moves(default_values_list=[{
-            'date': max(self.date_to, today),
+            'date': self.date_to,
             'ref': _('Reversal of %s') % self.move_id.name,
         }], cancel=False)
+        reversal.write({'fiscalyear_closing_id': self.id})
         reversal.action_post()
         self.write({'state': 'reversed', 'reversal_move_id': reversal.id})
         return True
@@ -289,11 +329,9 @@ class AccountFiscalyearClosing(models.Model):
         self.ensure_one()
         if self.state == 'posted':
             raise UserError(_('Reverse the posted entry before resetting to draft.'))
-        if self.state == 'reversed':
-            raise UserError(_(
-                'This closing was already posted and reversed, so its record is '
-                'part of the audit trail. Create a new Fiscal Year Closing for '
-                'this period instead of resetting this one.'))
+        # From "Reversed" this is the way to redo a period (only one closing
+        # record can exist per company and period). The old closing and its
+        # reversal stay in the ledger as the audit trail.
         self.line_ids.unlink()
         self.write({
             'state': 'draft',
@@ -311,64 +349,6 @@ class AccountFiscalyearClosing(models.Model):
             'view_mode': 'form',
             'res_id': self.move_id.id,
         }
-
-    @api.model
-    def _cron_auto_close_fiscalyear(self):
-        import calendar
-
-        companies = self.env['res.company'].sudo().search([('auto_close_fiscalyear', '=', True)])
-        today = fields.Date.context_today(self)
-        for company in companies:
-            if not company.retained_earnings_account_id:
-                continue
-            if not company.auto_close_month or not company.auto_close_day:
-                continue
-
-            # Only fire on the one configured calendar day each year.
-            month = int(company.auto_close_month)
-            last_day_of_month = calendar.monthrange(today.year, month)[1]
-            trigger_day = min(company.auto_close_day, last_day_of_month)
-            if not (today.month == month and today.day == trigger_day):
-                continue
-
-            # Find the most recently COMPLETED fiscal year as of today,
-            # regardless of how long ago it ended (supports a grace period:
-            # Auto-Post Date can be weeks/months after the fiscal year end).
-            current_dates = company.compute_fiscalyear_dates(today)
-            prior_reference = current_dates['date_from'] - relativedelta(days=1)
-            prior_dates = company.compute_fiscalyear_dates(prior_reference)
-            date_from, date_to = prior_dates['date_from'], prior_dates['date_to']
-            if today <= date_to:
-                continue  # safety guard, should not happen
-
-            existing = self.sudo().search([
-                ('company_id', '=', company.id),
-                ('date_from', '=', date_from),
-                ('date_to', '=', date_to),
-            ], limit=1)
-            if existing:
-                continue
-
-            journal = company.closing_journal_id or self.env['account.journal'].sudo().search(
-                [('type', '=', 'general'), ('company_id', '=', company.id)], limit=1)
-            if not journal:
-                continue
-
-            closing = self.sudo().create({
-                'company_id': company.id,
-                'date_from': date_from,
-                'date_to': date_to,
-                'journal_id': journal.id,
-                'retained_earnings_account_id': company.retained_earnings_account_id.id,
-                'auto_generated': True,
-            })
-            try:
-                closing.action_compute_lines()
-                closing.action_post()
-            except UserError:
-                # nothing to close (e.g. zero activity) or another blocking
-                # condition - leave the draft record for manual review
-                continue
 
 
 class AccountFiscalyearClosingLine(models.Model):

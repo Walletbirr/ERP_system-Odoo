@@ -28,69 +28,6 @@ def post_init_hook(cr, registry=None):
     for company in env['res.company'].search([]):
         _ensure_retained_earnings_setup(env, company)
 
-    _fix_menu_placement(env)
-
-
-def _fix_menu_placement(env):
-    """Nest our two menu items inside the Accounting app's real
-    Configuration / Accounting submenus instead of hard-coding a guessed
-    external id (that's what broke install the first time). Looked up by
-    name anywhere under the Accounting app root (not just direct children,
-    in case a kit nests things one level deeper), preferring the shallowest
-    match. Runs on every install AND upgrade, so it keeps re-applying even
-    though the XML always re-parents to the app root first.
-    """
-    Menu = env['ir.ui.menu'].sudo()
-    finance_root = env.ref('account.menu_finance', raise_if_not_found=False)
-    if not finance_root:
-        return
-
-    setup_menu = env.ref(
-        'automatic_retained_earnings.menu_retained_earnings_config',
-        raise_if_not_found=False)
-    closing_menu = env.ref(
-        'automatic_retained_earnings.menu_account_fiscalyear_closing',
-        raise_if_not_found=False)
-
-    config_menu = _find_submenu(Menu, finance_root, 'Configuration')
-    accounting_menu = _find_submenu(Menu, finance_root, 'Accounting')
-
-    if config_menu and setup_menu:
-        setup_menu.write({'parent_id': config_menu.id, 'sequence': 99})
-    if accounting_menu and closing_menu:
-        closing_menu.write({'parent_id': accounting_menu.id, 'sequence': 99})
-    # If either submenu isn't found (unusual sidebar layout), the items
-    # simply stay where the XML puts them - directly under the Accounting
-    # app root - which always works, just one level shallower.
-
-    Menu.clear_caches()
-
-
-def _find_submenu(Menu, root, label):
-    """Find the menu named `label` living anywhere under `root`, preferring
-    the one closest to root. Case-insensitive / whitespace-tolerant since
-    exact text can vary slightly between localizations or accounting kits.
-    """
-    candidates = Menu.search([
-        ('id', 'child_of', root.id),
-        ('id', '!=', root.id),
-        ('name', '=ilike', label.strip()),
-    ])
-    if not candidates:
-        return Menu.browse()
-    if len(candidates) == 1:
-        return candidates
-
-    def _depth(menu):
-        depth, current, seen = 0, menu, set()
-        while current.parent_id and current.id != root.id and current.id not in seen:
-            seen.add(current.id)
-            current = current.parent_id
-            depth += 1
-        return depth
-
-    return Menu.browse(min(candidates, key=_depth).id)
-
 
 def _ensure_retained_earnings_setup(env, company):
     if not company.retained_earnings_account_id:

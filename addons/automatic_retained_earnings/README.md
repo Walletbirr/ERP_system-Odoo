@@ -22,8 +22,7 @@
   the missing **year-end closing** step that Odoo Community doesn't do
   with real journal entries.
 - **Accounting > Retained Earnings Setup** (Managers only): pick the
-  Retained Earnings account, the closing journal, and whether closings
-  should post automatically each year.
+  Retained Earnings account and the closing journal.
 - **Accounting > Fiscal Year Closing** (Accountants + Managers):
   1. **Compute Balances** – sums every Income/Other Income/Expense/COGS/
      Depreciation account for the chosen date range.
@@ -35,10 +34,6 @@
   3. **Reverse Closing** (Managers only) – if a period needs to be
      re-opened, this posts a clean reversal entry rather than deleting
      anything.
-- Optional **scheduled action** (Settings > Technical > Automation >
-  Scheduled Actions > "Retained Earnings: Auto-close Fiscal Year", runs
-  daily) that automatically creates and posts the closing the day after
-  each fiscal year ends — toggle it from Retained Earnings Setup.
 - A period can never be closed twice: closing entries exclude their own
   lines from future runs, and there's a hard DB constraint of one closing
   per company per date range.
@@ -53,8 +48,10 @@
 
 ## Using it at year-end
 1. Go to **Accounting > Fiscal Year Closing**.
-2. Create a new record, set `Date From` / `Date To` for the fiscal year,
-   confirm the journal and Retained Earnings account.
+2. Create a new record and pick the **Fiscal Year** (Date From / Date To fill
+   in automatically; choose **Custom Range** to type your own dates), then
+   confirm the journal and Retained Earnings account. Only entries dated
+   inside the period are counted - anything dated after Date To is ignored.
 3. Click **Compute Balances** to preview every account that will be
    zeroed out and the resulting net profit/loss.
 4. Click **Post Closing Entry** and confirm.
@@ -63,30 +60,18 @@
    one can post new entries into the closed year without unlocking it
    first — this module does not change lock dates for you.
 
-## Auto-Post Date (optional)
-If **Auto-Post Closing Entry Every Year** is enabled in Retained Earnings
-Setup, two extra fields appear: **Auto-Post Month** and **Auto-Post Day**.
-Together they're the one calendar date each year the scheduled action
-checks for; when it hits that date it automatically closes the most
-recently completed fiscal year. This is decoupled from your fiscal year
-end date on purpose, so you can give yourself a grace period — e.g. fiscal
-year ends Dec 31, but Auto-Post Date is set to Feb 15 to allow six weeks
-for year-end adjustments before the books close automatically.
-
-**Most companies should leave Auto-Post off** and close deliberately each
-year from **Accounting > Fiscal Year Closing** after review — that screen
-is the manual trigger point, and posting there always requires an
-explicit confirmation click.
+## Closing is always manual
+The year is only ever closed by an accountant, from **Accounting > Fiscal
+Year Closing**, after reviewing the figures. Posting always requires an
+explicit confirmation click; there is no scheduled/automatic closing.
 
 ## Menu placement
-`views/menu_views.xml` hooks both menus into `account.menu_finance` (the
-Accounting app root) to avoid guessing a deeper submenu id that Base
-Accounting Kit may have restructured on your build (guessing wrong is
-exactly what broke the first version of this module against your
-"Binget" Accounting settings page). Once installed, drag either menu
-into a deeper submenu — e.g. next to the existing "Year-End Closing"
-flyout — from **Settings > Technical > Menus**; that's a safe UI action
-since it doesn't touch a view's internal structure.
+On every install **and upgrade**, `_place_menus` (called from
+`views/menu_views.xml`) nests *Retained Earnings Setup* under the Accounting
+app's **Configuration** submenu and *Fiscal Year Closing* under its
+**Accounting** submenu, finding those submenus by name rather than guessing
+an xmlid. If a submenu isn't found, the item simply stays directly under the
+Accounting app root.
 
 ## Important notes / things to verify in your environment before go-live
 - **account_type values**: this module targets Odoo 18's standard P&L

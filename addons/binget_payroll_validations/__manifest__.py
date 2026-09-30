@@ -3,8 +3,7 @@
     "name": "Binget Payroll Validations",
     "version": "18.0.1.0.0",
     "summary": "Payroll eligibility validations: no payslips for departed "
-                "employees or expired contracts; contract readonly after "
-                "running; simplified payslip form.",
+                "employees or expired contracts; simplified payslip form.",
     "description": """
 Payroll Validations
 ====================
@@ -20,10 +19,14 @@ What this module does:
 2. Blocks creating/computing a payslip for an employee whose contract
    has already ended (contract_id.date_end) before the payslip's period
    start.
-3. Locks hr.contract fields once the contract is in the 'open' (Running)
-   state - stops accidental edits to a contract that's already active.
-4. Hides the 'Worked Days & Inputs' tab on the payslip form (view-only
+3. Hides the 'Worked Days & Inputs' tab on the payslip form (view-only
    change, nothing removed from the data model).
+4. Makes the payslip name (the title field above Employee) read-only -
+   it is auto-generated from the employee and period, so it is not
+   meant to be typed by hand. The Contract field is read-only too.
+
+Note: this module no longer touches hr.contract at all. Contract access
+and status changes behave exactly as standard Odoo.
 
 Left for a follow-up module / fix (documented, not silently ignored):
 -----------------------------------------------------------------------
@@ -40,7 +43,6 @@ Left for a follow-up module / fix (documented, not silently ignored):
     "data": [
         "views/hr_payslip_views.xml",
         "views/hr_payslip_employees_views.xml",
-        "views/hr_contract_views.xml",
     ],
     "installable": True,
     "application": False,

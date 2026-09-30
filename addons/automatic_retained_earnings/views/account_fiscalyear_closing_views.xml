@@ -35,8 +35,8 @@
                             confirm="This will create a reversal entry and re-open the P&amp;L accounts for this period. Continue?"
                             invisible="state != 'posted'"/>
                     <button name="action_reset_to_draft" string="Reset to Draft" type="object"
-                            confirm="This clears the computed account balances so you can adjust the period and recompute. Continue?"
-                            invisible="state in ('posted', 'reversed')"/>
+                            confirm="This clears the computed account balances so the period can be recomputed. Any closing entry already posted stays in the ledger (reverse it first if it is still active). Continue?"
+                            invisible="state == 'posted'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,computed,posted"/>
                 </header>
                 <sheet>
@@ -59,16 +59,12 @@
                                    invisible="period_type == 'custom'"
                                    required="period_type == 'year' and state != 'posted'"
                                    readonly="state == 'posted'"/>
-                            <field name="period_month" placeholder="Full Year"
-                                   invisible="period_type == 'custom'"
-                                   readonly="state == 'posted'"/>
                             <field name="date_from" readonly="state == 'posted' or period_type == 'year'"/>
                             <field name="date_to" readonly="state == 'posted' or period_type == 'year'"/>
                         </group>
                         <group>
                             <field name="journal_id" readonly="state == 'posted'"/>
                             <field name="retained_earnings_account_id" readonly="state == 'posted'"/>
-                            <field name="auto_generated"/>
                         </group>
                     </group>
                     <group string="Result">
@@ -111,4 +107,6 @@
         </field>
     </record>
 
+    <!-- Runs on every install/upgrade -->
+    <function model="account.fiscalyear.closing" name="_repair_stale_periods"/>
 </odoo>

@@ -5,6 +5,22 @@
         <field name="model">hr.payslip</field>
         <field name="inherit_id" ref="payroll.hr_payslip_view_form"/>
         <field name="arch" type="xml">
+
+            <!--
+                Payslip name (the title field above Employee): it is
+                auto-generated from the employee + period, so it is
+                readonly. force_save keeps the auto-generated value
+                being written to the database on save, since Odoo does
+                not send readonly fields back to the server otherwise.
+                [not(ancestor::field)] makes sure we hit the form's
+                title field and not a 'name' column inside a nested list
+                (e.g. the salary lines).
+            -->
+            <xpath expr="//field[@name='name'][not(ancestor::field)]"
+                   position="attributes">
+                <attribute name="readonly">1</attribute>
+                <attribute name="force_save">1</attribute>
+            </xpath>
             <!--
                 Matched by which field the page actually contains
                 (worked_days_line_ids), rather than a guessed page
