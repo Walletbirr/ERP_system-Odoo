@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_field_manager_root"
+              name="Custom Management"
+              sequence="95"
+              groups="custom_field_manager.group_field_manager"/>
+
+    <menuitem id="menu_field_manager_rules"
+              name="UI Element Rules"
+              parent="menu_field_manager_root"
+              action="action_field_manager_rule"
+              sequence="10"/>
+
+</odoo>

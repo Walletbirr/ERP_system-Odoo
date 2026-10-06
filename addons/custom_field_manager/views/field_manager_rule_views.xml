@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_field_manager_rule_list" model="ir.ui.view">
+        <field name="name">field.manager.rule.list</field>
+        <field name="model">field.manager.rule</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'reverted'" decoration-success="state == 'applied'">
+                <field name="name"/>
+                <field name="target_type"/>
+                <field name="model_id" optional="show"/>
+                <field name="field_id" optional="hide"/>
+                <field name="tab_label" optional="hide"/>
+                <field name="button_label" optional="hide"/>
+                <field name="menu_id" optional="show"/>
+                <field name="menu_complete_name" optional="hide"/>
+                <field name="menu_depth" optional="hide"/>
+                <field name="action_id" optional="show"/>
+                <field name="selection_field_id" optional="hide"/>
+                <field name="selection_id" optional="hide"/>
+                <field name="action"/>
+                <field name="new_label"/>
+                <field name="view_type" optional="hide"/>
+                <field name="state" widget="badge"
+                         decoration-success="state == 'applied'"
+                         decoration-muted="state == 'reverted'"
+                         decoration-info="state == 'draft'"/>
+                <field name="applied_by" optional="show"/>
+                <field name="applied_on" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_field_manager_rule_form" model="ir.ui.view">
+        <field name="name">field.manager.rule.form</field>
+        <field name="model">field.manager.rule</field>
+        <field name="arch" type="xml">
+            <form string="UI Element Rule">
+                <header>
+                    <button name="action_apply" type="object" string="Apply"
+                            class="oe_highlight" invisible="state == 'applied'"/>
+                    <button name="action_revert" type="object" string="Revert"
+                            invisible="state != 'applied'"/>
+                    <button name="action_reapply" type="object" string="Re-apply"
+                            invisible="state != 'applied'"
+                            help="Revert and apply again. Use after a module upgrade or after installing a module that adds more copies of the same element."/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft"
+                            invisible="state != 'reverted'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,applied,reverted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="target_type" widget="radio" readonly="state == 'applied'"/>
+                            <field name="model_id"
+                                     options="{'no_create': True}"
+                                     invisible="target_type in ('menu', 'action')"
+                                     readonly="state == 'applied'"
+                                     required="target_type in ('field', 'tab', 'button', 'selection_option')"
+                                     placeholder="e.g. account.payment, sale.order…"/>
+                            <field name="field_id"
+                                     options="{'no_create': True}"
+                                     invisible="target_type != 'field'"
+                                     readonly="state == 'applied'"
+                                     required="target_type == 'field'"
+                                     placeholder="Search field…"/>
+                            <field name="tab_label"
+                                     invisible="target_type != 'tab'"
+                                     readonly="state == 'applied'"
+                                     required="target_type == 'tab'"
+                                     placeholder="e.g. Settings, Private Information"/>
+                            <field name="button_label"
+                                     invisible="target_type != 'button'"
+                                     readonly="state == 'applied'"
+                                     placeholder="e.g. Apply, Confirm, Contacts"/>
+                            <field name="button_name"
+                                     invisible="target_type != 'button'"
+                                     readonly="state == 'applied'"
+                                     placeholder="e.g. action_confirm (technical)"/>
+                            <field name="menu_id"
+                                     options="{'no_create': True}"
+                                     invisible="target_type != 'menu'"
+                                     readonly="state == 'applied'"
+                                     required="target_type == 'menu'"
+                                     context="{'active_test': False}"
+                                     placeholder="Search any menu by name (any depth)…"/>
+                            <field name="menu_complete_name"
+                                     invisible="target_type != 'menu' or not menu_id"
+                                     readonly="1"/>
+                            <field name="menu_parent_id"
+                                     invisible="target_type != 'menu' or not menu_id"
+                                     readonly="1"/>
+                            <field name="menu_depth"
+                                     invisible="target_type != 'menu' or not menu_id"
+                                     readonly="1"/>
+                            <field name="action_id"
+                                     options="{'no_create': True}"
+                                     invisible="target_type != 'action'"
+                                     readonly="state == 'applied'"
+                                     required="target_type == 'action'"
+                                     placeholder="Search page title (e.g. Journal Entries)…"/>
+                            <field name="selection_field_id"
+                                     options="{'no_create': True}"
+                                     invisible="target_type != 'selection_option'"
+                                     readonly="state == 'applied'"
+                                     required="target_type == 'selection_option'"
+                                     placeholder="e.g. Payment Type, State…"/>
+                            <field name="selection_id"
+                                     options="{'no_create': True}"
+                                     invisible="target_type != 'selection_option'"
+                                     readonly="state == 'applied'"
+                                     required="target_type == 'selection_option'"
+                                     placeholder="e.g. Send, Receive…"/>
+                            <field name="action" readonly="state == 'applied'"/>
+                            <field name="new_label"
+                                     invisible="action != 'rename'"
+                                     readonly="state == 'applied'"
+                                     required="action == 'rename'"
+                                     placeholder="New display text…"/>
+                            <field name="view_type"
+                                     invisible="target_type in ('menu', 'action', 'selection_option')"
+                                     readonly="state == 'applied' or target_type == 'tab'"
+                                     required="target_type in ('field', 'tab', 'button')"/>
+                        </group>
+                        <group>
+                            <field name="reason" placeholder="e.g. Local language / Not used in our process"/>
+                            <field name="applied_by" readonly="1"/>
+                            <field name="applied_on" readonly="1"/>
+                            <field name="generated_view_id" readonly="1"
+                                     invisible="target_type in ('menu', 'action', 'selection_option')"/>
+                            <field name="result_info" readonly="1" nolabel="0"
+                                     invisible="target_type in ('menu', 'action', 'selection_option') or not result_info"/>
+                            <field name="menu_original_name" readonly="1"
+                                     invisible="target_type != 'menu' or not menu_original_name"/>
+                            <field name="action_original_name" readonly="1"
+                                     invisible="target_type != 'action' or not action_original_name"/>
+                            <field name="selection_original_name" readonly="1"
+                                     invisible="target_type != 'selection_option' or not selection_original_name"/>
+                        </group>
+                    </group>
+
+                    <!-- Contextual help -->
+                    <div class="alert alert-info" role="alert" invisible="target_type != 'menu'">
+                        <strong>Menu Items — any depth (Apps, sub-menus, sub-sub-menus, …)</strong><br/>
+                        Pick <em>any</em> entry in the Apps switcher or left sidebar, no matter how deep:
+                        <ul class="mb-1">
+                            <li><strong>Depth 0</strong> — top-level App (e.g. Accounting, Sales)</li>
+                            <li><strong>Depth 1</strong> — first submenu (e.g. Accounting → Customers)</li>
+                            <li><strong>Depth 2+</strong> — sub-sub-menus and deeper
+                                (e.g. Accounting → Accounting → Journal Entries)</li>
+                        </ul>
+                        Search by the short name you see on screen. After selecting, the
+                        <strong>Full Menu Path</strong>, <strong>Parent Menu</strong> and
+                        <strong>Menu Depth</strong> are shown so you can confirm you picked the right level.
+                        Hidden menus are also searchable (so you can restore them). Apply / Revert as usual.
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="target_type != 'action'">
+                        <strong>Window Action / Page Title</strong><br/>
+                        This is the title shown at the top of list and form screens
+                        (e.g. "Journal Entries", "Customer Payments"). Rename it to match your
+                        company terminology or language. A page title cannot be hidden — to remove
+                        a screen from the UI, hide its <strong>Menu Item</strong> instead.
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="target_type != 'selection_option'">
+                        <strong>Selection / Radio Options (Send / Receive, etc.)</strong><br/>
+                        Choose the model (e.g. <em>account.payment</em>), then the Selection field
+                        (e.g. Payment Type), then the concrete option (Send, Receive, …).
+                        <ul class="mb-0">
+                            <li><strong>Rename</strong> changes the label shown in the UI and in reports.</li>
+                            <li><strong>Hide</strong> prefixes the label with [hidden] and moves it to the end of the list so it is practically invisible while remaining fully reversible.</li>
+                        </ul>
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="target_type != 'tab'">
+                        Type the tab label <strong>exactly</strong> as it appears on the form (case-sensitive).
+                        If the same label exists several times in the form (e.g. <em>Other Info</em> on
+                        Journal Entries exists once for invoices and once for plain entries), <strong>all
+                        of them</strong> are hidden / renamed together.
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="target_type != 'button'">
+                        Prefer the <strong>Technical Name</strong> when available (more precise).
+                        Otherwise type the visible button text exactly.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="target_type != 'field' or action != 'hide'">
+                        <strong>Note on required fields:</strong> You can hide a server-required field
+                        (e.g. Journal on Journal Entry). It becomes invisible, but Odoo still needs a
+                        value on save. Ensure it has a default, is filled by automation/onchange, or
+                        use <strong>Make Read-only</strong> if users must still see/select it.
+                    </div>
+                    <div class="alert alert-info" role="alert"
+                         invisible="target_type != 'field' or view_type != 'list'">
+                        <strong>Table columns (List / Tree view)</strong><br/>
+                        With <em>View Type = List / Tree</em> you control the columns of the list table:
+                        <ul class="mb-0">
+                            <li><strong>Hide</strong> — sets <code>column_invisible</code> so the column disappears from the table</li>
+                            <li><strong>Rename</strong> — changes the column header label</li>
+                            <li><strong>Read-only / Required</strong> — applied on the list field as usual</li>
+                        </ul>
+                        Create a separate rule with View Type = Form if you also need the same field hidden on the form.
+                    </div>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_field_manager_rule_search" model="ir.ui.view">
+        <field name="name">field.manager.rule.search</field>
+        <field name="model">field.manager.rule</field>
+        <field name="arch" type="xml">
+            <search string="UI Element Rules">
+                <field name="name"/>
+                <field name="model_id"/>
+                <field name="field_id"/>
+                <field name="menu_id"/>
+                <field name="action_id"/>
+                <field name="selection_id"/>
+                <field name="target_type"/>
+                <field name="action"/>
+                <field name="state"/>
+                <filter name="filter_applied" string="Applied" domain="[('state', '=', 'applied')]"/>
+                <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_reverted" string="Reverted" domain="[('state', '=', 'reverted')]"/>
+                <separator/>
+                <filter name="filter_field" string="Fields" domain="[('target_type', '=', 'field')]"/>
+                <filter name="filter_tab" string="Tabs" domain="[('target_type', '=', 'tab')]"/>
+                <filter name="filter_button" string="Buttons" domain="[('target_type', '=', 'button')]"/>
+                <filter name="filter_menu" string="Menus" domain="[('target_type', '=', 'menu')]"/>
+                <filter name="filter_action" string="Page Titles" domain="[('target_type', '=', 'action')]"/>
+                <filter name="filter_selection" string="Selection Options" domain="[('target_type', '=', 'selection_option')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_target" string="Target Type" context="{'group_by': 'target_type'}"/>
+                    <filter name="group_model" string="Model" context="{'group_by': 'model_id'}"/>
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_field_manager_rule" model="ir.actions.act_window">
+        <field name="name">UI Element Rules</field>
+        <field name="res_model">field.manager.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first rule
+            </p>
+            <p>
+                Hide, rename, make read-only or required any field, notebook tab, button,
+                menu item (including Apps &amp; sub-menus), page title, or selection option
+                (Send / Receive, …) across the whole system — without editing core files.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_server_field_manager_reapply" model="ir.actions.server">
+        <field name="name">Re-apply selected rules</field>
+        <field name="model_id" ref="model_field_manager_rule"/>
+        <field name="binding_model_id" ref="model_field_manager_rule"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">records.action_reapply()</field>
+    </record>
+
+</odoo>

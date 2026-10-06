@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_field_manager" model="res.groups">
+        <field name="name">Field Manager / Administrator</field>
+        <field name="category_id" ref="base.module_category_hidden"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_system'))]"/>
+        <field name="comment">Users in this group can hide, restrict, rename or require
+            fields, tabs, buttons, menus, page titles and selection options
+            across the whole system using the Custom Management app.</field>
+    </record>
+</odoo>
