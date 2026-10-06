@@ -22,10 +22,13 @@ class AccountPaymentMultiLine(models.Model):
     partner_id = fields.Many2one('res.partner', string="Partner")
     name = fields.Char(string="Description")
     amount = fields.Monetary(
-        string="Amount", currency_field='currency_id', required=True)
+        string="Amount", currency_field='currency_id', required=True,
+        help="Enter a positive amount for the normal side (Payment Voucher: "
+             "debit, Receipt Voucher: credit). Enter a negative amount to put "
+             "the line on the opposite side.")
 
     @api.constrains('amount')
-    def _check_amount_positive(self):
+    def _check_amount_not_zero(self):
         for line in self:
-            if line.amount <= 0:
-                raise ValidationError(_("Each payment line amount must be greater than zero."))
+            if line.currency_id.is_zero(line.amount):
+                raise ValidationError(_("A payment line amount cannot be zero."))

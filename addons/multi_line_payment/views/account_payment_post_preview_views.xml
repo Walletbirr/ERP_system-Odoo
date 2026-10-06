@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_payment_post_preview_form" model="ir.ui.view">
+        <field name="name">account.payment.post.preview.form</field>
+        <field name="model">account.payment.post.preview</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Journal Entry" create="0" edit="0">
+                <field name="is_balanced" invisible="1"/>
+                <field name="company_currency_id" invisible="1"/>
+                <div class="alert alert-info" role="alert" invisible="not is_balanced">
+                    <strong>Confirm journal entry.</strong>
+                    Please review the entries below before posting.
+                </div>
+                <div class="alert alert-danger" role="alert" invisible="is_balanced">
+                    Total debit and total credit are not equal. The entry cannot be posted.
+                </div>
+                <group>
+                    <group>
+                        <field name="payment_type"/>
+                        <field name="partner_id"/>
+                        <field name="memo" string="Purpose"/>
+                    </group>
+                    <group>
+                        <field name="journal_id"/>
+                        <field name="date"/>
+                    </group>
+                </group>
+                <field name="line_ids" nolabel="1">
+                    <list create="0" delete="0" edit="0" no_open="1">
+                        <field name="company_currency_id" column_invisible="1"/>
+                        <field name="account_id"/>
+                        <field name="partner_id"/>
+                        <field name="name"/>
+                        <field name="debit" sum="Total Debit"/>
+                        <field name="credit" sum="Total Credit"/>
+                    </list>
+                </field>
+                <footer>
+                    <button string="Confirm and Post" name="action_confirm_post" type="object"
+                            class="btn-primary" invisible="not is_balanced" data-hotkey="q"/>
+                    <button string="Cancel" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

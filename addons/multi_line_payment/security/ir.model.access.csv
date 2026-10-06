@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_payment_multi_line_invoice,account.payment.multi.line invoice,model_account_payment_multi_line,account.group_account_invoice,1,1,1,1
 access_payment_multi_line_readonly,account.payment.multi.line readonly,model_account_payment_multi_line,account.group_account_readonly,1,0,0,0
+access_payment_post_preview_invoice,account.payment.post.preview invoice,model_account_payment_post_preview,account.group_account_invoice,1,1,1,1
+access_payment_post_preview_line_invoice,account.payment.post.preview.line invoice,model_account_payment_post_preview_line,account.group_account_invoice,1,1,1,1
