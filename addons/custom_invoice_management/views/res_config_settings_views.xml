@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_cim" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.cim</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Custom Invoice Management"
+                     string="Custom Invoice Management"
+                     name="custom_invoice_management">
+                    <block title="Service Charge" name="cim_service_charge_block">
+                        <setting id="cim_service_charge_account_setting"
+                                 string="Service Charge Income Account"
+                                 help="Income account used for the auto-generated Service Charge line(s) on customer invoices (created by the 'Balance' button). Leave empty to fall back to the Service Charge product's own Income Account, then to its Product Category's Income Account.">
+                            <field name="cim_service_charge_account_id"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

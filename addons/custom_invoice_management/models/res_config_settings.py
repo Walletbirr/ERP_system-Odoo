@@ -1,0 +1,12 @@
+# -*- coding: utf-8 -*-
+from odoo import fields, models
+
+
+class ResConfigSettings(models.TransientModel):
+    _inherit = 'res.config.settings'
+
+    cim_service_charge_account_id = fields.Many2one(
+        related='company_id.cim_service_charge_account_id',
+        readonly=False,
+        string="Service Charge Income Account",
+    )

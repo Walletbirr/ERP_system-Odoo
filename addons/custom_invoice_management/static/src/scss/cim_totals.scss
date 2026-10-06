@@ -1,0 +1,33 @@
+// Tighter row spacing for the Custom Invoice Management totals box
+// (Untaxed Amount / Excise Tax / Subtotal / Service Charge / Tax / Total)
+// on the "Invoice Lines" tab. Covers both the CSS-grid based ".o_group"
+// layout and the older table-based one, so it holds up across Odoo
+// point releases without depending on exact internal class names.
+.cim_compact_totals {
+    &.o_group {
+        row-gap: 0 !important;
+    }
+
+    .o_wrap_field {
+        padding-top: 1px !important;
+        padding-bottom: 1px !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .o_form_label,
+    .o_field_widget {
+        line-height: 1.4 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    tr {
+        line-height: 1.4 !important;
+    }
+
+    td {
+        padding-top: 1px !important;
+        padding-bottom: 1px !important;
+    }
+}

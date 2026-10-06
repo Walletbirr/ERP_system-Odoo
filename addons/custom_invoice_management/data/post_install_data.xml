@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Runs every time this data file is (re)loaded, i.e. on both a
+         fresh install AND every subsequent module Upgrade - unlike
+         post_init_hook, which only fires on a fresh install. This is
+         what makes the "Service Charge Income Account" default and the
+         "next to Tax Groups" menu item self-healing when upgrading an
+         already-installed copy of this module. Must load after
+         res_company_views.xml, since it looks up
+         action_res_company_cim_settings defined there. -->
+    <function model="res.company" name="_cim_post_install_setup"/>
+</odoo>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_custom_invoice_management" model="ir.ui.view">
+        <field name="name">account.move.form.custom.invoice.management</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Gap 1: add a "Selling Price" column to the Invoice Lines
+                 grid itself, right after the Amount column. VAT is
+                 resolved automatically at Balance time from the
+                 invoice's own product lines - no per-line Vat picker.
+                 This must run before the field is renamed below, since it
+                 still targets it as "invoice_line_ids". -->
+            <xpath expr="//page[@id='invoice_tab']/field[@name='invoice_line_ids']/list/field[@name='price_total']"
+                   position="after">
+                <field name="cim_selling_price"
+                       string="Selling Price"
+                       optional="show"
+                       invisible="display_type in ('line_note', 'line_section')"/>
+            </xpath>
+
+            <!-- Gap 1 + 2: the "Balance" button, right at the bottom of the
+                 product lines / top of the Terms and Conditions + totals
+                 row, replacing the old "Target Pricing" tab. It reads the
+                 Selling Price entered directly on the lines above. -->
+            <xpath expr="//page[@id='invoice_tab']/group[hasclass('oe_invoice_lines_tab')]"
+                   position="before">
+                <button name="action_cim_balance"
+                        type="object"
+                        string="Balance"
+                        class="btn-primary mb-2"
+                        invisible="state != 'draft'"/>
+            </xpath>
+
+            <!-- Gap 4: replace the native Untaxed Amount / tax breakdown /
+                 Total box with a custom one, for customer invoices and
+                 credit notes only, so "Untaxed Amount" shows the product
+                 line(s) only (Service Charge excluded), with "Subtotal",
+                 "Service Charge" and "Before Vat" alongside it. The
+                 native widget is only hidden here on the form - the real
+                 amount_total / tax_totals computation, the Journal Items
+                 tab and the printed invoice are untouched. -->
+            <xpath expr="//page[@id='invoice_tab']//group[hasclass('oe_subtotal_footer')][1]"
+                   position="attributes">
+                <attribute name="class">oe_subtotal_footer cim_compact_totals</attribute>
+            </xpath>
+            <xpath expr="//page[@id='invoice_tab']//group[hasclass('oe_subtotal_footer')]/field[@name='tax_totals']"
+                   position="attributes">
+                <attribute name="invisible">move_type in ('out_invoice', 'out_refund')</attribute>
+            </xpath>
+            <xpath expr="//page[@id='invoice_tab']//group[hasclass('oe_subtotal_footer')]/field[@name='tax_totals']"
+                   position="after">
+                <field name="cim_product_untaxed_amount"
+                       invisible="move_type not in ('out_invoice', 'out_refund')"/>
+                <field name="cim_excise_tax_amount"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or not cim_excise_tax_amount"/>
+                <field name="cim_subtotal_before_vat"
+                       invisible="move_type not in ('out_invoice', 'out_refund')"/>
+                <field name="cim_service_charge_amount"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or not cim_service_charge_amount"/>
+                <field name="cim_before_vat_amount"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or not cim_service_charge_amount"/>
+                <field name="cim_vat_amount"
+                       invisible="move_type not in ('out_invoice', 'out_refund')"/>
+                <field name="amount_total"
+                       string="Total"
+                       class="fw-bold"
+                       invisible="move_type not in ('out_invoice', 'out_refund')"/>
+            </xpath>
+
+            <!-- Gap 3: point the "Invoice Lines" tab at a filtered field
+                 instead of invoice_line_ids, so the Service Charge lines
+                 (or any product flagged 'Hide From Invoice Lines Tab')
+                 do not show in this grid. Same underlying records, so
+                 totals/taxes/Journal Items/printed invoice are unaffected.
+                 Runs last since it renames the field the xpaths above
+                 still refer to as "invoice_line_ids". -->
+            <xpath expr="//page[@id='invoice_tab']/field[@name='invoice_line_ids']"
+                   position="attributes">
+                <attribute name="name">cim_invoice_line_ids_display</attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

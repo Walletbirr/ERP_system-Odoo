@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_service_charge" model="product.product">
+        <field name="name">Service Charge</field>
+        <field name="type">service</field>
+        <field name="sale_ok" eval="True"/>
+        <field name="purchase_ok" eval="False"/>
+        <field name="list_price">0.0</field>
+        <field name="cim_hide_from_invoice_lines" eval="True"/>
+    </record>
+</odoo>

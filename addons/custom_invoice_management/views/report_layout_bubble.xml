@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Clean Bubble layout header for Binget invoices.
+
+        - Logo centered at the top
+        - Document title centered directly under the logo
+        - Company address is intentionally removed from the header
+          (it is rendered later as the "From" block, parallel to the buyer)
+        - Default body title is removed so it is not printed twice
+    -->
+    <template id="cim_external_layout_bubble_centered_title"
+              inherit_id="web.external_layout_bubble">
+
+        <!-- 1. Replace the whole header row with a clean centered logo + title -->
+        <xpath expr="//div[@class='d-flex justify-content-between']" position="replace">
+            <div class="text-center" style="width: 100%; padding-top: 4px; padding-bottom: 8px;">
+                <img t-if="company.logo"
+                     class="o_company_logo"
+                     t-att-src="image_data_uri(company.logo)"
+                     alt="Logo"
+                     style="max-height: 72px; max-width: 220px; display: block; margin: 0 auto 6px auto;"/>
+                <h2 t-if="layout_document_title"
+                    class="mb-0 mt-1"
+                    style="font-size: 1.35rem; font-weight: 600; letter-spacing: 0.3px; color: #8B6914;"
+                    t-out="layout_document_title"/>
+            </div>
+        </xpath>
+
+        <!-- 2. Remove the title that Odoo prints again in the body -->
+        <xpath expr="//td[@t-if='not information_block']/h2" position="replace"/>
+        <xpath expr="//tr[@t-if='information_block']/td/h2" position="replace"/>
+    </template>
+</odoo>

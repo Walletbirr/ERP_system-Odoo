@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Parallel Seller / Buyer – full-width centered block.
+
+        We replace the entire address <div class="row"> so Bootstrap
+        offset-col-6 / col-6 no longer push the block to one side.
+        PDF-safe: pure tables, no flexbox.
+    -->
+
+    <template id="cim_address_card_styles">
+        <style>
+            .cim-outer {
+                width: 100%;
+                margin: 4px 0 28px 0;
+                border-collapse: collapse;
+            }
+            .cim-outer td {
+                padding: 0;
+                vertical-align: top;
+            }
+            .cim-side {
+                width: 6%;
+            }
+            .cim-mid {
+                width: 88%;
+            }
+            .cim-inner {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .cim-inner td {
+                width: 50%;
+                vertical-align: top;
+                padding: 0;
+            }
+            .cim-seller {
+                padding-right: 24px;
+            }
+            .cim-buyer {
+                padding-left: 24px;
+            }
+            .cim-block-title {
+                font-weight: 700;
+                font-size: 12.5px;
+                color: #8B6914;
+                margin: 0 0 4px 0;
+            }
+            .cim-name-line {
+                font-weight: 700;
+                font-size: 12.5px;
+                margin: 0 0 3px 0;
+                color: #1a1a1a;
+            }
+            .cim-line {
+                font-size: 11.5px;
+                line-height: 1.4;
+                color: #222;
+                margin: 0;
+                padding: 0;
+            }
+            .cim-line strong {
+                font-weight: 600;
+                color: #444;
+                min-width: 78px;
+                display: inline-block;
+            }
+        </style>
+    </template>
+
+    <template id="cim_seller_block">
+        <div class="cim-block-title">From (Seller)</div>
+        <div class="cim-name-line">
+            <span t-field="o.company_id.name"/>
+        </div>
+        <p t-if="o.company_id.partner_id.street or o.company_id.street" class="cim-line">
+            <strong>Street:</strong>
+            <span t-if="o.company_id.partner_id.street" t-field="o.company_id.partner_id.street"/>
+            <span t-elif="o.company_id.street" t-field="o.company_id.street"/>
+        </p>
+        <p t-if="o.company_id.partner_id.city or o.company_id.city" class="cim-line">
+            <strong>City:</strong>
+            <span t-if="o.company_id.partner_id.city" t-field="o.company_id.partner_id.city"/>
+            <span t-elif="o.company_id.city" t-field="o.company_id.city"/>
+        </p>
+        <p t-if="o.company_id.partner_id.state_id or o.company_id.state_id" class="cim-line">
+            <strong>State / Zone:</strong>
+            <span t-if="o.company_id.partner_id.state_id" t-out="o.company_id.partner_id.state_id.name"/>
+            <span t-elif="o.company_id.state_id" t-out="o.company_id.state_id.name"/>
+        </p>
+        <p t-if="o.company_id.partner_id.country_id or o.company_id.country_id" class="cim-line">
+            <strong>Country:</strong>
+            <span t-if="o.company_id.partner_id.country_id" t-out="o.company_id.partner_id.country_id.name"/>
+            <span t-elif="o.company_id.country_id" t-out="o.company_id.country_id.name"/>
+        </p>
+        <p t-if="o.company_id.phone" class="cim-line">
+            <strong>Phone:</strong>
+            <span t-field="o.company_id.phone"/>
+        </p>
+        <p t-if="o.company_id.email" class="cim-line">
+            <strong>Email:</strong>
+            <span t-field="o.company_id.email"/>
+        </p>
+        <p t-if="o.company_id.vat" class="cim-line">
+            <strong>
+                <t t-esc="o.company_id.country_id.vat_label or 'Tax ID'"/>:
+            </strong>
+            <span t-field="o.company_id.vat"/>
+        </p>
+        <div t-if="o.company_id.company_details
+                   and not (o.company_id.partner_id.street or o.company_id.street
+                            or o.company_id.partner_id.city or o.company_id.city)"
+             class="cim-line" style="margin-top: 2px;">
+            <span t-field="o.company_id.company_details"/>
+        </div>
+    </template>
+
+    <template id="cim_buyer_block">
+        <div class="cim-block-title">To (Buyer)</div>
+        <div class="cim-name-line">
+            <span t-field="o.partner_id.name"/>
+        </div>
+        <p t-if="o.partner_id.street" class="cim-line">
+            <strong>Street:</strong>
+            <span t-field="o.partner_id.street"/>
+        </p>
+        <p t-if="o.partner_id.city" class="cim-line">
+            <strong>City:</strong>
+            <span t-field="o.partner_id.city"/>
+        </p>
+        <p t-if="o.partner_id.state_id" class="cim-line">
+            <strong>State:</strong>
+            <span t-out="o.partner_id.state_id.name"/>
+        </p>
+        <p t-if="o.partner_id.country_id" class="cim-line">
+            <strong>Country:</strong>
+            <span t-out="o.partner_id.country_id.name"/>
+        </p>
+        <p t-if="o.partner_id.phone" class="cim-line">
+            <strong>Phone:</strong>
+            <span t-field="o.partner_id.phone"/>
+        </p>
+        <p t-if="o.partner_id.email" class="cim-line">
+            <strong>Email:</strong>
+            <span t-field="o.partner_id.email"/>
+        </p>
+        <p t-if="o.partner_id.vat" class="cim-line">
+            <strong>
+                <t t-if="o.company_id.account_fiscal_country_id.vat_label"
+                   t-out="o.company_id.account_fiscal_country_id.vat_label"/>
+                <t t-else="">Tax ID</t>:
+            </strong>
+            <span t-field="o.partner_id.vat"/>
+        </p>
+    </template>
+
+    <template id="cim_parallel_address_row">
+        <t t-call="custom_invoice_management.cim_address_card_styles"/>
+        <table class="cim-outer o_ignore_layout_styling">
+            <tr>
+                <td class="cim-side">&#160;</td>
+                <td class="cim-mid">
+                    <table class="cim-inner o_ignore_layout_styling">
+                        <tr>
+                            <td class="cim-seller">
+                                <t t-call="custom_invoice_management.cim_seller_block"/>
+                            </td>
+                            <td class="cim-buyer">
+                                <t t-call="custom_invoice_management.cim_buyer_block"/>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+                <td class="cim-side">&#160;</td>
+            </tr>
+        </table>
+    </template>
+
+    <template id="report_invoice_document_cim_labeled_customer"
+              inherit_id="account.report_invoice_document">
+
+        <!--
+            Replace the ENTIRE address row (the first div.row in the document).
+            That removes offset-col-6 / col-6 so our block can span full width
+            and center properly.
+        -->
+        <xpath expr="//div[hasclass('row')][1]" position="replace">
+            <div class="row" style="width: 100%; margin: 0;">
+                <div style="width: 100%;">
+                    <t t-call="custom_invoice_management.cim_parallel_address_row"/>
+                </div>
+            </div>
+        </xpath>
+    </template>
+</odoo>

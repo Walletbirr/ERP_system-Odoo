@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_res_company_list_cim" model="ir.ui.view">
+        <field name="name">res.company.list.cim.service.charge</field>
+        <field name="model">res.company</field>
+        <field name="arch" type="xml">
+            <list string="Custom Invoice Management" editable="bottom" create="false" delete="false">
+                <field name="name" readonly="1"/>
+                <field name="cim_service_charge_account_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_res_company_cim_settings" model="ir.actions.act_window">
+        <field name="name">Custom Invoice Management</field>
+        <field name="res_model">res.company</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_res_company_list_cim"/>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p>
+                Set the "Service Charge Income Account" used for the
+                auto-generated Service Charge line(s) on customer invoices
+                (created by the "Balance" button). Leave empty to fall back
+                to the Service Charge product's own Income Account, then to
+                its Product Category's Income Account.
+            </p>
+        </field>
+    </record>
+</odoo>
