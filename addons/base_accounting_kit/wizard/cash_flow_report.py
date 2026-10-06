@@ -78,46 +78,6 @@ class AccountingReport(models.TransientModel):
     debit_credit = fields.Boolean(string='Display Debit/Credit Columns',
                                   help="This option allows you to get more details about the way your balances are computed. Because it is space consuming, we do not allow to use it while doing a comparison.")
 
-    def action_view_report(self):
-        """View button - opens HTML report"""
-        self.ensure_one()
-        data = {}
-        data['ids'] = self.env.context.get('active_ids', [])
-        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
-        data['form'] = self.read(
-            ['date_from', 'date_to', 'journal_ids', 'target_move',
-             'enable_filter', 'debit_credit', 'account_report_id',
-             'date_from_cmp', 'date_to_cmp', 'filter_cmp',
-             'label_filter', 'company_id'])[0]
-        used_context = self._build_contexts(data)
-        data['form']['used_context'] = used_context
-        comparison_context = self._build_comparison_context(data)
-        data['form']['comparison_context'] = comparison_context
-
-        return self.env.ref(
-            'base_accounting_kit.action_report_cash_flow_html'
-        ).report_action(self, data=data)
-
-    def print_xlsx(self):
-        """Excel export button"""
-        self.ensure_one()
-        data = {}
-        data['ids'] = self.env.context.get('active_ids', [])
-        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
-        data['form'] = self.read(
-            ['date_from', 'date_to', 'journal_ids', 'target_move',
-             'enable_filter', 'debit_credit', 'account_report_id',
-             'date_from_cmp', 'date_to_cmp', 'filter_cmp',
-             'label_filter', 'company_id'])[0]
-        used_context = self._build_contexts(data)
-        data['form']['used_context'] = used_context
-        comparison_context = self._build_comparison_context(data)
-        data['form']['comparison_context'] = comparison_context
-
-        return self.env.ref(
-            'base_accounting_kit.action_report_cash_flow_xlsx'
-        ).report_action(self, data=data)
-
     def _build_comparison_context(self, data):
         result = {}
         result['journal_ids'] = 'journal_ids' in data['form'] and data['form'][
@@ -166,36 +126,3 @@ class AccountingReport(models.TransientModel):
             'base_accounting_kit.action_report_cash_flow').report_action(self,
                                                                          data=data,
                                                                          config=False)
-
-
-class CashFlowXlsx(models.AbstractModel):
-    """Excel export for Cash Flow Report"""
-    _name = 'report.base_accounting_kit.report_cash_flow_xlsx'
-    _inherit = 'report.report_xlsx.abstract'
-    _description = 'Cash Flow Excel'
-
-    def generate_xlsx_report(self, workbook, data, objects):
-        """Generate Excel report for Cash Flow"""
-        sheet = workbook.add_worksheet('Cash Flow')
-        sheet.set_landscape()
-        
-        # Formats
-        title_fmt = workbook.add_format({'bold': True, 'font_size': 14})
-        header_fmt = workbook.add_format({'bold': True, 'bg_color': '#D9D9D9', 'border': 1})
-        money_fmt = workbook.add_format({'num_format': '#,##0.00'})
-        bold_fmt = workbook.add_format({'bold': True})
-        
-        # Title
-        sheet.write(0, 0, 'Cash Flow Statement', title_fmt)
-        sheet.set_column(0, 0, 50)
-        sheet.set_column(1, 1, 15)
-        
-        row = 2
-        
-        # Headers
-        sheet.write(row, 0, 'Description', header_fmt)
-        sheet.write(row, 1, 'Amount', header_fmt)
-        
-        row += 1
-        # Note: Actual data rendering would need the cash flow data structure
-        # This is a basic template - full implementation would iterate through cash flow items

@@ -19,7 +19,7 @@
                     </div>
                     <div style="font-size: 14px; font-weight: 500; color: #444;">
                         <t t-if="data.get('date_from')">
-                            As of <span t-esc="datetime.datetime.strptime(data['date_from'], '%Y-%m-%d').strftime('%B %Y')"/>
+                            As of <span t-esc="data['date_from']"/>
                         </t>
                         <t t-else="">
                             As of <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%B %Y')"/>

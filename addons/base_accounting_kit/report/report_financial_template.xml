@@ -15,21 +15,11 @@
                         <span t-esc="env.company.name"/>
                     </div>
                     <div style="font-size: 18px; font-weight: 600; color: #222; margin-bottom: 3px;">
-                        <span t-esc="account_report"/>
+                        <span t-esc="data['form']['account_report_id'][1]"/>
                     </div>
                     <div style="font-size: 14px; font-weight: 500; color: #444;">
-                        <t t-if="data.get('date_from') and data.get('date_to')">
-                            <t t-set="date_from_obj" t-value="datetime.datetime.strptime(data['date_from'], '%Y-%m-%d')"/>
-                            <t t-set="date_to_obj" t-value="datetime.datetime.strptime(data['date_to'], '%Y-%m-%d')"/>
-                            <t t-if="date_from_obj.month == date_to_obj.month and date_from_obj.year == date_to_obj.year">
-                                As of <span t-esc="date_to_obj.strftime('%B %Y')"/>
-                            </t>
-                            <t t-else="">
-                                <span t-esc="date_from_obj.strftime('%B')"/> to <span t-esc="date_to_obj.strftime('%B %Y')"/>
-                            </t>
-                        </t>
-                        <t t-elif="data.get('date_to')">
-                            End of <span t-esc="datetime.datetime.strptime(data['date_to'], '%Y-%m-%d').strftime('%B %Y')"/>
+                        <t t-if="data['form'].get('date_to')">
+                            As of <span t-esc="data['form']['date_to']"/>
                         </t>
                         <t t-else="">
                             As of <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%B %Y')"/>
@@ -42,7 +32,7 @@
                     <span class="page"/> / <span class="topage"/>
                 </div>
 
-                <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;" t-if="data['debit_credit'] == 1">
+                <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;" t-if="data['form']['debit_credit'] == 1">
                     <thead>
                         <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
                             <th style="padding:7px; border:1px solid #999;">Name</th>
@@ -83,7 +73,7 @@
                 </table>
 
                 <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;"
-                       t-if="not data['enable_filter'] and not data['debit_credit']">
+                       t-if="not data['form']['enable_filter'] and not data['form']['debit_credit']">
                     <thead>
                         <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
                             <th style="padding:7px; border:1px solid #999;">Name</th>
@@ -114,7 +104,7 @@
                 </table>
 
                 <table class="table table-sm" style="border-collapse:collapse; width:100%; font-size:11.5px;"
-                       t-if="data['enable_filter'] == 1 and not data['debit_credit']">
+                       t-if="data['form']['enable_filter'] == 1 and not data['form']['debit_credit']">
                     <thead>
                         <tr style="background:#d9d9d9; border:1px solid #999; font-weight:bold;">
                             <th style="padding:7px; border:1px solid #999;">Name</th>
