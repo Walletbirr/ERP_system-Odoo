@@ -28,6 +28,7 @@ class IrHttp(models.AbstractModel):
             is_webclient = (
                 path.startswith("/web")
                 or path.startswith("/odoo")
+                or path.startswith("/binget")
                 or path.startswith("/mail")
                 or path.startswith("/discuss")
             )
