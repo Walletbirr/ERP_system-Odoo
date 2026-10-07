@@ -53,6 +53,18 @@
  * transition. If that's worth fixing, it's a small addition (a capture-
  * phase click listener here that beats Odoo's to the punch) — say the
  * word and I'll add it.
+ *
+ * A related case of that same trade-off: Odoo's own module-upgrade flow
+ * (Apps > Upgrade) finishes by doing its own hardcoded full-page
+ * navigation back to "/odoo" once the upgrade completes server-side —
+ * not a call through router.pushState/replaceState, so our patched
+ * stateToUrl above never gets a chance to translate it. The browser
+ * genuinely lands on a fresh "/odoo" page load, same as a hard refresh
+ * would. The self-correction below now handles that direction too (see
+ * below), by re-parsing the current URL and pushing the corrected state
+ * back through OUR stateToUrl — which always prefers "/binget" — so the
+ * address bar is corrected before the webclient mounts, same as the
+ * /binget hard-refresh case.
  */
 import { router, stateToUrl as originalStateToUrl, urlToState as originalUrlToState } from "@web/core/browser/router";
 import { browser } from "@web/core/browser/browser";
@@ -77,9 +89,23 @@ function urlToState(urlObj) {
 router.stateToUrl = stateToUrl;
 router.urlToState = urlToState;
 
-// Fix up the very first parse (see "ONE THING PATCHING CANNOT FIX" above)
-// when the page was loaded directly on a /binget/... URL.
-if (browser.location.pathname === "/binget" || browser.location.pathname.startsWith("/binget/")) {
+// Fix up the very first parse (see header comment above) when the page
+// was loaded directly on a /binget/... URL (a hard refresh or typed-in
+// address), OR directly on a bare /odoo/... URL (Odoo's own post-upgrade
+// reload, or an old bookmark/link). Both funnel through the same fix:
+// re-parse the current URL into a state object (urlToState doesn't care
+// which prefix it came from — it's just the semantic route), then push
+// that state back through router.replaceState, which rebuilds the
+// address bar via OUR patched stateToUrl above — and that always prefers
+// "/binget" regardless of which prefix we started from. This runs
+// synchronously while JS modules are still being evaluated, well before
+// the webclient actually mounts and reads router.current, so there's no
+// visible flash of the wrong screen or wrong URL.
+const path = browser.location.pathname;
+const landedOnAlias =
+    path === "/binget" || path.startsWith("/binget/") ||
+    path === "/odoo" || path.startsWith("/odoo/");
+if (landedOnAlias) {
     const correctedState = urlToState(new URL(browser.location.href));
     router.replaceState(correctedState, { replace: true, sync: true });
 }

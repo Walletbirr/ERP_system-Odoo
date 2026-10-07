@@ -3,7 +3,7 @@
     "name": "Theme Shell - Custom Branded Sidebar",
     "summary": "Replaces the stock Odoo top navbar with a persistent, "
                 "brand-colored sidebar (with a green/gold theme toggle).",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     # VERIFY: "18.0.1.0.0" assumes Odoo 18, carried over from earlier
     # notes in this project ("stable in shape across 16-18"). Adjust the
     # leading version number to match your actual Odoo version if different.
@@ -40,6 +40,8 @@
             "theme_shell/static/src/transitions/page_transitions.js",
             "theme_shell/static/src/transitions/page_transitions.xml",
             "theme_shell/static/src/transitions/transitions.scss",
+            # Enter key moves to the next field in forms / list rows.
+            "theme_shell/static/src/keyboard/enter_navigation.js",
         ],
     },
     "installable": True,
