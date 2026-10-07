@@ -17,7 +17,7 @@ class AccountPayment(models.Model):
 
     voucher_reference = fields.Char(
         string="Reference", copy=False,
-        help="Copied to the Reference of the journal entry when the payment is confirmed. "
+        help="The only source of the journal entry Reference (Purpose is not used). "
              "Cannot be changed after posting.")
     is_multi_line = fields.Boolean(string="Multiple Lines", copy=True)
     multi_line_ids = fields.One2many(
@@ -83,11 +83,14 @@ class AccountPayment(models.Model):
     # -------------------------------------------------------------------------
 
     def _push_reference_to_move(self):
+        """ The journal entry Reference comes from the payment Reference only
+        (never from Purpose / memo): an empty Reference leaves it empty. """
         for pay in self:
             move = pay.move_id
-            if move and pay.voucher_reference and move.ref != pay.voucher_reference:
+            target = pay.voucher_reference or False
+            if move and (move.ref or False) != target:
                 move.with_context(allow_payment_move_ref_write=True).write(
-                    {'ref': pay.voucher_reference})
+                    {'ref': target})
 
     @api.model_create_multi
     def create(self, vals_list):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Multi Line Payments',
-    'version': '18.0.1.4.0',
+    'version': '18.0.1.4.1',
     'category': 'Accounting',
     'summary': 'Customer and vendor payments with several accounts / purposes, like a journal entry',
     'description': """
