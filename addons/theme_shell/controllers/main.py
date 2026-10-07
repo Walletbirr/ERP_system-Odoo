@@ -65,6 +65,21 @@ def _debinget_redirect(response):
     return response
 
 
+# Matches the <link ... rel="shortcut icon" ...> tag Odoo's web.layout
+# renders (attribute order varies between versions, so match the whole tag).
+_FAVICON_LINK_RE = re.compile(rb'<link[^>]*rel="(?:shortcut )?icon"[^>]*>', re.I)
+_BRAND_FAVICON_TAG = (
+    b'<link type="image/x-icon" rel="shortcut icon" '
+    b'href="/theme_shell/favicon"/>'
+)
+
+
+def _brand_favicon(data):
+    """Point the page's favicon <link> at /theme_shell/favicon (which
+    serves the company's favicon field) instead of Odoo's default."""
+    return _FAVICON_LINK_RE.sub(_BRAND_FAVICON_TAG, data, count=1)
+
+
 def _retitle(response):
     """Force-render a lazy QWeb Response and swap Odoo's default
     <title>Odoo</title> for <title>BINGET</title> in the raw bytes.
@@ -84,6 +99,7 @@ def _retitle(response):
         response.data = response.data.replace(
             b"<title>Odoo</title>", b"<title>BINGET</title>"
         )
+        response.data = _brand_favicon(response.data)
     return response
 
 
@@ -206,3 +222,22 @@ class BingetHome(Home):
         # internally (redirect was None) rather than using the kwarg
         # above, catch it here on the way out too.
         return _retitle(_debinget_redirect(response))
+
+    # Serves the favicon set on Settings > Companies > Company Favicon.
+    # auth="public" so it also works on the login page (no session yet);
+    # reads via sudo for that reason, and only ever exposes the favicon
+    # field. Falls back to Odoo's stock icon if none is set.
+    @http.route("/theme_shell/favicon", type="http", auth="public", sitemap=False)
+    def brand_favicon(self, **kw):
+        env = request.env
+        company = env.user.sudo().company_id if env.user and not env.user._is_public() else False
+        if not company:
+            company = env["res.company"].sudo().search([], order="sequence, id", limit=1)
+        if company and company.favicon:
+            stream = env["ir.binary"].sudo()._get_image_stream_from(
+                company, "favicon", width=64, height=64
+            )
+            response = stream.get_response()
+            response.headers["Cache-Control"] = "public, max-age=300"
+            return response
+        return request.redirect("/web/static/img/favicon.ico", local=True)

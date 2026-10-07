@@ -438,7 +438,7 @@ export class Sidebar extends Component {
     _applyBrandFavicon() {
         const link = document.querySelector("link[rel='shortcut icon'], link[rel='icon']");
         if (link) {
-            link.href = "/theme_shell/static/src/img/logo.png";
+            link.href = "/theme_shell/favicon";
         }
     }
 
