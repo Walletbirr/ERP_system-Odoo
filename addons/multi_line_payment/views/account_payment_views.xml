@@ -11,14 +11,14 @@
                 <attribute name="options">{'horizontal': False}</attribute>
             </xpath>
 
-            <!-- Confirm of a multi line payment opens an "are you sure" window with the debits / credits -->
+            <!-- Confirm of every payment opens an "are you sure" window with the debits / credits -->
             <xpath expr="//button[@name='action_post']" position="attributes">
-                <attribute name="invisible">state != 'draft' or is_multi_line</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//button[@name='action_post']" position="after">
                 <button name="action_preview_post" string="Confirm" type="object"
                         class="oe_highlight" data-hotkey="q"
-                        invisible="state != 'draft' or not is_multi_line"/>
+                        invisible="state != 'draft'"/>
             </xpath>
 
             <!-- Checkbox to switch the multi line mode on -->
@@ -40,6 +40,10 @@
             </xpath>
             <xpath expr="//group[@name='group2']" position="inside">
                 <field name="memo" position="move"/>
+            </xpath>
+            <!-- Reference under Purpose: goes on the journal entry, locked after posting -->
+            <xpath expr="//field[@name='memo']" position="after">
+                <field name="voucher_reference" readonly="state != 'draft'"/>
             </xpath>
             <!-- Payment lines tab -->
             <xpath expr="//notebook[@name='payment_notebook']" position="inside">

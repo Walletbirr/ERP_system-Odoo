@@ -15,6 +15,7 @@ class AccountPaymentPostPreview(models.TransientModel):
     partner_id = fields.Many2one(related='payment_id.partner_id')
     date = fields.Date(related='payment_id.date')
     memo = fields.Char(related='payment_id.memo')
+    voucher_reference = fields.Char(related='payment_id.voucher_reference')
     company_currency_id = fields.Many2one(
         related='payment_id.company_id.currency_id')
     line_ids = fields.One2many(

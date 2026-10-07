@@ -19,6 +19,7 @@
                         <field name="payment_type"/>
                         <field name="partner_id"/>
                         <field name="memo" string="Purpose"/>
+                        <field name="voucher_reference" string="Reference"/>
                     </group>
                     <group>
                         <field name="journal_id"/>

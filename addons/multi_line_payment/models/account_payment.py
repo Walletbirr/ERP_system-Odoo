@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from lxml import etree
+
 from odoo import Command, _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -13,6 +15,10 @@ class AccountPayment(models.Model):
             ('inbound', 'Cash Receipt Voucher (CRV)'),
         ])
 
+    voucher_reference = fields.Char(
+        string="Reference", copy=False,
+        help="Copied to the Reference of the journal entry when the payment is confirmed. "
+             "Cannot be changed after posting.")
     is_multi_line = fields.Boolean(string="Multiple Lines", copy=True)
     multi_line_ids = fields.One2many(
         'account.payment.multi.line', 'payment_id',
@@ -58,6 +64,31 @@ class AccountPayment(models.Model):
             if pay.currency_id.compare_amounts(pay.amount, total) != 0:
                 pay.with_context(skip_multi_line_amount_sync=True).write({'amount': total})
 
+    # -------------------------------------------------------------------------
+    # READ-ONLY AFTER POSTING
+    # -------------------------------------------------------------------------
+
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        """ Every field of the payment form becomes read-only once the payment
+        is no longer a draft (Reset To Draft unlocks it again). """
+        arch, view = super()._get_view(view_id, view_type, **options)
+        if view_type == 'form' and arch.xpath("//field[@name='state']"):
+            for node in arch.xpath("//sheet//field[not(ancestor::field)]"):
+                _make_readonly_when(node, "state != 'draft'")
+        return arch, view
+
+    # -------------------------------------------------------------------------
+    # REFERENCE -> JOURNAL ENTRY
+    # -------------------------------------------------------------------------
+
+    def _push_reference_to_move(self):
+        for pay in self:
+            move = pay.move_id
+            if move and pay.voucher_reference and move.ref != pay.voucher_reference:
+                move.with_context(allow_payment_move_ref_write=True).write(
+                    {'ref': pay.voucher_reference})
+
     @api.model_create_multi
     def create(self, vals_list):
         payments = super().create(vals_list)
@@ -65,6 +96,10 @@ class AccountPayment(models.Model):
         return payments
 
     def write(self, vals):
+        if 'voucher_reference' in vals and any(p.state != 'draft' for p in self):
+            raise UserError(_(
+                "The reference cannot be changed after the payment is posted. "
+                "Reset the payment to draft first."))
         res = super().write(vals)
         if (
             not self.env.context.get('skip_multi_line_amount_sync')
@@ -173,13 +208,14 @@ class AccountPayment(models.Model):
     # -------------------------------------------------------------------------
 
     def action_preview_post(self):
-        """ Confirm button of a multi line payment: open a confirmation window
+        """ Confirm button of every payment: open a confirmation window
         listing the debits and credits that will be posted. Nothing is posted
         until the user clicks "Confirm and Post" in that window. """
         self.ensure_one()
-        if not self.multi_line_ids:
-            raise UserError(_("Add at least one payment line before confirming."))
-        self._sync_multi_line_amount()
+        if self.is_multi_line:
+            if not self.multi_line_ids:
+                raise UserError(_("Add at least one payment line before confirming."))
+            self._sync_multi_line_amount()
 
         entries = []
         for vals in self._prepare_move_line_default_vals():
@@ -221,4 +257,50 @@ class AccountPayment(models.Model):
             if not pay.multi_line_ids:
                 raise UserError(_("Add at least one payment line before confirming."))
             pay._sync_multi_line_amount()
-        return super().action_post()
+        # Reference typed on the payment goes on the journal entry.
+        self.filtered(lambda p: p.move_id.state == 'draft')._push_reference_to_move()
+        res = super().action_post()
+        self._push_reference_to_move()
+        return res
+
+
+def _make_readonly_when(node, condition):
+    """ Add `condition` to the readonly attribute of a view node. """
+    current = (node.get('readonly') or '').strip()
+    if current in ('1', 'True', 'true'):
+        return
+    if current and current not in ('0', 'False', 'false'):
+        node.set('readonly', "(%s) or (%s)" % (current, condition))
+    else:
+        node.set('readonly', condition)
+
+
+class AccountMove(models.Model):
+    _inherit = 'account.move'
+
+    @api.model
+    def _get_view(self, view_id=None, view_type='form', **options):
+        """ A posted journal entry created by a payment is fully read-only. """
+        arch, view = super()._get_view(view_id, view_type, **options)
+        if view_type == 'form' and arch.xpath("//field[@name='state']"):
+            sheets = arch.xpath("//sheet")
+            if sheets:
+                if not arch.xpath("//field[@name='origin_payment_id']"):
+                    sheets[0].insert(0, etree.Element(
+                        'field', name='origin_payment_id', invisible='1'))
+                for node in arch.xpath("//sheet//field[not(ancestor::field)]"):
+                    if node.get('name') == 'origin_payment_id':
+                        continue
+                    _make_readonly_when(node, "state != 'draft' and origin_payment_id")
+        return arch, view
+
+    def write(self, vals):
+        if 'ref' in vals and not self.env.context.get('allow_payment_move_ref_write'):
+            for move in self:
+                if (
+                    move.state == 'posted' and move.origin_payment_id
+                    and (move.ref or '') != (vals['ref'] or '')
+                ):
+                    raise UserError(_(
+                        "The reference of a posted payment entry cannot be changed."))
+        return super().write(vals)
