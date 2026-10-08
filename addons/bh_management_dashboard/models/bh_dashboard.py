@@ -185,18 +185,37 @@ class BhManagementDashboard(models.Model):
     # ─────────────────────────────────────────────────────────────────────
     # INVENTORY
     # ─────────────────────────────────────────────────────────────────────
+    def _get_stock_value(self):
+        """Return (total_value, {location_id: value}) for internal locations.
+
+        value = quantity on hand x product cost (standard_price) in the
+        current company. Runs sudo() because the mobile endpoint calls this
+        with_user(<executive>) and an executive is not necessarily a stock
+        user; the rest of this dashboard reads through raw SQL for the same
+        reason.
+        """
+        rows = self.env['stock.quant'].sudo()._read_group(
+            [('location_id.usage', '=', 'internal')],
+            ['product_id', 'location_id'],
+            ['quantity:sum'],
+        )
+        products = self.env['product.product'].sudo().with_company(
+            self.env.company
+        ).browse([product.id for product, _loc, _qty in rows])
+        cost = {p.id: p.standard_price or 0.0 for p in products}
+
+        by_location = {}
+        for product, location, qty in rows:
+            by_location[location.id] = by_location.get(location.id, 0.0) \
+                + (qty or 0.0) * cost.get(product.id, 0.0)
+        by_location = {k: round(v, 2) for k, v in by_location.items()}
+        return round(sum(by_location.values()), 2), by_location
+
     def _get_inventory_data(self):
         self.env.cr.execute("""
             SELECT
                 COUNT(DISTINCT sq.product_id)                   AS total_products,
                 COALESCE(SUM(sq.quantity), 0)                   AS total_qty,
-                COALESCE((
-                    SELECT SUM(svl.value)
-                    FROM   stock_valuation_layer svl
-                    JOIN   stock_move sm  ON svl.stock_move_id = sm.id
-                    JOIN   stock_location sl2 ON sm.location_dest_id = sl2.id
-                    WHERE  sl2.usage = 'internal'
-                ), 0)                                           AS total_value,
                 COUNT(CASE WHEN sq.quantity <= 0 THEN 1 END)    AS stockout_count
             FROM stock_quant sq
             JOIN stock_location sl ON sq.location_id = sl.id
@@ -204,16 +223,19 @@ class BhManagementDashboard(models.Model):
         """)
         summary = self.env.cr.dictfetchone()
 
+        # Stock value = on-hand quantity x current product cost, the same
+        # basis as Inventory > Stock overview. It deliberately does NOT sum
+        # stock.valuation.layer: layers are empty/zero when stock came in
+        # via inventory adjustment or opening import, or while the product
+        # cost was still 0, which made this card show 0.00.
+        total_value, value_by_location = self._get_stock_value()
+        summary['total_value'] = total_value
+
         self.env.cr.execute("""
             SELECT
+                sl.id                              AS location_id,
                 sl.complete_name                   AS location,
-                COALESCE(SUM(sq.quantity), 0)      AS qty,
-                COALESCE((
-                    SELECT SUM(svl2.value)
-                    FROM   stock_valuation_layer svl2
-                    JOIN   stock_move sm2 ON svl2.stock_move_id = sm2.id
-                    WHERE  sm2.location_dest_id = sl.id
-                ), 0)                              AS value
+                COALESCE(SUM(sq.quantity), 0)      AS qty
             FROM stock_quant sq
             JOIN stock_location sl ON sq.location_id = sl.id
             WHERE sl.usage = 'internal'
@@ -222,6 +244,8 @@ class BhManagementDashboard(models.Model):
             LIMIT 6
         """)
         by_location = self.env.cr.dictfetchall()
+        for row in by_location:
+            row['value'] = value_by_location.get(row['location_id'], 0.0)
 
         self.env.cr.execute("""
             SELECT
@@ -604,7 +628,7 @@ class BhManagementDashboard(models.Model):
             [('is_deposit_customer', '=', True)],
             order='deposit_balance desc',
         )
-
+  
         top_customers = [{
             'customer':         p.name,
             'total_paid':       p.deposit_total_paid,
