@@ -1,6 +1,6 @@
 {
     'name': 'Binget Stock Dashboard',
-    'version': '18.0.3.19.0',
+    'version': '18.0.3.20.0',
     'summary': 'Premium Stock dashboard + unified Products catalog (auto install & clean uninstall)',
     'description': """
 Install (Apps → Activate)
@@ -17,7 +17,7 @@ Uninstall (Apps → Uninstall)
 """,
     'category': 'Inventory/Inventory',
     'author': 'Binget Holding',
-    'depends': ['stock', 'product', 'web'],
+    'depends': ['stock', 'product', 'web', 'base_import'],
     'data': [
         'security/ir.model.access.csv',
         'views/stock_dashboard_menu.xml',
@@ -28,6 +28,8 @@ Uninstall (Apps → Uninstall)
         'web.assets_backend': [
             'binget_stock_dashboard/static/src/scss/stock_dashboard.scss',
             'binget_stock_dashboard/static/src/scss/products_gallery.scss',
+            'binget_stock_dashboard/static/src/scss/import_cog.scss',
+            'binget_stock_dashboard/static/src/js/import_cog.js',
             'binget_stock_dashboard/static/src/js/stock_dashboard.js',
             'binget_stock_dashboard/static/src/js/products_gallery.js',
             'binget_stock_dashboard/static/src/xml/stock_dashboard.xml',

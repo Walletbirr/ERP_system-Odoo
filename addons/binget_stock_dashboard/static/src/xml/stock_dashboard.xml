@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
+<!-- Settings cog + "Import records" (shared by Products and Stock headers) -->
+<t t-name="binget_stock_dashboard.ImportCog">
+    <div class="o_binget_cog" t-ref="cog">
+        <button type="button" class="o_binget_cog_btn" title="Actions" t-on-click="cog.toggle">
+            <i class="fa fa-cog"/>
+        </button>
+        <div t-if="cog.state.open" class="o_binget_cog_menu">
+            <button type="button" class="o_binget_cog_item" t-on-click="cog.importRecords">
+                <i class="fa fa-download"/> Import records
+            </button>
+        </div>
+    </div>
+</t>
+
 <t t-name="binget_stock_dashboard.Dashboard">
     <div class="o_binget_stock" t-ref="root">
 
@@ -15,7 +29,10 @@
 
             <div class="o_binget_header">
                 <div>
-                    <h2>Stock Overview</h2>
+                    <div class="o_binget_title_row">
+                        <h2>Stock Overview</h2>
+                        <t t-call="binget_stock_dashboard.ImportCog"/>
+                    </div>
                     <p class="o_binget_subtitle">Monitor and manage inventory across all branches</p>
                 </div>
                 <button class="btn o_binget_btn_primary" t-on-click="openNewWarehouse">
@@ -229,7 +246,10 @@
                         <i class="fa fa-arrow-left"/>
                     </button>
                     <div>
-                        <h2 t-esc="state.currentWarehouseName"/>
+                        <div class="o_binget_title_row">
+                            <h2 t-esc="state.currentWarehouseName"/>
+                            <t t-call="binget_stock_dashboard.ImportCog"/>
+                        </div>
                         <p class="o_binget_subtitle">
                             Stock Overview <i class="fa fa-angle-right mx-1"/> <t t-esc="state.currentWarehouseName"/>
                         </p>

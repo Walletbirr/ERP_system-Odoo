@@ -1,0 +1,76 @@
+// Settings cog + Import menu (shared by Products & Stock headers)
+.o_binget_title_row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.o_binget_cog {
+    position: relative;
+    display: inline-flex;
+
+    .o_binget_cog_btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        border: 1px solid #ebe9e3;
+        background: #fff;
+        color: #8a9099;
+        cursor: pointer;
+        font-size: 15px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+        &:hover {
+            background: #f8f0d8;
+            border-color: #e8d9a0;
+            color: #a8871c;
+        }
+        &:hover .fa-cog {
+            transform: rotate(60deg);
+        }
+        .fa-cog {
+            transition: transform 0.3s ease;
+        }
+    }
+
+    .o_binget_cog_menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        min-width: 190px;
+        padding: 6px;
+        background: #fff;
+        border: 1px solid #ebe9e3;
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(26, 29, 35, 0.14), 0 2px 6px rgba(26, 29, 35, 0.06);
+        z-index: 1050;
+        animation: binget-cog-in 0.16s ease-out both;
+    }
+
+    .o_binget_cog_item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+        border: none;
+        background: transparent;
+        border-radius: 8px;
+        color: #1a1d23;
+        font-size: 13.5px;
+        font-weight: 550;
+        text-align: left;
+        cursor: pointer;
+
+        .fa { color: #a8871c; width: 16px; text-align: center; }
+        &:hover { background: #f8f0d8; color: #a8871c; }
+    }
+}
+
+@keyframes binget-cog-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

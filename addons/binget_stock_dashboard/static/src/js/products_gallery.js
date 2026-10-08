@@ -3,6 +3,7 @@
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { formatFloat } from "@web/core/utils/numbers";
+import { useImportCog } from "./import_cog";
 
 const { Component, useState, onWillStart, onMounted, onWillUnmount, useRef } = owl;
 
@@ -11,6 +12,12 @@ class BingetProductsGallery extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.rootRef = useRef("root");
+        // Settings cog → Import records. default_is_storable keeps imported
+        // products visible in this gallery (it only lists tracked products).
+        this.cog = useImportCog({
+            model: "product.template",
+            context: { default_is_storable: true },
+        });
 
         this.state = useState({
             loading: true,
@@ -204,6 +211,7 @@ class BingetProductsGallery extends Component {
                 res_model: "product.template",
                 views: [[false, "form"]],
                 target: "new",
+                name: "New Product",
                 context: {
                     default_is_storable: true,
                 },

@@ -3,6 +3,7 @@
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { formatFloat } from "@web/core/utils/numbers";
+import { useImportCog } from "./import_cog";
 
 const { Component, useState, onWillStart, onMounted, onWillUnmount, useRef } = owl;
 
@@ -11,6 +12,11 @@ class BingetStockDashboard extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.rootRef = useRef("root");
+        // Settings cog → Import records (stock quantities, same as standard Odoo)
+        this.cog = useImportCog({
+            model: "stock.quant",
+            context: { inventory_mode: true },
+        });
 
         this.state = useState({
             loading: true,
@@ -196,6 +202,7 @@ class BingetStockDashboard extends Component {
             res_model: "stock.warehouse",
             views: [[false, "form"]],
             target: "new",
+            name: "New Warehouse",
         });
     }
 

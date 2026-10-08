@@ -6,7 +6,10 @@
 
         <div class="o_bp_header">
             <div>
-                <h2>Products</h2>
+                <div class="o_binget_title_row">
+                    <h2>Products</h2>
+                    <t t-call="binget_stock_dashboard.ImportCog"/>
+                </div>
                 <p class="o_bp_subtitle">Manage and browse all your products in one place</p>
             </div>
             <button class="btn o_bp_btn_primary" t-on-click="openNewProduct">
