@@ -19,25 +19,38 @@ class AccountPayment(models.Model):
         string="Reference", copy=False,
         help="The only source of the journal entry Reference (Purpose is not used). "
              "Cannot be changed after posting.")
+    tax_amount = fields.Monetary(
+        string="Tax / VAT", currency_field='currency_id',
+        compute='_compute_tax_amount',
+        help="Positive tax / VAT lines of the payment. Posted on the entry but "
+             "not part of the Amount.")
     is_multi_line = fields.Boolean(string="Multiple Lines", copy=True)
     multi_line_ids = fields.One2many(
         'account.payment.multi.line', 'payment_id',
         string="Payment Lines", copy=True)
 
     # -------------------------------------------------------------------------
-    # AMOUNT = TOTAL OF THE LINES (sum of the positive lines)
+    # AMOUNT = EXPENSES ONLY (positive lines, tax / VAT lines left out)
     # The bank / cash line of the journal entry carries only the NET total
     # (positive lines minus negative lines), so the entry always balances.
     # -------------------------------------------------------------------------
 
     def _get_multi_line_totals(self):
-        """ Return (total, net): total = sum of the positive lines (shown as the
-        payment Amount), net = sum of all lines (posted on the bank line). """
+        """ Return (total, net): total = sum of the positive lines that are not
+        tax / VAT lines (shown as the payment Amount, i.e. the expenses only),
+        net = sum of ALL lines (posted on the bank line so the entry balances). """
         self.ensure_one()
-        amounts = self.multi_line_ids.mapped('amount')
-        total = sum(a for a in amounts if a > 0)
-        net = sum(amounts)
+        lines = self.multi_line_ids
+        total = sum(l.amount for l in lines if l.amount > 0 and not l.is_tax)
+        net = sum(lines.mapped('amount'))
         return total, net
+
+    @api.depends('multi_line_ids.amount', 'multi_line_ids.account_id', 'is_multi_line')
+    def _compute_tax_amount(self):
+        for pay in self:
+            pay.tax_amount = sum(
+                l.amount for l in pay.multi_line_ids if l.amount > 0 and l.is_tax
+            ) if pay.is_multi_line else 0.0
 
     @api.onchange('multi_line_ids', 'is_multi_line')
     def _onchange_multi_line_ids(self):
@@ -54,7 +67,7 @@ class AccountPayment(models.Model):
             total = pay._get_multi_line_totals()[0]
             if pay.currency_id.compare_amounts(total, 0.0) <= 0:
                 raise ValidationError(_(
-                    "Add at least one line with a positive amount."))
+                    "Add at least one expense line with a positive amount (tax lines do not count)."))
 
     def _sync_multi_line_amount(self):
         """ The amount field is read-only in the form (so the browser does not

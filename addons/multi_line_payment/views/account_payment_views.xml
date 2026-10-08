@@ -34,6 +34,11 @@
                 <attribute name="force_save">1</attribute>
             </xpath>
 
+            <!-- Tax / VAT of the lines, shown under the amount (not part of it) -->
+            <xpath expr="//div[@name='amount_div']" position="after">
+                <field name="tax_amount" invisible="not is_multi_line or not tax_amount"/>
+            </xpath>
+
             <!-- Memo becomes "Purpose", shown under the bank account fields -->
             <xpath expr="//field[@name='memo']" position="attributes">
                 <attribute name="string">Purpose</attribute>
