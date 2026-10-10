@@ -29,34 +29,39 @@ class AccountPaymentMultiLine(models.Model):
              "debit, Receipt Voucher: credit). Enter a negative amount to put "
              "the line on the opposite side.")
 
-    is_tax = fields.Boolean(
-        string="Tax", compute='_compute_is_tax',
-        help="Tax / VAT lines are posted on the entry but are not part of the "
-             "payment Amount. Worked out from the account: used by a tax, or "
-             "its name has a tax word (VAT, tax, withholding...).")
+    exclude_from_amount = fields.Boolean(
+        string="Exclude", compute='_compute_exclude_from_amount',
+        store=True, readonly=False,
+        help="Ticked lines (tax / VAT / withholding) are posted on the entry "
+             "but are not counted in the payment Amount. Ticked automatically "
+             "from the account, and you can change it on the line.")
 
     @api.model
-    def _get_tax_name_pattern(self):
-        """ Whole words in the account NAME that mark a tax account, e.g. the
-        "VAT" in "2400-01 VAT REC/PAY". Whole words only, so "Taxi" does not
-        match. Change in System Parameters:
-        multi_line_payment.tax_account_keywords (comma separated). """
+    def _get_exclude_pattern(self):
+        """ Words in the account NAME that suggest the line is not part of the
+        paid expense (tax, VAT, withholding). Whole words, plural
+        accepted. Change in System Parameters:
+        multi_line_payment.exclude_keywords (comma separated). """
         value = self.env['ir.config_parameter'].sudo().get_param(
-            'multi_line_payment.tax_account_keywords',
-            'vat,tax,taxes,wht,withholding')
-        words = [re.escape(w.strip()) for w in (value or '').split(',') if w.strip()]
+            'multi_line_payment.exclude_keywords',
+            'vat,tax,wht,withholding')
+        words = []
+        for w in (value or '').split(','):
+            parts = w.split()
+            if parts:
+                words.append(r'\s+'.join(re.escape(x) for x in parts))
         if not words:
             return None
-        return re.compile(r'\b(?:%s)\b' % '|'.join(words), re.IGNORECASE)
+        return re.compile(r'\b(?:%s)(?:e?s)?\b' % '|'.join(words), re.IGNORECASE)
 
     @api.depends('account_id')
-    def _compute_is_tax(self):
+    def _compute_exclude_from_amount(self):
         tax_accounts = self.env['account.tax.repartition.line'].sudo().search(
             [('account_id', '!=', False)]).mapped('account_id')
-        pattern = self._get_tax_name_pattern()
+        pattern = self._get_exclude_pattern()
         for line in self:
             account = line.account_id
-            line.is_tax = bool(account) and (
+            line.exclude_from_amount = bool(account) and (
                 account in tax_accounts
                 or bool(pattern and pattern.search(account.name or '')))
 

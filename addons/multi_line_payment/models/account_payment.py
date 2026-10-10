@@ -19,38 +19,30 @@ class AccountPayment(models.Model):
         string="Reference", copy=False,
         help="The only source of the journal entry Reference (Purpose is not used). "
              "Cannot be changed after posting.")
-    tax_amount = fields.Monetary(
-        string="Tax / VAT", currency_field='currency_id',
-        compute='_compute_tax_amount',
-        help="Positive tax / VAT lines of the payment. Posted on the entry but "
-             "not part of the Amount.")
     is_multi_line = fields.Boolean(string="Multiple Lines", copy=True)
     multi_line_ids = fields.One2many(
         'account.payment.multi.line', 'payment_id',
         string="Payment Lines", copy=True)
 
     # -------------------------------------------------------------------------
-    # AMOUNT = EXPENSES ONLY (positive lines, tax / VAT lines left out)
+    # AMOUNT = EXPENSES ONLY (all lines not ticked Exclude, both sides)
     # The bank / cash line of the journal entry carries only the NET total
     # (positive lines minus negative lines), so the entry always balances.
     # -------------------------------------------------------------------------
 
     def _get_multi_line_totals(self):
-        """ Return (total, net): total = sum of the positive lines that are not
-        tax / VAT lines (shown as the payment Amount, i.e. the expenses only),
+        """ Return (total, net): total = shown as the payment Amount (positive lines minus the size
+        of every line ticked Exclude, on either side),
         net = sum of ALL lines (posted on the bank line so the entry balances). """
         self.ensure_one()
         lines = self.multi_line_ids
-        total = sum(l.amount for l in lines if l.amount > 0 and not l.is_tax)
+        # Amount = all positive lines, minus every line ticked Exclude (the
+        # size of a ticked line is taken out of the Amount, debit or credit
+        # side). Unticked negative lines never change the Amount.
+        total = (sum(l.amount for l in lines if l.amount > 0)
+                 - sum(abs(l.amount) for l in lines if l.exclude_from_amount))
         net = sum(lines.mapped('amount'))
         return total, net
-
-    @api.depends('multi_line_ids.amount', 'multi_line_ids.account_id', 'is_multi_line')
-    def _compute_tax_amount(self):
-        for pay in self:
-            pay.tax_amount = sum(
-                l.amount for l in pay.multi_line_ids if l.amount > 0 and l.is_tax
-            ) if pay.is_multi_line else 0.0
 
     @api.onchange('multi_line_ids', 'is_multi_line')
     def _onchange_multi_line_ids(self):
@@ -67,7 +59,7 @@ class AccountPayment(models.Model):
             total = pay._get_multi_line_totals()[0]
             if pay.currency_id.compare_amounts(total, 0.0) <= 0:
                 raise ValidationError(_(
-                    "Add at least one expense line with a positive amount (tax lines do not count)."))
+                    "Add at least one expense line with a positive amount (excluded lines do not count)."))
 
     def _sync_multi_line_amount(self):
         """ The amount field is read-only in the form (so the browser does not
@@ -89,7 +81,37 @@ class AccountPayment(models.Model):
         if view_type == 'form' and arch.xpath("//field[@name='state']"):
             for node in arch.xpath("//sheet//field[not(ancestor::field)]"):
                 _make_readonly_when(node, "state != 'draft'")
+        elif view_type == 'list' and arch.xpath(
+                "//field[@name='journal_id']") and arch.xpath(
+                "//field[@name='payment_method_line_id']"):
+            self._add_list_columns(arch)
         return arch, view
+
+    @api.model
+    def _add_list_columns(self, arch):
+        """ Payments list: Reference shown by default, Purpose available in the
+        column picker (hidden by default). """
+        anchors = arch.xpath("//field[@name='partner_id']") or arch.xpath(
+            "//field[@name='payment_method_line_id']")
+        if not anchors:
+            return
+        anchor = anchors[0]
+        new_nodes = []
+        if not arch.xpath("//field[@name='voucher_reference']"):
+            new_nodes.append(etree.Element(
+                'field', name='voucher_reference', string='Reference',
+                optional='show'))
+        memo_nodes = arch.xpath("//field[@name='memo']")
+        if memo_nodes:
+            memo_nodes[0].set('string', 'Purpose')
+            memo_nodes[0].set('optional', 'hide')
+        else:
+            new_nodes.append(etree.Element(
+                'field', name='memo', string='Purpose', optional='hide'))
+        parent = anchor.getparent()
+        index = parent.index(anchor) + 1
+        for offset, node in enumerate(new_nodes):
+            parent.insert(index + offset, node)
 
     # -------------------------------------------------------------------------
     # REFERENCE -> JOURNAL ENTRY
@@ -277,7 +299,17 @@ class AccountPayment(models.Model):
         self.filtered(lambda p: p.move_id.state == 'draft')._push_reference_to_move()
         res = super().action_post()
         self._push_reference_to_move()
+        self._remember_purpose()
         return res
+
+    def _remember_purpose(self):
+        """ Keep the Purpose typed by the user in their history (not for
+        payments created from invoices). """
+        if self.env.context.get('active_model') in ('account.move', 'account.move.line'):
+            return
+        history = self.env['payment.purpose.history']
+        for pay in self:
+            history.remember(pay.memo)
 
 
 def _make_readonly_when(node, condition):

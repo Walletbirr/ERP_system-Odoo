@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Multi Line Payments',
-    'version': '18.0.1.6.0',
+    'version': '18.0.1.7.7',
     'category': 'Accounting',
     'summary': 'Customer and vendor payments with several accounts / purposes, like a journal entry',
     'description': """
@@ -16,9 +16,15 @@ be posted, and nothing is posted until the user agrees.
     'depends': ['account', 'base_accounting_kit'],
     'data': [
         'security/ir.model.access.csv',
+        'security/payment_purpose_history_rule.xml',
         'views/account_payment_post_preview_views.xml',
         'views/account_payment_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'multi_line_payment/static/src/purpose_history/*',
+        ],
+    },
     'license': 'LGPL-3',
     'installable': True,
     'application': False,

@@ -34,14 +34,10 @@
                 <attribute name="force_save">1</attribute>
             </xpath>
 
-            <!-- Tax / VAT of the lines, shown under the amount (not part of it) -->
-            <xpath expr="//div[@name='amount_div']" position="after">
-                <field name="tax_amount" invisible="not is_multi_line or not tax_amount"/>
-            </xpath>
-
             <!-- Memo becomes "Purpose", shown under the bank account fields -->
             <xpath expr="//field[@name='memo']" position="attributes">
                 <attribute name="string">Purpose</attribute>
+                <attribute name="widget">purpose_history</attribute>
             </xpath>
             <xpath expr="//group[@name='group2']" position="inside">
                 <field name="memo" position="move"/>
@@ -60,6 +56,8 @@
                             <field name="account_id"/>
                             <field name="partner_id"/>
                             <field name="name"/>
+                            <field name="exclude_from_amount" string="Exclude"
+                                   column_invisible="parent.state != 'draft'"/>
                             <field name="amount"/>
                         </list>
                     </field>
