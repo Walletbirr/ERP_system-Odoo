@@ -43,7 +43,7 @@ jobs:
   # ---------------------------------------------------------------------------
   deploy-production:
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, debian]
+    runs-on: [self-hosted, Linux]
     environment: production        # optional: add required reviewers in GitHub settings
     concurrency:
       group: deploy-production
