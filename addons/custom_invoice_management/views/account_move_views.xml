@@ -63,6 +63,10 @@
                        invisible="move_type not in ('out_invoice', 'out_refund') or not cim_service_charge_amount"/>
                 <field name="cim_vat_amount"
                        invisible="move_type not in ('out_invoice', 'out_refund')"/>
+                <field name="cim_total_before_wht"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or not cim_wht_amount"/>
+                <field name="cim_wht_amount"
+                       invisible="move_type not in ('out_invoice', 'out_refund') or not cim_wht_amount"/>
                 <field name="amount_total"
                        string="Total"
                        class="fw-bold"
@@ -84,3 +88,4 @@
         </field>
     </record>
 </odoo>
+

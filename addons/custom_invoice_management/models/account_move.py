@@ -3,6 +3,13 @@ from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 
+def cim_is_wht_tax(tax):
+    """Withholding taxes are configured as NEGATIVE percentage taxes
+    (Accounting > Configuration > Taxes, tax group "Withholding Tax").
+    They must never be mistaken for the invoice's VAT tax."""
+    return tax.amount_type == 'percent' and (tax.amount or 0.0) < 0
+
+
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
@@ -74,11 +81,28 @@ class AccountMove(models.Model):
              "including the Service Charge line(s).",
     )
 
+    cim_wht_amount = fields.Monetary(
+        string="Withholding Tax",
+        currency_field='currency_id',
+        compute='_compute_cim_totals',
+        help="Total withholding tax on this invoice (shown as a negative "
+             "amount: it is deducted from what the customer pays).",
+    )
+    cim_total_before_wht = fields.Monetary(
+        string="Total Before WHT",
+        currency_field='currency_id',
+        compute='_compute_cim_totals',
+        help="Total including VAT / Excise but before the withholding "
+             "tax deduction.",
+    )
+
     @api.depends(
         'amount_untaxed',
         'amount_tax',
         'currency_id',
+        'amount_total',
         'line_ids.balance',
+        'line_ids.amount_currency',
         'line_ids.tax_line_id',
         'invoice_line_ids.price_subtotal',
         'invoice_line_ids.product_id',
@@ -101,9 +125,20 @@ class AccountMove(models.Model):
             else:
                 service_charge_amount = 0.0
 
+            # Withholding tax: negative-percentage tax lines. In document
+            # terms (invoice: tax line is a credit, refund: a debit) the
+            # sign is flipped so the result reads as a negative deduction.
+            wht_lines = move.line_ids.filtered(
+                lambda l: l.tax_line_id and cim_is_wht_tax(l.tax_line_id)
+            )
+            sign = -1 if move.move_type == 'out_invoice' else 1
+            wht_amount = sign * sum(wht_lines.mapped('amount_currency'))
+
             move.cim_service_charge_amount = service_charge_amount
             move.cim_excise_tax_amount = excise_amount
-            move.cim_vat_amount = move.amount_tax - excise_amount
+            move.cim_wht_amount = wht_amount
+            move.cim_total_before_wht = move.amount_total - wht_amount
+            move.cim_vat_amount = move.amount_tax - excise_amount - wht_amount
             move.cim_product_untaxed_amount = move.amount_untaxed - service_charge_amount
             move.cim_subtotal_before_vat = move.cim_product_untaxed_amount + excise_amount
             move.cim_before_vat_amount = move.cim_subtotal_before_vat + service_charge_amount
@@ -132,7 +167,9 @@ class AccountMove(models.Model):
         self.ensure_one()
         for line in candidate_lines:
             vat_taxes = line.tax_ids.filtered(
-                lambda t: t.type_tax_use == 'sale' and not t.include_base_amount
+                lambda t: t.type_tax_use == 'sale'
+                and not t.include_base_amount
+                and not cim_is_wht_tax(t)
             )
             if vat_taxes:
                 return vat_taxes[0]
@@ -189,7 +226,22 @@ class AccountMove(models.Model):
         income_account = None
 
         for line in lines_to_balance:
-            base_total = line.price_total
+            # The Selling Price is the VAT/Excise-inclusive price agreed
+            # with the customer. Withholding tax is a deduction on top of
+            # it, so it must not count towards the line's own total here.
+            wht_taxes = line.tax_ids.filtered(cim_is_wht_tax)
+            if wht_taxes:
+                net_taxes = line.tax_ids - wht_taxes
+                base_total = net_taxes.compute_all(
+                    line.price_unit * (1 - (line.discount or 0.0) / 100.0),
+                    currency=line.currency_id,
+                    quantity=line.quantity,
+                    product=line.product_id,
+                    partner=self.partner_id,
+                    is_refund=self.move_type == 'out_refund',
+                )['total_included']
+            else:
+                base_total = line.price_total
             remaining = line.cim_selling_price - base_total
             cmp = self.currency_id.compare_amounts(remaining, 0)
 
@@ -233,7 +285,7 @@ class AccountMove(models.Model):
             line_vals = {
                 'quantity': 1.0,
                 'price_unit': price_unit,
-                'tax_ids': [(6, 0, [vat_tax.id])],
+                'tax_ids': [(6, 0, (vat_tax | wht_taxes).ids)],
                 'name': service_product.name,
             }
 
