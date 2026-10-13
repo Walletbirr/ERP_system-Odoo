@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Printed Quotation / Sales Order: same parallel Seller / Buyer block as
+        the Customer Invoice. The centered logo + title header comes from the
+        Bubble layout override already shipped by custom_invoice_management
+        (it is layout-wide, so it applies here as well).
+    -->
+    <template id="report_saleorder_document_cim_labeled_customer"
+              inherit_id="sale.report_saleorder_document">
+
+        <!-- The default single "customer address" block is replaced by the
+             parallel Seller / Buyer block below. -->
+        <xpath expr="//t[@t-set='address']" position="replace">
+            <t t-set="address"/>
+        </xpath>
+
+        <xpath expr="//div[hasclass('page')]/div[hasclass('oe_structure')][1]" position="after">
+            <!-- The shared Seller / Buyer templates expect the document as "o". -->
+            <t t-set="o" t-value="doc"/>
+            <div class="row" style="width: 100%; margin: 0;">
+                <div style="width: 100%;">
+                    <t t-call="custom_invoice_management.cim_parallel_address_row"/>
+                </div>
+            </div>
+        </xpath>
+    </template>
+</odoo>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_custom_invoice_management" model="ir.ui.view">
+        <field name="name">sale.order.form.custom.invoice.management</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <!-- Applied after the other modules' extensions of this form. -->
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+
+            <!-- 1. "Selling Price" column right after the Amount column.
+                 cim_hide_from_order_lines is loaded (invisible column) so the
+                 JS patch can hide the auto-generated Other Income rows. -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_total'][1]"
+                   position="after">
+                <field name="cim_selling_price"
+                       string="Selling Price"
+                       optional="show"
+                       invisible="display_type or is_downpayment"/>
+                <field name="cim_hide_from_order_lines" column_invisible="True"/>
+            </xpath>
+
+            <!-- 2. No "Balance" button any more: the Other Income lines are
+                 added / updated automatically whenever the quotation is
+                 saved (sale.order / sale.order.line create & write). -->
+
+            <!-- 3. Custom totals box replacing the native tax totals widget
+                 (display only - amount_total / tax_totals are untouched). -->
+            <xpath expr="//group[@name='sale_total']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//group[@name='sale_total']" position="after">
+                <group class="oe_subtotal_footer cim_compact_totals order-0 order-lg-1"
+                       colspan="2"
+                       name="cim_sale_total">
+                    <field name="cim_product_untaxed_amount"/>
+                    <field name="cim_excise_tax_amount"
+                           invisible="not cim_excise_tax_amount"/>
+                    <field name="cim_subtotal_before_vat"/>
+                    <!-- Always shown (0.00 until a Selling Price is saved), so the
+                         full breakdown is visible before the order is balanced. -->
+                    <field name="cim_service_charge_amount"/>
+                    <field name="cim_before_vat_amount"/>
+                    <field name="cim_vat_amount"/>
+                    <field name="cim_total_before_wht"
+                           invisible="not cim_wht_amount"/>
+                    <field name="cim_wht_amount"
+                           invisible="not cim_wht_amount"/>
+                    <field name="amount_total"
+                           string="Total"
+                           class="fw-bold"/>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
