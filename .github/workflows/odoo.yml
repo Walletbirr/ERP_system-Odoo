@@ -1,14 +1,53 @@
 name: Deploy Odoo
 
+# jk   -> UAT server        (new deploy script)
+# main -> production server (original steps, unchanged, until production is migrated)
 on:
   push:
     branches:
+      - jk
       - main
 
 jobs:
-  deploy:
-    runs-on: self-hosted
+  # ---------------------------------------------------------------------------
+  # UAT: runs only on the runner labelled "uat", only for pushes to jk.
+  # The server pulls the code itself (branch set in /etc/odoo-deploy.conf).
+  # ---------------------------------------------------------------------------
+  deploy-uat:
+    if: github.ref == 'refs/heads/jk'
+    runs-on: [self-hosted, uat]
+    environment: uat
+    concurrency:
+      group: deploy-uat
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to UAT (pull jk, restart, health check, auto-rollback)
+        run: |
+          sudo -n -u odoo-deploy /usr/local/bin/deploy-odoo.sh
 
+      - name: Show deploy log
+        if: always()
+        run: |
+          tail -n 50 /var/log/odoo-deploy/deploy.log || true
+
+      - name: Show Odoo status
+        if: always()
+        run: |
+          systemctl status odoo --no-pager || true
+          journalctl -u odoo -n 50 --no-pager || true
+
+  # ---------------------------------------------------------------------------
+  # Production: original deploy steps, unchanged.
+  # Runs only on the runner labelled "production", only for pushes to main.
+  # TODO: replace these steps with the deploy script once production is migrated.
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, production]
+    environment: production        # optional: add required reviewers in GitHub settings
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
