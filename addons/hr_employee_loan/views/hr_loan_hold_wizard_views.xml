@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="hr_loan_hold_wizard_view_form" model="ir.ui.view">
+        <field name="name">hr.loan.hold.wizard.form</field>
+        <field name="model">hr.loan.hold.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="company_id" invisible="1"/>
+                    <field name="deduction_paused"/>
+                    <field name="reason" invisible="not deduction_paused"
+                           required="deduction_paused"
+                           placeholder="e.g. Pagume holidays - no deduction this month"/>
+                </group>
+                <p class="text-muted">
+                    While paused, payroll deducts nothing for any loan of this company.
+                    Untick and Apply to resume. To stop only one employee, pause that loan instead.
+                </p>
+                <footer>
+                    <button name="action_apply" type="object" string="Apply" class="btn-primary"/>
+                    <button string="Close" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_loan_hold_wizard" model="ir.actions.act_window">
+        <field name="name">Pause / Resume All Deductions</field>
+        <field name="res_model">hr.loan.hold.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

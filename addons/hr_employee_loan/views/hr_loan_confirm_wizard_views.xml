@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="hr_loan_confirm_wizard_view_form" model="ir.ui.view">
+        <field name="name">hr.loan.confirm.wizard.form</field>
+        <field name="model">hr.loan.confirm.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <field name="currency_id" invisible="1"/>
+                <field name="create_entry" invisible="1"/>
+
+                <div class="alert alert-info" role="alert" invisible="not create_entry">
+                    <strong>Confirm loan.</strong> Please review the entries below before posting.
+                </div>
+                <div class="alert alert-warning" role="alert" invisible="create_entry">
+                    <strong>No journal entry will be created</strong> for this loan
+                    (it was paid out before this module). Only the repayment schedule is generated.
+                </div>
+
+                <group>
+                    <group>
+                        <field name="employee_id"/>
+                        <field name="loan_amount"/>
+                        <field name="installment_amount"/>
+                        <field name="installment_count"/>
+                    </group>
+                    <group>
+                        <field name="journal_id" invisible="not create_entry"/>
+                        <field name="date"/>
+                        <field name="first_deduction_date"/>
+                        <field name="last_deduction_date"/>
+                    </group>
+                </group>
+
+                <field name="line_ids" nolabel="1" readonly="1" invisible="not create_entry">
+                    <list create="0" delete="0" edit="0">
+                        <field name="account_id"/>
+                        <field name="partner_id"/>
+                        <field name="name"/>
+                        <field name="debit" sum="Total"/>
+                        <field name="credit" sum="Total"/>
+                        <field name="currency_id" column_invisible="1"/>
+                    </list>
+                </field>
+
+                <footer>
+                    <button name="action_confirm_post" type="object" string="Confirm and Post"
+                            class="btn-primary" data-hotkey="q" invisible="not create_entry"/>
+                    <button name="action_confirm_post" type="object" string="Confirm"
+                            class="btn-primary" data-hotkey="q" invisible="create_entry"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_hr_loan_confirm_wizard" model="ir.actions.act_window">
+        <field name="name">Confirm Loan</field>
+        <field name="res_model">hr.loan.confirm.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

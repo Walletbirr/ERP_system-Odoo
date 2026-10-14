@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hr_loan_user,hr.loan.user,model_hr_loan,base.group_user,1,0,0,0
+access_hr_loan_officer,hr.loan.officer,model_hr_loan,group_loan_user,1,1,1,0
+access_hr_loan_manager,hr.loan.manager,model_hr_loan,group_loan_manager,1,1,1,1
+access_hr_loan_line_user,hr.loan.line.user,model_hr_loan_line,base.group_user,1,0,0,0
+access_hr_loan_line_officer,hr.loan.line.officer,model_hr_loan_line,group_loan_user,1,1,0,0
+access_hr_loan_line_manager,hr.loan.line.manager,model_hr_loan_line,group_loan_manager,1,1,1,1
+access_hr_loan_hold_wizard_manager,hr.loan.hold.wizard.manager,model_hr_loan_hold_wizard,group_loan_manager,1,1,1,1
+access_hr_loan_pause_wizard_manager,hr.loan.pause.wizard.manager,model_hr_loan_pause_wizard,group_loan_manager,1,1,1,1
+access_hr_loan_confirm_wizard_manager,hr.loan.confirm.wizard.manager,model_hr_loan_confirm_wizard,group_loan_manager,1,1,1,1
+access_hr_loan_confirm_wizard_line_manager,hr.loan.confirm.wizard.line.manager,model_hr_loan_confirm_wizard_line,group_loan_manager,1,1,1,1
+access_hr_loan_pause_log_user,hr.loan.pause.log.user,model_hr_loan_pause_log,base.group_user,1,0,0,0
+access_hr_loan_pause_log_manager,hr.loan.pause.log.manager,model_hr_loan_pause_log,group_loan_manager,1,1,1,1

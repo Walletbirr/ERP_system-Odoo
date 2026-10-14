@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================= LOAN: LIST ================= -->
+    <record id="hr_loan_view_list" model="ir.ui.view">
+        <field name="name">hr.loan.list</field>
+        <field name="model">hr.loan</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state in ('paid', 'cancel')"
+                  decoration-warning="deduction_status in ('on_hold', 'global_hold')"
+                  sample="1">
+                <header>
+                    <button name="%(action_hr_loan_hold_wizard)d" type="action"
+                            string="Pause / Resume All Deductions" display="always"
+                            groups="hr_employee_loan.group_loan_manager"/>
+                </header>
+                <field name="name"/>
+                <field name="employee_id" widget="many2one_avatar_employee"/>
+                <field name="date" optional="show"/>
+                <field name="loan_amount" sum="Total"/>
+                <field name="installment_amount" optional="show"/>
+                <field name="amount_paid" sum="Paid"/>
+                <field name="amount_remaining" sum="Remaining"/>
+                <field name="next_deduction_date" optional="show"/>
+                <field name="deduction_status" widget="badge"
+                       decoration-success="deduction_status == 'active'"
+                       decoration-warning="deduction_status in ('on_hold', 'global_hold')"
+                       optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-success="state == 'running'"
+                       decoration-primary="state == 'paid'"
+                       decoration-danger="state == 'cancel'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="deduction_active" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================= LOAN: FORM ================= -->
+    <record id="hr_loan_view_form" model="ir.ui.view">
+        <field name="name">hr.loan.form</field>
+        <field name="model">hr.loan</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open_confirm_wizard" type="object" string="Confirm"
+                            class="btn-primary" invisible="state != 'draft'"
+                            groups="hr_employee_loan.group_loan_manager"/>
+                    <button name="%(action_hr_loan_pause_wizard)d" type="action" string="Pause Deduction"
+                            invisible="state != 'running' or not deduction_active"
+                            groups="hr_employee_loan.group_loan_manager"/>
+                    <button name="action_resume_deduction" type="object" string="Resume Deduction"
+                            class="btn-primary"
+                            invisible="state != 'running' or deduction_active"
+                            groups="hr_employee_loan.group_loan_manager"/>
+                    <button name="action_cancel" type="object" string="Cancel Loan"
+                            invisible="state not in ('draft', 'running')"
+                            confirm="Cancel this loan? If it was paid out, the disbursement entry will be reversed."
+                            groups="hr_employee_loan.group_loan_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,running,paid"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="company_deduction_paused" invisible="1"/>
+
+                    <div class="alert alert-warning" role="alert"
+                         invisible="state != 'running' or not company_deduction_paused">
+                        All loan deductions are paused company-wide.
+                        <field name="company_deduction_pause_reason" readonly="1"/>
+                    </div>
+
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_move" type="object" class="oe_stat_button"
+                                icon="fa-book" invisible="not move_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Journal Entry</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <widget name="web_ribbon" title="Fully Paid" bg_color="text-bg-success"
+                            invisible="state != 'paid'"/>
+                    <widget name="web_ribbon" title="On Hold" bg_color="text-bg-warning"
+                            invisible="state != 'running' or deduction_active"/>
+                    <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
+                            invisible="state != 'cancel'"/>
+
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+
+                    <group>
+                        <group name="loan_terms" string="Loan">
+                            <field name="employee_id" readonly="state != 'draft'"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   readonly="state != 'draft'"/>
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="loan_amount" readonly="state != 'draft'"/>
+                            <field name="installment_amount" readonly="state != 'draft'"/>
+                            <field name="installment_count"/>
+                            <field name="first_deduction_date" readonly="state != 'draft'"/>
+                        </group>
+                        <group name="loan_status" string="Status">
+                            <field name="amount_paid"/>
+                            <field name="amount_remaining"/>
+                            <field name="paid_percent" widget="progressbar"/>
+                            <field name="paid_installments"/>
+                            <field name="pending_installments"/>
+                            <field name="next_deduction_date"/>
+                            <field name="next_installment_amount"/>
+                            <field name="deduction_active" readonly="1"/>
+                            <field name="pause_reason" invisible="deduction_active or state != 'running'"
+                                   placeholder="e.g. on unpaid leave"/>
+                        </group>
+                    </group>
+
+                    <group name="accounting" string="Accounting">
+                        <group>
+                            <field name="create_disbursement_entry" readonly="state != 'draft'"/>
+                            <field name="journal_id" readonly="state != 'draft'"
+                                   invisible="not create_disbursement_entry"
+                                   required="create_disbursement_entry"/>
+                        </group>
+                        <group>
+                            <field name="loan_account_id" readonly="state != 'draft'"/>
+                            <field name="disbursement_account_id" readonly="state != 'draft'"
+                                   invisible="not create_disbursement_entry"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Repayment Schedule" name="schedule">
+                            <field name="line_ids" nolabel="1">
+                                <list editable="bottom" create="0" delete="0"
+                                      decoration-success="state == 'paid'"
+                                      decoration-muted="state in ('skipped', 'cancel')">
+                                    <field name="sequence" readonly="1"/>
+                                    <field name="due_date" readonly="state != 'pending'"/>
+                                    <field name="amount" readonly="1"/>
+                                    <field name="state" widget="badge"
+                                           decoration-info="state == 'pending'"
+                                           decoration-success="state == 'paid'"
+                                           decoration-warning="state == 'skipped'"
+                                           decoration-danger="state == 'cancel'"/>
+                                    <field name="paid_date" readonly="1"/>
+                                    <field name="payment_reference" readonly="1"/>
+                                    <field name="note" placeholder="e.g. employee on leave"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <button name="action_skip" type="object" icon="fa-forward"
+                                            title="Skip this month"
+                                            invisible="state != 'pending' or parent.state != 'running'"
+                                            confirm="Skip this installment? An identical one is added at the end of the schedule."
+                                            groups="hr_employee_loan.group_loan_manager"/>
+                                    <button name="action_mark_paid" type="object" icon="fa-check"
+                                            title="Mark as paid (no journal entry)"
+                                            invisible="state != 'pending' or parent.state != 'running'"
+                                            confirm="Mark as paid manually? No accounting entry is created."
+                                            groups="hr_employee_loan.group_loan_manager"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Pause History" name="pause_history">
+                            <field name="pause_log_ids" nolabel="1" readonly="1">
+                                <list decoration-warning="is_open">
+                                    <field name="scope"/>
+                                    <field name="date_start"/>
+                                    <field name="date_end"/>
+                                    <field name="reason"/>
+                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                    <field name="skipped_count"/>
+                                    <field name="is_open" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="note" placeholder="Agreement terms, reason for the loan..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= LOAN: SEARCH ================= -->
+    <record id="hr_loan_view_search" model="ir.ui.view">
+        <field name="name">hr.loan.search</field>
+        <field name="model">hr.loan</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <filter name="open" string="Draft &amp; Running" domain="[('state', 'in', ('draft', 'running'))]"/>
+                <filter name="draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="running" string="Running" domain="[('state', '=', 'running')]"/>
+                <filter name="paid" string="Fully Paid" domain="[('state', '=', 'paid')]"/>
+                <separator/>
+                <filter name="deduction_active" string="Deduction Active"
+                        domain="[('state', '=', 'running'), ('deduction_active', '=', True)]"/>
+                <filter name="on_hold" string="Deduction On Hold"
+                        domain="[('state', '=', 'running'), ('deduction_active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_month" string="Loan Month" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_hr_loan" model="ir.actions.act_window">
+        <field name="name">Loans</field>
+        <field name="res_model">hr.loan</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="hr_loan_view_search"/>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create the first employee loan</p>
+            <p>Give a loan to an employee with a running contract; the monthly
+               installment is deducted until it is fully repaid.</p>
+        </field>
+    </record>
+
+    <!-- Bulk pause / resume from the list's Actions menu -->
+    <record id="action_hr_loan_resume_server" model="ir.actions.server">
+        <field name="name">Resume Deduction</field>
+        <field name="model_id" ref="model_hr_loan"/>
+        <field name="binding_model_id" ref="model_hr_loan"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">records.action_resume_deduction()</field>
+        <field name="groups_id" eval="[(4, ref('group_loan_manager'))]"/>
+    </record>
+
+</odoo>

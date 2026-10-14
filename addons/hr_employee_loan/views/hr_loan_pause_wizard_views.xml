@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="hr_loan_pause_wizard_view_form" model="ir.ui.view">
+        <field name="name">hr.loan.pause.wizard.form</field>
+        <field name="model">hr.loan.pause.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="loan_ids" widget="many2many_tags" readonly="1"
+                           options="{'no_open': True}"/>
+                    <field name="reason" placeholder="e.g. on unpaid leave - no deduction this month"/>
+                </group>
+                <p class="text-muted">
+                    While paused, payroll deducts nothing for the loan(s) above.
+                    Use Resume Deduction to start deducting again.
+                </p>
+                <footer>
+                    <button name="action_apply" type="object" string="Pause Deduction"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Close" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Used by the form button and (via binding) the list's Actions menu -->
+    <record id="action_hr_loan_pause_wizard" model="ir.actions.act_window">
+        <field name="name">Pause Deduction</field>
+        <field name="res_model">hr.loan.pause.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_hr_loan"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('hr_employee_loan.group_loan_manager'))]"/>
+    </record>
+
+</odoo>

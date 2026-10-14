@@ -1,0 +1,28 @@
+/* Loan tab summary tiles on the employee profile */
+.o_employee_loan_summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 6px 0 14px;
+}
+.o_employee_loan_summary_item {
+  flex: 1 1 150px;
+  background: #f9fafb;
+  border: 1px solid #eceef1;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.o_employee_loan_summary_label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+.o_employee_loan_summary_item .o_field_widget {
+  font-size: 18px;
+  font-weight: 650;
+  color: #111827;
+}
+.o_employee_loan_summary_item.o_remaining .o_field_widget {
+  color: #a06e03;
+}
