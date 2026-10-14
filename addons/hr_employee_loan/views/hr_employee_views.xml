@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Extends the stepper profile of employee_profile_custom: adds a "Loans"
+         tab button after "Commitment" and the matching content page. -->
+    <record id="view_employee_form_profile_custom_loan" model="ir.ui.view">
+        <field name="name">hr.employee.form.profile.custom.loan</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="employee_profile_custom.view_employee_form_profile_custom"/>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+
+            <!-- Smart button with the outstanding balance -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_open_loans" type="object" class="oe_stat_button"
+                        icon="fa-money" groups="hr_employee_loan.group_loan_user">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_value"><field name="loan_total_remaining" widget="monetary"/></span>
+                        <span class="o_stat_text">Loan Balance</span>
+                    </div>
+                </button>
+            </xpath>
+
+            <!-- Tab bar buttons (active + normal variant, like the other tabs) -->
+            <xpath expr="//div[hasclass('o_employee_profile_tabbar')]/button[@invisible=&quot;profile_step == 'commitment'&quot;]"
+                   position="after">
+                <button type="object" name="action_profile_step_goto"
+                        context="{'goto_step': 'loan'}"
+                        class="o_employee_profile_tab_btn o_employee_profile_tab_btn_active"
+                        groups="hr_employee_loan.group_loan_user"
+                        invisible="profile_step != 'loan'">Loans</button>
+                <button type="object" name="action_profile_step_goto"
+                        context="{'goto_step': 'loan'}"
+                        class="o_employee_profile_tab_btn"
+                        groups="hr_employee_loan.group_loan_user"
+                        invisible="profile_step == 'loan'">Loans</button>
+            </xpath>
+
+            <!-- Tab content -->
+            <xpath expr="//div[hasclass('o_employee_profile_page')][@invisible=&quot;profile_step != 'commitment'&quot;]"
+                   position="after">
+                <div class="o_employee_profile_page"
+                     groups="hr_employee_loan.group_loan_user"
+                     invisible="profile_step != 'loan'">
+                    <div class="o_employee_profile_list_card">
+                        <div class="o_employee_profile_card_header">
+                            <span class="o_employee_profile_card_title">Loans</span>
+                        </div>
+
+                        <div class="o_employee_loan_summary">
+                            <div class="o_employee_loan_summary_item">
+                                <span class="o_employee_loan_summary_label">Total Borrowed</span>
+                                <field name="loan_total_amount" widget="monetary" nolabel="1"/>
+                            </div>
+                            <div class="o_employee_loan_summary_item">
+                                <span class="o_employee_loan_summary_label">Paid</span>
+                                <field name="loan_total_paid" widget="monetary" nolabel="1"/>
+                            </div>
+                            <div class="o_employee_loan_summary_item o_remaining">
+                                <span class="o_employee_loan_summary_label">Remaining</span>
+                                <field name="loan_total_remaining" widget="monetary" nolabel="1"/>
+                            </div>
+                            <div class="o_employee_loan_summary_item">
+                                <span class="o_employee_loan_summary_label">Active Loans</span>
+                                <field name="active_loan_count" nolabel="1"/>
+                            </div>
+                        </div>
+
+                        <field name="running_loan_ids" nolabel="1" readonly="1">
+                            <list create="0" delete="0" edit="0"
+                                  decoration-muted="state in ('paid', 'cancel')"
+                                  decoration-warning="deduction_status in ('on_hold', 'global_hold')">
+                                <field name="name"/>
+                                <field name="date"/>
+                                <field name="loan_amount"/>
+                                <field name="installment_amount" string="Monthly"/>
+                                <field name="amount_paid" string="Paid"/>
+                                <field name="amount_remaining" string="Left"/>
+                                <field name="next_deduction_date" string="Next Deduction"/>
+                                <field name="deduction_status" string="Deduction" widget="badge"
+                                       decoration-success="deduction_status == 'active'"
+                                       decoration-warning="deduction_status in ('on_hold', 'global_hold')"/>
+                                <field name="state" string="Status" widget="badge"
+                                       decoration-info="state == 'draft'"
+                                       decoration-success="state == 'running'"
+                                       decoration-primary="state == 'paid'"
+                                       decoration-danger="state == 'cancel'"/>
+                                <field name="currency_id" column_invisible="1"/>
+                            </list>
+                        </field>
+                    </div>
+
+                    <div class="o_employee_profile_step_nav">
+                        <button name="action_profile_step_prev" type="object"
+                                class="btn o_employee_profile_step_btn o_employee_profile_step_prev">
+                            <i class="fa fa-angle-left me-1"/>Previous
+                        </button>
+                        <button name="action_profile_step_next" type="object"
+                                class="btn o_employee_profile_step_btn o_employee_profile_step_next">
+                            Next<i class="fa fa-angle-right ms-1"/>
+                        </button>
+                    </div>
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>

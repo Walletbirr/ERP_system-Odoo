@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_loan" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.hr.loan</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="60"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Loans" string="Loans" name="hr_employee_loan"
+                     groups="hr_employee_loan.group_loan_manager">
+                    <block title="Accounting" name="hr_loan_accounting_block">
+                        <setting string="Loan Receivable Account"
+                                 help="Asset account holding what employees still owe (e.g. 'Employee Loans Receivable'). Payroll should credit this account when it deducts an installment.">
+                            <field name="loan_account_id"/>
+                        </setting>
+                        <setting string="Disbursement Journal"
+                                 help="Bank or cash journal used to pay loans out.">
+                            <field name="loan_journal_id"
+                                   domain="[('company_id', '=', company_id), ('type', 'in', ('bank', 'cash', 'general'))]"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_hr_loan_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module': 'hr_employee_loan', 'bin_size': False}</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="hr_loan_line_view_list" model="ir.ui.view">
+        <field name="name">hr.loan.line.list</field>
+        <field name="model">hr.loan.line</field>
+        <field name="arch" type="xml">
+            <list create="0" delete="0" edit="0"
+                  decoration-success="state == 'paid'"
+                  decoration-muted="state in ('skipped', 'cancel')">
+                <field name="loan_id"/>
+                <field name="employee_id" widget="many2one_avatar_employee"/>
+                <field name="sequence"/>
+                <field name="due_date"/>
+                <field name="amount" sum="Total"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'pending'"
+                       decoration-success="state == 'paid'"
+                       decoration-warning="state == 'skipped'"
+                       decoration-danger="state == 'cancel'"/>
+                <field name="paid_date" optional="show"/>
+                <field name="payment_reference" optional="show"/>
+                <field name="note" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <button name="action_skip" type="object" icon="fa-forward" title="Skip this month"
+                        invisible="state != 'pending'"
+                        confirm="Skip this installment? An identical one is added at the end of the schedule."
+                        groups="hr_employee_loan.group_loan_manager"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hr_loan_line_view_search" model="ir.ui.view">
+        <field name="name">hr.loan.line.search</field>
+        <field name="model">hr.loan.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="loan_id"/>
+                <filter name="pending" string="Pending" domain="[('state', '=', 'pending')]"/>
+                <filter name="paid" string="Paid" domain="[('state', '=', 'paid')]"/>
+                <filter name="skipped" string="Skipped" domain="[('state', '=', 'skipped')]"/>
+                <separator/>
+                <filter name="due_this_month" string="Due This Month"
+                        domain="[('state', '=', 'pending'),
+                                 ('due_date', '&gt;=', context_today().strftime('%Y-%m-01')),
+                                 ('due_date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
+                    <filter name="group_loan" string="Loan" context="{'group_by': 'loan_id'}"/>
+                    <filter name="group_month" string="Due Month" context="{'group_by': 'due_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_hr_loan_line" model="ir.actions.act_window">
+        <field name="name">Installments</field>
+        <field name="res_model">hr.loan.line</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="hr_loan_line_view_search"/>
+        <field name="context">{'search_default_pending': 1, 'search_default_group_month': 1}</field>
+    </record>
+
+</odoo>
