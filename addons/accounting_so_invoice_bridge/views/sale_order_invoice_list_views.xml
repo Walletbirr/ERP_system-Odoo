@@ -14,8 +14,12 @@
                 <field name="currency_id"/>
                 <field name="invoice_status" widget="badge"
                        decoration-success="invoice_status == 'to invoice'"/>
-                <field name="x_has_payment_proof" string="Payment Proof"/>
-                <field name="x_has_submitted_payment_proof" string="Proof Submitted"/>
+                <field name="x_payment_proof_status" string="Payment Proof" widget="badge"
+                       decoration-muted="x_payment_proof_status == 'none'"
+                       decoration-info="x_payment_proof_status == 'pending'"
+                       decoration-warning="x_payment_proof_status == 'submitted'"
+                       decoration-success="x_payment_proof_status == 'approved'"
+                       decoration-danger="x_payment_proof_status == 'rejected'"/>
             </list>
         </field>
     </record>
@@ -37,19 +41,10 @@
     </record>
 
     <!--
-        Menu placed inside Invoicing/Accounting > Customers, right next to
-        the normal Invoices menu, so Billing/Accountant users never need to
-        leave the Accounting app. Clicking a row opens the standard Sales
-        Order form (accountants already have read-only access to it), where
-        the "Create Invoice" button - now restricted to the dedicated
-        group_sale_invoice_creator group - does the actual work via Odoo's
-        native invoicing engine.
+        No menu entry any more: salespeople create the invoice from the
+        Sales app, and Accounting works from "Sales Invoices to Confirm".
+        The action and list view are kept (menu-less) in case another
+        module, e.g. a dashboard notification, still links to them.
     -->
-    <menuitem id="menu_account_so_invoice_wizard"
-              name="Create Invoice from Sales Order"
-              parent="account.menu_finance_receivables"
-              action="action_sale_order_to_invoice"
-              groups="account.group_account_invoice,account.group_account_user"
-              sequence="15"/>
 
 </odoo>

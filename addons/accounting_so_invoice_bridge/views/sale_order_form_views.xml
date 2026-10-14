@@ -2,153 +2,74 @@
 <odoo>
 
     <!--
-        Restricts the native "Create Invoice" button on the Sales Order
-        form so Salespeople / Sales Administrators can no longer see or
-        click it. The button is visible ONLY to:
-          - Anyone holding the dedicated custom group "Can Create
-            Invoice from Sales Order" (accounting_so_invoice_bridge.
-            group_sale_invoice_creator) - a manual override an admin
-            assigns directly to whoever should actually be able to
-            invoice, regardless of their native Invoicing level.
-          - Settings Administrators.
-        Odoo's native Invoicing field (Billing/Accountant, set on the
-        Users form's Access Rights tab) has NO effect on this button at
-        all, on purpose - that field can end up set on a user for
-        reasons unrelated to this module (or default onboarding data),
-        and trusting it here previously let the button leak to Sales
-        users it should never have reached. The dedicated group is the
-        single, explicit source of truth for who may invoice.
+        "Create Invoice" buttons on the Sales Order.
 
-        A further custom accounting-tier group with no relation to the
-        native levels (e.g. a locally created "Chief Accountant" group)
-        is NOT hardcoded here - wire it up without touching this module
-        at all via Settings > Users & Companies > Groups > that group >
-        Inherited Groups > add "Can Create Invoice from Sales Order".
-
-        This is on top of, not instead of, real ORM-level enforcement:
-        even if a Sales user somehow triggered this action another way,
-        they still lack create rights on account.move (invoices) unless
-        they also hold a native Accounting group, so the action would be
-        blocked server-side regardless. This view change just keeps the
-        button from appearing where it shouldn't.
+        New flow: the SALESPERSON creates the (draft) invoice, which
+        hands the order over to Accounting. Accounting alone reviews the
+        payment proof and confirms the invoice (enforced server side, see
+        models/account_move.py), so showing the button to salespeople is
+        safe. Visible to: Salespeople, the accountant group and Settings
+        Administrators (can_create_invoice). Odoo's native Invoicing
+        field is deliberately ignored.
     -->
     <record id="view_order_form_restrict_create_invoice" model="ir.ui.view">
         <field name="name">sale.order.form.restrict.create.invoice</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <!--
-                Confirmed from the actual sale.order form arch: both
-                "Create Invoice" buttons carry their own id attribute -
-                "create_invoice" (regular) and "create_invoice_percentage"
-                (down payment variant). Targeting by id is the most stable
-                selector available, immune to future action-id or naming
-                changes.
-
-                Two independent layers of restriction are applied, BOTH
-                now driven by the same dedicated custom group:
-                  1) "groups" - removes the button from the view entirely
-                     for anyone not in group_sale_invoice_creator or
-                     base.group_system.
-                  2) "invisible" - additionally requires the computed field
-                     can_create_invoice (server-side check of that same
-                     group) to be true, on top of each button's own
-                     original condition.
-                Both must agree for the button to show. Neither layer
-                looks at the native Invoicing field - a user's
-                Invoicing/Billing setting on their Users form is
-                completely irrelevant here; only explicit assignment of
-                the custom group (or being a Settings Administrator)
-                turns the button on.
-            -->
             <xpath expr="//button[@id='create_invoice']" position="before">
                 <field name="can_create_invoice" invisible="1"/>
                 <field name="x_has_submitted_payment_proof" invisible="1"/>
                 <field name="x_is_credit_payment_term" invisible="1"/>
+                <field name="x_payment_proof_status" invisible="1"/>
+                <field name="x_invoice_unlocked" invisible="1"/>
             </xpath>
             <xpath expr="//button[@id='create_invoice']" position="attributes">
-                <attribute name="groups">accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system</attribute>
-                <attribute name="invisible">invoice_status != 'to invoice' or not can_create_invoice</attribute>
+                <attribute name="invisible">invoice_status != 'to invoice' or not can_create_invoice or not x_invoice_unlocked</attribute>
             </xpath>
             <xpath expr="//button[@id='create_invoice_percentage']" position="attributes">
-                <attribute name="groups">accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system</attribute>
-                <attribute name="invisible">invoice_status != 'no' or state != 'sale' or not can_create_invoice</attribute>
+                <attribute name="invisible">invoice_status != 'no' or state != 'sale' or not can_create_invoice or not x_invoice_unlocked</attribute>
             </xpath>
-            <!--
-                Gentle, non-blocking nudge for the accountant: if the
-                "Create Invoice" button is showing but no proof has been
-                Submitted yet (and it's not a credit order, where proof
-                doesn't apply), flag it as a heads-up. Placed after
-                Cancel (the last button in the toolbar), with a little
-                left margin and vertically centred against the buttons,
-                rather than crowded right next to "Create Invoice" -
-                reads as a status note about the order, not a label on
-                any one button. This never blocks the click - Accounting
-                can still invoice without proof if that's genuinely fine
-                for this order.
-            -->
+            <!-- Invoices smart button: Accounting sees Odoo's normal invoice
+                 page, salespeople a read-only page without accounting
+                 detail (see sale.order.action_view_invoice). -->
+            <xpath expr="//button[@name='action_view_invoice']" position="attributes">
+                <attribute name="groups">sales_team.group_sale_salesman,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system</attribute>
+            </xpath>
+
+            <!-- Status hint next to the buttons: why Create Invoice is not
+                 there yet. It appears only once Accounting approved. -->
             <xpath expr="//button[@name='action_cancel']" position="after">
                 <span class="alert alert-warning py-1 px-2 mb-0 ms-3 d-inline-flex align-items-center"
                       role="alert"
-                      groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
-                      invisible="not can_create_invoice or invoice_status != 'to invoice' or x_has_submitted_payment_proof or x_is_credit_payment_term">
-                    <i class="fa fa-exclamation-triangle me-1" title="No payment proof submitted yet"/>
-                    No payment proof submitted yet
+                      invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_invoice_unlocked or x_payment_proof_status not in ('none', 'pending')">
+                    <i class="fa fa-exclamation-triangle me-1"/>
+                    Attach the payment proof and client ID, then press Submit
+                </span>
+                <span class="alert alert-info py-1 px-2 mb-0 ms-3 d-inline-flex align-items-center"
+                      role="alert"
+                      invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_invoice_unlocked or x_payment_proof_status != 'submitted'">
+                    <i class="fa fa-hourglass-half me-1"/>
+                    Waiting for Accounting to approve the payment proof
+                </span>
+                <span class="alert alert-danger py-1 px-2 mb-0 ms-3 d-inline-flex align-items-center"
+                      role="alert"
+                      invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_invoice_unlocked or x_payment_proof_status != 'rejected'">
+                    <i class="fa fa-times-circle me-1"/>
+                    Payment proof rejected: fix it and Resubmit (see Payment Proofs tab)
                 </span>
             </xpath>
         </field>
     </record>
+
     <!--
-        Payment proof: the salesperson's side of this same Sales <->
-        Accounting bridge. Odoo's online payment integration isn't used
-        here - the customer pays some other way (bank transfer, mobile
-        money, etc.) and the salesperson attaches a screenshot/scan of
-        that payment as proof, so Accounting can see it when they create
-        the invoice instead of needing to be told about it verbally.
+        Payment proof tab + status stat button.
 
-        The log only ever appears on a CONFIRMED Sales Order
-        (state == 'sale'). Before confirmation there is no invoice to
-        pay against yet, so asking for proof earlier was a mismatch with
-        the actual process - this matches the sale.order.payment.proof
-        model's own _check_order_is_confirmed constraint, which refuses
-        to let a proof be created on a non-confirmed order even if
-        someone bypassed this view entirely.
-
-        No approval workflow - the payment already happened by the time
-        a proof exists, so there is nothing for Accounting to approve or
-        reject. Each line is just Pending (salesperson still
-        attaching/fixing the file) -> Submitted (salesperson has
-        confirmed it's ready). Nothing here is required, since the
-        customer may pay some time after confirmation - saving/confirming
-        the order is never blocked by this tab.
-
-        Page visible to Sales, Accounting, and Admins alike (see
-        "groups" on the page below) - but whether it's EDITABLE is
-        driven per-user by the payment_proof_editable compute field
-        (see models/sale_order.py), which now keys off the dedicated
-        "Can Create Invoice from Sales Order" group rather than Odoo's
-        native Invoicing field:
-          1) Sales who do NOT hold the dedicated accountant group: a
-             fully editable list - add a line, upload/replace the file
-             while Pending, click Submit when ready, or Reopen an
-             already-Submitted line to fix a mistake. No one needs to
-             approve a Reopen; it's self-service.
-          2) Anyone holding the dedicated accountant group (or Settings
-             Administrators): a strictly read-only list (no add, no
-             edit, no delete) - they can open/download any attached
-             file and see its status, but never touch it.
-          3) A native Billing/Accountant user with no dedicated group
-             still sees this page (their own ir.model.access.csv/
-             ir.rule grants read access - see security.xml) and gets
-             the read-only rendering too, since they don't match
-             Sales in payment_proof_editable's fallback branch either.
-
-        Hidden entirely (the whole tab) whenever the selected Payment
-        Terms' name contains the word "credit" (case-insensitive) -
-        e.g. "Credit 30 Days" - since there is nothing to prove yet for
-        an order settled later on credit. Visible by default otherwise
-        once confirmed, including when no Payment Terms has been picked
-        yet.
+        Lifecycle of each line: Pending -> Awaiting Approval (salesperson
+        presses Submit) -> Approved or Rejected (accountant). A rejected
+        line goes back to the salesperson, who fixes the file and presses
+        Resubmit. Salespeople edit; accountants only Approve / Reject.
+        The tab is hidden for credit orders (no proof needed).
     -->
     <record id="view_order_form_payment_proof" model="ir.ui.view">
         <field name="name">sale.order.form.payment.proof</field>
@@ -158,32 +79,41 @@
             <xpath expr="//field[@name='payment_term_id']" position="after">
                 <field name="x_is_credit_payment_term" invisible="1"/>
             </xpath>
-            <!--
-                Header stat buttons: quick-glance payment-proof status
-                without opening the "Payment Proofs" tab first. Three
-                mutually-exclusive variants (same click target, different
-                icon/label) so the colour tells the story at a glance:
-                green = proof Submitted, orange = proof attached but
-                still Pending, grey = nothing uploaded yet. Same
-                audience as the tab itself (Sales + Accounting +
-                Admins) - other roles never see it.
-            -->
+
             <xpath expr="//div[@name='button_box']" position="inside">
                 <field name="x_has_payment_proof" invisible="1"/>
-                <field name="x_has_submitted_payment_proof" invisible="1"/>
+                <field name="x_payment_proof_status" invisible="1"/>
                 <button type="object" name="action_view_payment_proofs"
                         class="oe_stat_button" icon="fa-check-circle text-success"
-                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user"
-                        invisible="state != 'sale' or x_is_credit_payment_term or not x_has_submitted_payment_proof">
+                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator"
+                        invisible="state != 'sale' or x_is_credit_payment_term or x_payment_proof_status != 'approved'">
                     <div class="o_stat_info">
                         <span class="o_stat_text">Payment Proof</span>
-                        <span class="o_stat_text">Submitted</span>
+                        <span class="o_stat_text">Approved</span>
                     </div>
                 </button>
                 <button type="object" name="action_view_payment_proofs"
-                        class="oe_stat_button" icon="fa-clock-o text-warning"
-                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user"
-                        invisible="state != 'sale' or x_is_credit_payment_term or not x_has_payment_proof or x_has_submitted_payment_proof">
+                        class="oe_stat_button" icon="fa-hourglass-half text-warning"
+                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator"
+                        invisible="state != 'sale' or x_is_credit_payment_term or x_payment_proof_status != 'submitted'">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Payment Proof</span>
+                        <span class="o_stat_text">Awaiting Approval</span>
+                    </div>
+                </button>
+                <button type="object" name="action_view_payment_proofs"
+                        class="oe_stat_button" icon="fa-times-circle text-danger"
+                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator"
+                        invisible="state != 'sale' or x_is_credit_payment_term or x_payment_proof_status != 'rejected'">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Payment Proof</span>
+                        <span class="o_stat_text">Rejected</span>
+                    </div>
+                </button>
+                <button type="object" name="action_view_payment_proofs"
+                        class="oe_stat_button" icon="fa-clock-o text-info"
+                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator"
+                        invisible="state != 'sale' or x_is_credit_payment_term or x_payment_proof_status != 'pending'">
                     <div class="o_stat_info">
                         <span class="o_stat_text">Payment Proof</span>
                         <span class="o_stat_text">Pending</span>
@@ -191,89 +121,72 @@
                 </button>
                 <button type="object" name="action_view_payment_proofs"
                         class="oe_stat_button" icon="fa-upload text-muted"
-                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user"
-                        invisible="state != 'sale' or x_is_credit_payment_term or x_has_payment_proof">
+                        groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator"
+                        invisible="state != 'sale' or x_is_credit_payment_term or x_payment_proof_status != 'none'">
                     <div class="o_stat_info">
                         <span class="o_stat_text">Payment Proof</span>
                         <span class="o_stat_text">Not Uploaded</span>
                     </div>
                 </button>
             </xpath>
-            <xpath expr="//page[@name='other_information']" position="before">
-                <!--
-                    A SINGLE rendering of payment_proof_ids, visible to
-                    Sales and Accounting alike (see "groups" on the page
-                    below), whose editability is driven per-user by the
-                    payment_proof_editable compute field rather than by
-                    duplicating the whole <field> block per audience.
 
-                    Rendering the field twice (once per audience, each
-                    gated by its own "groups" attribute) used to make
-                    BOTH copies appear together for any user who matched
-                    both group sets at once - e.g. Administrator, who is
-                    auto-added to the top group of every installed app,
-                    including Accounting - producing two stacked,
-                    malformed tables. A single field with dynamic
-                    readonly/create/delete cannot double up like that.
-                -->
+            <xpath expr="//page[@name='other_information']" position="before">
                 <page name="payment_proofs" string="Payment Proofs"
                       invisible="state != 'sale' or x_is_credit_payment_term"
-                      groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user">
+                      groups="sales_team.group_sale_salesman,base.group_system,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator">
                     <field name="payment_proof_editable" invisible="1"/>
                     <field name="payment_proof_ids">
                         <list editable="bottom"
                               create="parent.payment_proof_editable"
-                              delete="parent.payment_proof_editable">
+                              delete="parent.payment_proof_editable"
+                              decoration-danger="state == 'rejected'"
+                              decoration-success="state == 'approved'">
                             <field name="uploaded_date" readonly="1"/>
                             <field name="uploaded_by" readonly="1"/>
-                            <!--
-                                Two mutually-exclusive "File" columns.
-                                Deliberately row-level "invisible" here,
-                                NOT "column_invisible" - column_invisible
-                                can only toggle a column on/off for the
-                                WHOLE list at once (fine for something
-                                constant per viewer like payment_proof_
-                                editable, but it can't also react to
-                                THIS row's own state). Since a Sales user
-                                needs different treatment for their own
-                                Pending vs. Submitted rows - the upload
-                                widget while still Pending, the same
-                                clean download_link Accounting sees once
-                                Submitted - the state condition has to be
-                                evaluated per row, which only plain
-                                "invisible" (not column_invisible) does:
-                                  - download_link (server-rendered,
-                                    always a correct clickable filename +
-                                    icon - see the field's help text):
-                                    shown to Accounting always, and to
-                                    Sales once a row is Submitted (no
-                                    more editing needed at that point).
-                                  - proof_file (the real Binary field,
-                                    needed for the actual upload/replace
-                                    control): shown to Sales only, and
-                                    only while a row is still Pending -
-                                    exactly the state where they still
-                                    need to attach or fix the file.
-                            -->
-                            <field name="download_link" widget="html" string="File"
-                                   invisible="parent.payment_proof_editable and state != 'submitted'"/>
+                            <!-- ONE column per file. Salespeople (editable) get the
+                                 upload widget; accountants (read-only) get the
+                                 download link. Never both, so no duplicate headers. -->
                             <field name="proof_filename" column_invisible="1"/>
                             <field name="proof_file" filename="proof_filename"
-                                   string="File"
-                                   invisible="not parent.payment_proof_editable or state == 'submitted'"
-                                   readonly="not parent.payment_proof_editable or state == 'submitted'"/>
+                                   string="Payment Proof"
+                                   column_invisible="not parent.payment_proof_editable"
+                                   readonly="state not in ('pending', 'rejected')"/>
+                            <field name="download_link" widget="html" string="Payment Proof"
+                                   column_invisible="parent.payment_proof_editable"/>
+                            <field name="client_id_filename" column_invisible="1"/>
+                            <field name="client_id_file" filename="client_id_filename"
+                                   string="Client ID"
+                                   column_invisible="not parent.payment_proof_editable"
+                                   readonly="state not in ('pending', 'rejected')"/>
+                            <field name="client_id_link" widget="html" string="Client ID"
+                                   column_invisible="parent.payment_proof_editable"/>
                             <field name="notes"
-                                   readonly="not parent.payment_proof_editable or state == 'submitted'"/>
+                                   readonly="not parent.payment_proof_editable or state not in ('pending', 'rejected')"/>
                             <field name="state" widget="badge"
                                    decoration-info="state == 'pending'"
-                                   decoration-success="state == 'submitted'"
+                                   decoration-warning="state == 'submitted'"
+                                   decoration-success="state == 'approved'"
+                                   decoration-danger="state == 'rejected'"
                                    readonly="1"/>
+                            <field name="reject_reason" readonly="1"
+                                   invisible="state != 'rejected'"/>
                             <button name="action_submit" type="object"
-                                    string="Submit" icon="fa-check"
+                                    string="Submit" icon="fa-paper-plane"
                                     invisible="not parent.payment_proof_editable or state != 'pending'"/>
+                            <button name="action_submit" type="object"
+                                    string="Resubmit" icon="fa-repeat"
+                                    invisible="not parent.payment_proof_editable or state != 'rejected'"/>
                             <button name="action_reopen" type="object"
                                     string="Reopen" icon="fa-undo"
                                     invisible="not parent.payment_proof_editable or state != 'submitted'"/>
+                            <button name="action_approve" type="object"
+                                    string="Approve" icon="fa-check text-success"
+                                    groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                    invisible="state != 'submitted'"/>
+                            <button name="action_open_reject_wizard" type="object"
+                                    string="Reject" icon="fa-times text-danger"
+                                    groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                    invisible="state != 'submitted'"/>
                         </list>
                     </field>
                 </page>
