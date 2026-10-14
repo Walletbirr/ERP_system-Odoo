@@ -1,7 +1,7 @@
 name: Deploy Odoo
 
-# jk   -> UAT server        (new deploy script)
-# main -> production server (original steps, unchanged, until production is migrated)
+# jk   -> UAT server        (deploy script)
+# main -> production server (copy files into /opt/odoo, restart)
 on:
   push:
     branches:
@@ -10,8 +10,7 @@ on:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # UAT: runs only on the runner labelled "uat", only for pushes to jk.
-  # The server pulls the code itself (branch set in /etc/odoo-deploy.conf).
+  # UAT: only the runner labelled "uat", only for pushes to jk.
   # ---------------------------------------------------------------------------
   deploy-uat:
     if: github.ref == 'refs/heads/jk'
@@ -37,53 +36,54 @@ jobs:
           journalctl -u odoo -n 50 --no-pager || true
 
   # ---------------------------------------------------------------------------
-  # Production: original deploy steps, unchanged.
-  # Runs only on the runner labelled "production", only for pushes to main.
-  # TODO: replace these steps with the deploy script once production is migrated.
+  # Production: only for pushes to main.
+  # The first step refuses to run anywhere except the production runner
+  # (named "debian"), because the "Linux" label is shared with the UAT runner.
   # ---------------------------------------------------------------------------
   deploy-production:
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, production]
-    environment: production        # optional: add required reviewers in GitHub settings
+    runs-on: [self-hosted, Linux]
+    environment: production
     concurrency:
       group: deploy-production
       cancel-in-progress: false
     steps:
+      - name: Guard - only the production runner may deploy
+        run: |
+          if [ "$RUNNER_NAME" != "debian" ]; then
+            echo "Refusing to run on runner '$RUNNER_NAME' (expected 'debian')" >&2
+            exit 1
+          fi
+
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Stop Odoo
+      # Fails here, before anything is changed, if a sudo rule is missing.
+      - name: Preflight - check permissions
         run: |
-          sudo systemctl stop odoo
+          sudo -n -l -u walletadmin /usr/bin/rsync -a --no-owner --no-group --exclude=.git --exclude=venv --exclude=__pycache__ ./ /opt/odoo/ >/dev/null
+          sudo -n -l /usr/bin/systemctl restart odoo >/dev/null
+          echo "All required permissions are in place"
 
-      - name: Deploy Odoo source
+      - name: Copy Odoo source to /opt/odoo
         run: |
-          sudo rsync -a \
-            --exclude='.git' \
-            --exclude='venv' \
-            --exclude='__pycache__' \
+          sudo -n -u walletadmin /usr/bin/rsync -a --no-owner --no-group \
+            --exclude=.git \
+            --exclude=venv \
+            --exclude=__pycache__ \
             ./ /opt/odoo/
 
-      - name: Set permissions
+      - name: Restart Odoo
         run: |
-          sudo chown -R walletadmin:walletadmin /opt/odoo
-
-      - name: Install Python dependencies
-        run: |
-          cd /opt/odoo
-          source venv/bin/activate
-          pip install -r requirements.txt
-
-      - name: Start Odoo
-        run: |
-          sudo systemctl start odoo
+          sudo -n /usr/bin/systemctl restart odoo
 
       - name: Check Odoo service
         run: |
-          sudo systemctl is-active --quiet odoo
+          sleep 10
+          systemctl is-active --quiet odoo
 
       - name: Show Odoo status
         if: always()
         run: |
-          sudo systemctl status odoo --no-pager
-          sudo journalctl -u odoo -n 50 --no-pager
+          systemctl status odoo --no-pager || true
+          sudo -n /usr/bin/journalctl -u odoo -n 50 --no-pager || true
