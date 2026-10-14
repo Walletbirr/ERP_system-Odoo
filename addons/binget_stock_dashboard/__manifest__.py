@@ -1,6 +1,6 @@
 {
     'name': 'Binget Stock Dashboard',
-    'version': '18.0.3.20.0',
+    'version': '18.0.3.21.0',
     'summary': 'Premium Stock dashboard + unified Products catalog (auto install & clean uninstall)',
     'description': """
 Install (Apps → Activate)

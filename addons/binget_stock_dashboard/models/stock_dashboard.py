@@ -80,7 +80,7 @@ class BingetStockDashboard(models.AbstractModel):
             if not product:
                 continue
             units += qty
-            value += qty * product.standard_price
+            value += qty * product.list_price
             reorder_min = self._get_reorder_min(product, warehouse)
             if qty <= 0:
                 out_of_stock += 1
@@ -190,7 +190,7 @@ class BingetStockDashboard(models.AbstractModel):
                 'incoming': incoming,
                 'outgoing': outgoing,
                 'reserved': reserved,
-                'value': on_hand * product.standard_price,
+                'value': on_hand * product.list_price,
                 'status': row_status,
                 'tracking': tracking,
                 'is_tracked': tracking in ('lot', 'serial'),
@@ -393,7 +393,7 @@ class BingetStockDashboard(models.AbstractModel):
         total = len(rows)
         page = rows[offset:offset + limit]
         total_on_hand = sum(r['on_hand'] for r in rows)
-        total_value = sum(r['on_hand'] * (r['standard_price'] or r['list_price'] or 0) for r in rows)
+        total_value = sum(r['on_hand'] * (r['list_price'] or 0) for r in rows)
 
         return {
             'rows': page,
