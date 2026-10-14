@@ -27,7 +27,7 @@ In addition to the standard Odoo functionality, several customizations have been
 
 ### Financial Reports
 
-- Trial Balance
+- Trial Balances
 - General Ledger
 - Partner Ledger
 - Cash Book
