@@ -222,6 +222,8 @@
                                 <field name="x_bd_other_income"/>
                                 <field name="x_bd_before_vat"/>
                                 <field name="x_bd_vat"/>
+                                <field name="x_bd_total_before_wht" invisible="not x_bd_wht"/>
+                                <field name="x_bd_wht" invisible="not x_bd_wht"/>
                                 <field name="x_bd_total" class="oe_subtotal_footer_separator"/>
                             </group>
                         </page>

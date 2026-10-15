@@ -1,5 +1,12 @@
 import logging
 
+try:
+    from odoo.addons.custom_invoice_management.models.account_move import \
+        cim_is_wht_tax
+except ImportError:  # pragma: no cover
+    def cim_is_wht_tax(tax):
+        return False
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
@@ -51,49 +58,68 @@ class AccountMove(models.Model):
     x_bd_vat = fields.Monetary(
         compute='_compute_x_sales_breakdown', currency_field='currency_id',
         string='VAT')
+    x_bd_total_before_wht = fields.Monetary(
+        compute='_compute_x_sales_breakdown', currency_field='currency_id',
+        string='Total Before WHT')
+    x_bd_wht = fields.Monetary(
+        compute='_compute_x_sales_breakdown', currency_field='currency_id',
+        string='Withholding Tax')
     x_bd_total = fields.Monetary(
         compute='_compute_x_sales_breakdown', currency_field='currency_id',
         string='Total')
 
     @api.model
-    def _cim_is_other_income_line(self, line):
-        """The one place that decides what "Other Income" is. A line is
-        Other Income when it is not coming from a Sales Order line (the
-        order shows the product only) or when its product/label says so.
-        Adjust here if your setup identifies it differently."""
+    def _cim_is_other_income_line(self, line, service_product=None):
+        """The one place that decides what "Other Income" is: the line of
+        the Service Charge product that custom_invoice_management creates
+        when balancing (renamed "Other Income" by
+        custom_invoice_management_sale). Only if that product can't be
+        found do we fall back on the label."""
+        if service_product:
+            return line.product_id == service_product
         label = (line.product_id.name or line.name or '').strip().lower()
-        return not line.sale_line_ids or label == 'other income'
+        return label == 'other income'
 
     @api.depends('invoice_line_ids.price_subtotal',
                  'invoice_line_ids.price_total',
                  'invoice_line_ids.tax_ids',
-                 'invoice_line_ids.sale_line_ids',
-                 'invoice_line_ids.display_type',
                  'invoice_line_ids.product_id',
-                 'amount_total', 'currency_id')
+                 'invoice_line_ids.display_type',
+                 'amount_total', 'amount_tax', 'currency_id')
     def _compute_x_sales_breakdown(self):
+        """Same split as the Sales Order totals box
+        (custom_invoice_management_sale._compute_cim_totals), so the order,
+        the invoice page and the invoice PDF always show the same figures:
+        Excise = tax that affects the base of later taxes, Withholding =
+        negative tax, VAT = what is left."""
+        service_product = self.env.ref(
+            'custom_invoice_management.product_service_charge',
+            raise_if_not_found=False)
+        Tax = self.env['account.tax']
         for move in self:
             lines = move.invoice_line_ids.filtered(
                 lambda l: l.display_type == 'product')
-            other = lines.filtered(self._cim_is_other_income_line)
+            other = lines.filtered(
+                lambda l: self._cim_is_other_income_line(l, service_product))
             sold = lines - other
             cur = move.currency_id or move.company_id.currency_id
             untaxed = sum(sold.mapped('price_subtotal'))
             other_income = sum(other.mapped('price_subtotal'))
-            excise = 0.0
-            for line in sold:
-                excise_taxes = line.tax_ids.filtered(
-                    lambda t: 'excise' in (t.name or '').lower())
-                if not excise_taxes:
-                    continue
-                res = line.tax_ids.compute_all(
+            excise = wht = 0.0
+            for line in lines.filtered('tax_ids'):
+                details = line.tax_ids.compute_all(
                     line.price_unit * (1 - (line.discount or 0.0) / 100.0),
                     currency=cur, quantity=line.quantity,
                     product=line.product_id, partner=move.partner_id,
                     is_refund=move.move_type == 'out_refund')
-                excise += sum(t['amount'] for t in res['taxes']
-                              if t['id'] in excise_taxes.ids)
+                for detail in details['taxes']:
+                    tax = Tax.browse(detail['id'])
+                    if cim_is_wht_tax(tax):
+                        wht += detail['amount']
+                    elif tax.include_base_amount:
+                        excise += detail['amount']
             excise = cur.round(excise)
+            wht = cur.round(wht)
             subtotal = untaxed + excise
             before_vat = subtotal + other_income
             move.x_sales_line_ids = sold
@@ -102,10 +128,35 @@ class AccountMove(models.Model):
             move.x_bd_subtotal = subtotal
             move.x_bd_other_income = other_income
             move.x_bd_before_vat = before_vat
-            # VAT is what is left of the invoice total: the breakdown
-            # always adds up to the real total.
-            move.x_bd_vat = move.amount_total - before_vat
+            move.x_bd_vat = move.amount_tax - excise - wht
+            move.x_bd_wht = wht
+            move.x_bd_total_before_wht = move.amount_total - wht
             move.x_bd_total = move.amount_total
+
+    # ------------------------------------------------------------------
+    # Customer invoice PDF
+    # ------------------------------------------------------------------
+    def _get_name_invoice_report(self):
+        """Customer invoices / credit notes print with the sales invoice
+        template (report/report_invoice_sales.xml)."""
+        self.ensure_one()
+        if self.move_type in ('out_invoice', 'out_refund'):
+            return 'accounting_so_invoice_bridge.report_invoice_document_sales'
+        return super()._get_name_invoice_report()
+
+    def _bridge_delivery_date(self):
+        """Delivery date for the PDF: the invoice's own Delivery Date when
+        Odoo has it, else the date the order was delivered."""
+        self.ensure_one()
+        date = self.delivery_date if 'delivery_date' in self._fields else False
+        return date or self.x_sale_order_ids[:1].effective_date or False
+
+    def _bridge_amount_in_words(self):
+        self.ensure_one()
+        try:
+            return self.currency_id.amount_to_text(self.amount_total) or ''
+        except Exception:
+            return ''
 
     @api.depends('invoice_line_ids.sale_line_ids.order_id')
     def _compute_x_sale_order_ids(self):

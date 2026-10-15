@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.15.3.0',
+    'version': '18.0.17.0.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -20,6 +20,11 @@ Sales -> Accounting workflow with Payment Proof approval
 6. The invoice is created as DRAFT; Accounting is notified a second time,
    checks the accounting setup (accounts, taxes, amounts) and confirms it.
    Only Accounting can confirm.
+   BRANCH: the quotation has a Branch (where the sale happened, reporting)
+   and a Deduction Branch (warehouse the stock leaves from); products not
+   available in the Deduction Branch trigger a warning and block Confirm.
+8. The customer invoice PDF uses a sales-invoice design: seller/buyer cards,
+   info strip, products only (no Other Income line) and the full price breakdown.
 7. The salesperson can open the invoice afterwards on a read-only page
    (customer, dates, products sold, the same price breakdown as the order, proof status) without any accounting
    detail (no accounts, journal items, balance, chatter).
@@ -35,15 +40,17 @@ before ("Can Create Invoice from Sales Order"), now renamed.
 """,
     'author': 'Custom Development',
     'license': 'LGPL-3',
-    'depends': ['sale', 'account', 'bus', 'mail', 'sale_credit_approval',
+    'depends': ['sale', 'sale_stock', 'account', 'bus', 'mail', 'sale_credit_approval',
                 'custom_invoice_management'],
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',
         'views/sale_order_payment_proof_popup_views.xml',
         'views/sale_order_form_views.xml',
+        'views/sale_order_branch_views.xml',
         'views/sale_order_invoice_list_views.xml',
         'views/account_move_views.xml',
+        'report/report_invoice_sales.xml',
     ],
     'installable': True,
     'application': False,
