@@ -18,8 +18,9 @@ INVOICE_READY_SUMMARY = 'Payment approved: create the invoice'
 # Only the Submit / Reopen / Approve / Reject buttons may change these.
 PROTECTED_FIELDS = {
     'state', 'submitted_date', 'reviewed_by', 'reviewed_date',
-    'reject_reason',
+    'reject_reason', 'payment_journal_id',
 }
+PREVIEW_IMAGE_EXT = ('png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg')
 # The salesperson's content: frozen once submitted or approved.
 CONTENT_FIELDS = {'proof_file', 'proof_filename', 'client_id_file',
                   'client_id_filename', 'notes'}
@@ -77,6 +78,15 @@ class SaleOrderPaymentProof(models.Model):
         string='Reviewed On', readonly=True, copy=False)
     reject_reason = fields.Text(
         string='Rejection Reason', readonly=True, copy=False)
+    payment_journal_id = fields.Many2one(
+        'account.journal', string='Payment Journal', readonly=True,
+        copy=False, domain="[('type', 'in', ('bank', 'cash'))]",
+        help="Chosen by the accountant when approving: the journal the "
+             "customer's payment went into. It comes preselected on the "
+             "invoice's Pay dialog.")
+    preview_links = fields.Html(
+        string='Preview', compute='_compute_download_link', sanitize=False,
+        help='Preview links for both files (used in the salesperson list).')
     client_id_link = fields.Html(
         string='Client ID',
         compute='_compute_download_link',
@@ -106,17 +116,59 @@ class SaleOrderPaymentProof(models.Model):
             raise AccessError(_(
                 "Only Accounting can approve or reject a payment proof."))
 
+    def _file_url(self, field_name, filename, download):
+        self.ensure_one()
+        url = '/web/content/sale.order.payment.proof/%s/%s?filename=%s' % (
+            self.id, field_name, quote(filename))
+        if download:
+            return url + '&download=true'
+        # Inline URL (no download=true): the browser / our overlay shows
+        # the file instead of saving it. The timestamp avoids a stale
+        # cached copy after the file was replaced.
+        stamp = int(self.write_date.timestamp()) if self.write_date else 0
+        return '%s&ts=%s' % (url, stamp)
+
+    def _preview_kind(self, filename):
+        ext = (filename or '').rsplit('.', 1)[-1].lower() \
+            if '.' in (filename or '') else ''
+        if ext in PREVIEW_IMAGE_EXT:
+            return 'image'
+        if ext == 'pdf':
+            return 'pdf'
+        return False
+
+    def _preview_anchor(self, field_name, filename_field, default_name,
+                        label=None):
+        """Eye icon that opens the file in the in-app viewer (or a new tab
+        when JavaScript is not loaded). Empty if the file can not be
+        shown inline (then only the download link exists)."""
+        self.ensure_one()
+        if not (self[field_name] and isinstance(self.id, int)):
+            return Markup('')
+        filename = self[filename_field] or default_name
+        kind = self._preview_kind(filename)
+        if not kind:
+            return Markup('')
+        return Markup(
+            '<a href="%s" target="_blank" class="o_ab_preview me-2" '
+            'data-ab-kind="%s" data-ab-title="%s" data-ab-download="%s" '
+            'title="%s"><i class="fa fa-eye me-1"></i>%s</a>'
+        ) % (self._file_url(field_name, filename, False), kind,
+             filename, self._file_url(field_name, filename, True),
+             _('Preview without downloading'),
+             escape(label) if label else '')
+
     def _file_link(self, field_name, filename_field, default_name):
         self.ensure_one()
         if self[field_name] and isinstance(self.id, int):
             filename = self[filename_field] or default_name
-            url = ('/web/content/sale.order.payment.proof/%s/%s'
-                   '?download=true&filename=%s'
-                   % (self.id, field_name, quote(filename)))
+            url = self._file_url(field_name, filename, True)
             return Markup(
-                '<a href="%s" target="_blank" class="o_form_uri">'
-                '<i class="fa fa-download me-1"/>%s</a>'
-            ) % (url, escape(filename))
+                '%s<a href="%s" target="_blank" class="o_form_uri" '
+                'title="%s"><i class="fa fa-download me-1"></i>%s</a>'
+            ) % (self._preview_anchor(field_name, filename_field,
+                                      default_name),
+                 url, _('Download'), escape(filename))
         return False
 
     @api.depends('proof_file', 'proof_filename',
@@ -127,6 +179,14 @@ class SaleOrderPaymentProof(models.Model):
                 'proof_file', 'proof_filename', _('payment_proof'))
             proof.client_id_link = proof._file_link(
                 'client_id_file', 'client_id_filename', _('client_id'))
+            parts = [
+                proof._preview_anchor('proof_file', 'proof_filename',
+                                      _('payment_proof'), _('Proof')),
+                proof._preview_anchor('client_id_file', 'client_id_filename',
+                                      _('client_id'), _('Client ID')),
+            ]
+            parts = [p for p in parts if p]
+            proof.preview_links = Markup('').join(parts) if parts else False
 
     def _post_note(self, body):
         """Silent audit-trail note on the order and its draft invoices.
@@ -236,21 +296,50 @@ class SaleOrderPaymentProof(models.Model):
     # ------------------------------------------------------------------
     # Accountant actions
     # ------------------------------------------------------------------
-    def action_approve(self):
+    def action_open_approve_wizard(self):
+        """Approve = pick the journal the payment arrived in first."""
         self._check_reviewer()
         for proof in self:
             if proof.state != 'submitted':
                 raise UserError(_(
                     'Only a payment proof that is awaiting approval can be '
                     'approved.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Approve Payment Proof'),
+            'res_model': 'sale.order.payment.proof.approve.wizard',
+            'view_mode': 'form',
+            'views': [(False, 'form')],
+            'target': 'new',
+            'context': {'default_proof_ids': [(6, 0, self.ids)]},
+        }
+
+    def action_approve(self, journal=None):
+        self._check_reviewer()
+        if not journal:
+            raise UserError(_(
+                "Select the journal the payment was received in."))
+        for proof in self:
+            if proof.state != 'submitted':
+                raise UserError(_(
+                    'Only a payment proof that is awaiting approval can be '
+                    'approved.'))
+            if journal.type not in ('bank', 'cash') or (
+                    journal.company_id != proof.sale_order_id.company_id):
+                raise UserError(_(
+                    "The journal must be a bank or cash journal of the "
+                    "company of order %s.", proof.sale_order_id.name))
         self.sudo().write({
             'state': 'approved',
+            'payment_journal_id': journal.id,
             'reviewed_by': self.env.user.id,
             'reviewed_date': fields.Datetime.now(),
             'reject_reason': False,
         })
         self._post_note(_(
-            "%(user)s approved the payment proof.", user=self.env.user.name))
+            "%(user)s approved the payment proof (payment journal: "
+            "%(journal)s).", user=self.env.user.name,
+            journal=journal.display_name))
         self._safe(self._close_review_activities, _("Payment proof approved."))
         self._safe(self._notify_sales_approved)
 

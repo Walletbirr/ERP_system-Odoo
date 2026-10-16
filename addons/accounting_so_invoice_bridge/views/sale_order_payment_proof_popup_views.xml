@@ -17,13 +17,16 @@
                 <field name="download_link" widget="html" string="Payment Proof"/>
                 <field name="client_id_link" widget="html" string="Client ID"/>
                 <field name="notes"/>
+                <field name="payment_journal_id" string="Journal"
+                       groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                       invisible="state != 'approved'"/>
                 <field name="state" widget="badge"
                        decoration-info="state == 'pending'"
                        decoration-warning="state == 'submitted'"
                        decoration-success="state == 'approved'"
                        decoration-danger="state == 'rejected'"/>
                 <field name="reject_reason" invisible="state != 'rejected'"/>
-                <button name="action_approve" type="object"
+                <button name="action_open_approve_wizard" type="object"
                         string="Approve" icon="fa-check text-success"
                         groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
                         invisible="state != 'submitted'"/>
@@ -41,7 +44,7 @@
         <field name="arch" type="xml">
             <form string="Payment Proof" create="false" edit="false" delete="false">
                 <header>
-                    <button name="action_approve" type="object" string="Approve"
+                    <button name="action_open_approve_wizard" type="object" string="Approve"
                             class="btn-primary"
                             groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
                             invisible="state != 'submitted'"/>
@@ -63,12 +66,43 @@
                             <field name="download_link" widget="html" string="Payment Proof"/>
                             <field name="client_id_link" widget="html" string="Client ID"/>
                             <field name="notes"/>
+                            <field name="payment_journal_id"
+                                   groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                   invisible="not payment_journal_id"/>
                             <field name="reviewed_by" invisible="not reviewed_by"/>
                             <field name="reviewed_date" invisible="not reviewed_date"/>
                             <field name="reject_reason" invisible="state != 'rejected'"/>
                         </group>
                     </group>
                 </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Approve wizard: the accountant says which journal the payment went to -->
+    <record id="view_payment_proof_approve_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.approve.wizard.form</field>
+        <field name="model">sale.order.payment.proof.approve.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Approve Payment Proof">
+                <field name="proof_ids" widget="many2many_tags" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <group>
+                    <field name="preview_html" widget="html" string="Check files"
+                           invisible="not preview_html"/>
+                    <field name="journal_id"
+                           options="{'no_create': True, 'no_open': True}"
+                           placeholder="Bank / cash journal the payment was received in"/>
+                </group>
+                <div class="text-muted">
+                    This journal will be preselected when the invoice of this
+                    order is paid.
+                </div>
+                <footer>
+                    <button name="action_approve" type="object" string="Approve"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
             </form>
         </field>
     </record>

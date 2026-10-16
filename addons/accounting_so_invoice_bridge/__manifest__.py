@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.17.0.0',
+    'version': '18.0.21.0.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -40,18 +40,26 @@ before ("Can Create Invoice from Sales Order"), now renamed.
 """,
     'author': 'Custom Development',
     'license': 'LGPL-3',
-    'depends': ['sale', 'sale_stock', 'account', 'bus', 'mail', 'sale_credit_approval',
+    'depends': ['sale', 'sale_stock', 'stock', 'account', 'bus', 'mail', 'sale_credit_approval',
                 'custom_invoice_management'],
     'data': [
+        'data/sale_stock_request_data.xml',
         'security/security.xml',
         'security/ir.model.access.csv',
         'views/sale_order_payment_proof_popup_views.xml',
         'views/sale_order_form_views.xml',
         'views/sale_order_branch_views.xml',
+        'views/sale_stock_request_views.xml',
         'views/sale_order_invoice_list_views.xml',
         'views/account_move_views.xml',
         'report/report_invoice_sales.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'accounting_so_invoice_bridge/static/src/js/stock_warning_request.js',
+            'accounting_so_invoice_bridge/static/src/js/proof_preview.js',
+        ],
+    },
     'installable': True,
     'application': False,
 }

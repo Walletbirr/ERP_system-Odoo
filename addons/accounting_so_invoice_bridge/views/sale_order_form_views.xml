@@ -160,6 +160,8 @@
                                    readonly="state not in ('pending', 'rejected')"/>
                             <field name="client_id_link" widget="html" string="Client ID"
                                    column_invisible="parent.payment_proof_editable"/>
+                            <field name="preview_links" widget="html" string="Preview"
+                                   column_invisible="not parent.payment_proof_editable"/>
                             <field name="notes"
                                    readonly="not parent.payment_proof_editable or state not in ('pending', 'rejected')"/>
                             <field name="state" widget="badge"
@@ -179,7 +181,7 @@
                             <button name="action_reopen" type="object"
                                     string="Reopen" icon="fa-undo"
                                     invisible="not parent.payment_proof_editable or state != 'submitted'"/>
-                            <button name="action_approve" type="object"
+                            <button name="action_open_approve_wizard" type="object"
                                     string="Approve" icon="fa-check text-success"
                                     groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
                                     invisible="state != 'submitted'"/>

@@ -3,6 +3,10 @@ from odoo.exceptions import UserError
 from odoo.tools import float_compare
 
 PARAM_BLOCK = 'accounting_so_invoice_bridge.block_unavailable_stock'
+# Invisible marker at the end of the warning text. The small JS patch in
+# static/src/js/stock_warning_request.js looks for it to add the
+# "Request Stock" button next to Close (independent of the language).
+STOCK_WARNING_MARKER = '\u2063\u2063'
 
 
 class SaleOrder(models.Model):
@@ -106,9 +110,11 @@ class SaleOrder(models.Model):
         return _(
             "Deduction Branch \"%(branch)s\" cannot supply this order:"
             "\n\n%(lines)s\n\n"
-            "Please choose another Deduction Branch, or reduce the "
-            "quantity.",
-            branch=self.warehouse_id.name, lines="\n".join(parts))
+            "Please choose another Deduction Branch, reduce the "
+            "quantity, or use the Request Stock button to ask the "
+            "Inventory Manager for an internal transfer.",
+            branch=self.warehouse_id.name,
+            lines="\n".join(parts)) + STOCK_WARNING_MARKER
 
     def _branch_stock_blocking_enabled(self):
         return self.env['ir.config_parameter'].sudo().get_param(

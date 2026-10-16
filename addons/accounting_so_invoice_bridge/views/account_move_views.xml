@@ -67,13 +67,16 @@
                             <field name="download_link" widget="html" string="Payment Proof"/>
                             <field name="client_id_link" widget="html" string="Client ID"/>
                             <field name="notes"/>
+                            <field name="payment_journal_id" string="Journal"
+                                   groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                   invisible="state != 'approved'"/>
                             <field name="state" widget="badge"
                                    decoration-info="state == 'pending'"
                                    decoration-warning="state == 'submitted'"
                                    decoration-success="state == 'approved'"
                                    decoration-danger="state == 'rejected'"/>
                             <field name="reject_reason" invisible="state != 'rejected'"/>
-                            <button name="action_approve" type="object"
+                            <button name="action_open_approve_wizard" type="object"
                                     string="Approve" icon="fa-check text-success"
                                     groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
                                     invisible="state != 'submitted'"/>

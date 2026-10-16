@@ -148,4 +148,59 @@
         <field name="perm_unlink">0</field>
     </record>
 
+    <!--
+        Branch stock requests.
+        Salespeople see / create / edit only the requests of their own
+        (they are the salesperson on it). Inventory Managers see every
+        request, whatever order it comes from. Python (sale_stock_request.py)
+        additionally keeps the answer fields manager-only.
+        Multi-company: both stay inside the allowed companies.
+    -->
+    <record id="rule_sale_stock_request_salesman" model="ir.rule">
+        <field name="name">Stock Request: salesperson sees own requests</field>
+        <field name="model_id" ref="model_sale_stock_request"/>
+        <field name="domain_force">['|', ('salesperson_id', '=', user.id),
+                                    ('sale_order_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+
+    <record id="rule_sale_stock_request_manager" model="ir.rule">
+        <field name="name">Stock Request: Inventory Manager sees all</field>
+        <field name="model_id" ref="model_sale_stock_request"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('stock.group_stock_manager'))]"/>
+    </record>
+
+    <record id="rule_sale_stock_request_company" model="ir.rule">
+        <field name="name">Stock Request: multi-company</field>
+        <field name="model_id" ref="model_sale_stock_request"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">['|', ('company_id', '=', False),
+                                    ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Request lines follow the rules of their request. -->
+    <record id="rule_sale_stock_request_line_salesman" model="ir.rule">
+        <field name="name">Stock Request Line: salesperson sees own</field>
+        <field name="model_id" ref="model_sale_stock_request_line"/>
+        <field name="domain_force">['|', ('request_id.salesperson_id', '=', user.id),
+                                    ('request_id.sale_order_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+
+    <record id="rule_sale_stock_request_line_manager" model="ir.rule">
+        <field name="name">Stock Request Line: Inventory Manager sees all</field>
+        <field name="model_id" ref="model_sale_stock_request_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('stock.group_stock_manager'))]"/>
+    </record>
+
+    <record id="rule_sale_stock_request_line_company" model="ir.rule">
+        <field name="name">Stock Request Line: multi-company</field>
+        <field name="model_id" ref="model_sale_stock_request_line"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">['|', ('request_id.company_id', '=', False),
+                                    ('request_id.company_id', 'in', company_ids)]</field>
+    </record>
+
 </odoo>
