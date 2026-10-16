@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Two warehouse fields on the quotation, both under Payment Terms:
+
+          Branch            -> x_sale_branch_id: where the sale happened
+                               (reporting only, no stock effect).
+          Deduction Branch  -> Odoo's warehouse_id: where the stock is
+                               deducted and the delivery is created. It
+                               is stock-checked (models/sale_branch_stock.py).
+
+        Odoo keeps warehouse_id hidden in Other Info > Delivery; it moves
+        here and the original is hidden so there is only one. Both lock
+        once the order is confirmed.
+    -->
+    <record id="view_order_form_branch" model="ir.ui.view">
+        <field name="name">sale.order.form.branch</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">50</field>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_shipping']/field[@name='warehouse_id'][@force_save]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="x_sale_branch_id" string="Branch"
+                       required="state in ('draft', 'sent')"
+                       options="{'no_create': True, 'no_open': True}"
+                       readonly="state in ('sale', 'cancel')"
+                       placeholder="Branch where the sale happens"/>
+                <field name="warehouse_id" string="Deduction Branch"
+                       required="1" force_save="1"
+                       options="{'no_create': True, 'no_open': True}"
+                       readonly="state in ('sale', 'cancel')"
+                       placeholder="Branch the stock is deducted from"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Reporting: show / search / group by the sales Branch -->
+    <record id="view_order_tree_branch" model="ir.ui.view">
+        <field name="name">sale.order.list.branch</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="x_sale_branch_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sales_order_filter_branch" model="ir.ui.view">
+        <field name="name">sale.order.search.branch</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="x_sale_branch_id" string="Branch"/>
+            </xpath>
+            <xpath expr="//filter[@name='salesperson']" position="after">
+                <filter string="Branch" name="group_by_sale_branch"
+                        domain="[]" context="{'group_by': 'x_sale_branch_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

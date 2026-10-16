@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Invoice form: everything the accountant needs, from the invoice
+         the salesperson created: jump to the Sales Order, see and
+         download the payment proof(s), Approve / Reject them, and a clear
+         banner explaining why Confirm will be refused. -->
+    <record id="view_move_form_sale_payment_proof" model="ir.ui.view">
+        <field name="name">account.move.form.sale.payment.proof</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//sheet" position="before">
+                <field name="x_proof_status" invisible="1"/>
+                <div class="alert alert-warning mb-0" role="alert"
+                     groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                     invisible="state != 'draft' or not x_proof_status or x_proof_status in ('credit', 'approved')">
+                    <strong>Payment proof not approved yet.</strong>
+                    This invoice can only be confirmed once every payment
+                    proof of its Sales Order is approved (see the Payment
+                    Proofs tab).
+                </div>
+                <div class="alert alert-info mb-0" role="alert"
+                     groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                     invisible="state != 'draft' or x_proof_status != 'credit'">
+                    Credit order: no payment proof is needed. Review the
+                    invoice and confirm it.
+                </div>
+            </xpath>
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="x_sale_order_ids" invisible="1"/>
+                <button type="object" name="action_view_sale_orders"
+                        class="oe_stat_button" icon="fa-shopping-cart"
+                        groups="sales_team.group_sale_salesman,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                        invisible="not x_sale_order_ids">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Sales Order</span>
+                    </div>
+                </button>
+                <button type="object" name="action_view_payment_proofs"
+                        class="oe_stat_button" icon="fa-file-text-o"
+                        groups="sales_team.group_sale_salesman,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                        invisible="not x_proof_status or x_proof_status == 'credit'">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Payment Proof</span>
+                        <field name="x_proof_status" class="o_stat_text"/>
+                    </div>
+                </button>
+            </xpath>
+
+            <xpath expr="//page[@name='other_info']" position="before">
+                <page name="sale_payment_proofs" string="Payment Proofs"
+                      groups="sales_team.group_sale_salesman,account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                      invisible="not x_payment_proof_ids">
+                    <group>
+                        <field name="x_sale_order_ids" widget="many2many_tags" readonly="1"/>
+                    </group>
+                    <field name="x_payment_proof_ids" readonly="1" nolabel="1">
+                        <list create="false" edit="false" delete="false"
+                              decoration-danger="state == 'rejected'"
+                              decoration-success="state == 'approved'">
+                            <field name="sale_order_id"/>
+                            <field name="uploaded_date"/>
+                            <field name="uploaded_by"/>
+                            <field name="download_link" widget="html" string="Payment Proof"/>
+                            <field name="client_id_link" widget="html" string="Client ID"/>
+                            <field name="notes"/>
+                            <field name="payment_journal_id" string="Journal"
+                                   groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                   invisible="state != 'approved'"/>
+                            <field name="state" widget="badge"
+                                   decoration-info="state == 'pending'"
+                                   decoration-warning="state == 'submitted'"
+                                   decoration-success="state == 'approved'"
+                                   decoration-danger="state == 'rejected'"/>
+                            <field name="reject_reason" invisible="state != 'rejected'"/>
+                            <button name="action_open_approve_wizard" type="object"
+                                    string="Approve" icon="fa-check text-success"
+                                    groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                    invisible="state != 'submitted'"/>
+                            <button name="action_open_reject_wizard" type="object"
+                                    string="Reject" icon="fa-times text-danger"
+                                    groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                    invisible="state != 'submitted'"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- "Balance" (custom_invoice_management) is an accounting task: only
+         the accountant group / Settings Administrators see it. Salespeople
+         no longer see this page at all (see sale.order.action_view_invoice),
+         this is the second line of defence. -->
+    <record id="view_move_form_sale_balance_accountant_only" model="ir.ui.view">
+        <field name="name">account.move.form.sale.balance.accountant.only</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_cim_balance']" position="attributes">
+                <attribute name="groups">accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Accountant worklist: draft invoices created from Sales Orders -->
+    <record id="view_move_sales_to_review_list" model="ir.ui.view">
+        <field name="name">account.move.sales.to.review.list</field>
+        <field name="model">account.move</field>
+        <field name="arch" type="xml">
+            <list string="Sales Invoices to Confirm" create="false">
+                <field name="name"/>
+                <field name="create_date" string="Created"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="invoice_user_id" string="Salesperson"/>
+                <field name="amount_total_signed" string="Total" sum=""/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="company_currency_id" column_invisible="1"/>
+                <field name="x_proof_status" widget="badge"
+                       decoration-info="x_proof_status in ('credit', 'pending')"
+                       decoration-muted="x_proof_status == 'none'"
+                       decoration-warning="x_proof_status == 'submitted'"
+                       decoration-success="x_proof_status == 'approved'"
+                       decoration-danger="x_proof_status == 'rejected'"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_account_move_sales_to_review" model="ir.actions.act_window">
+        <field name="name">Sales Invoices to Confirm</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_move_sales_to_review_list"/>
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('state', '=', 'draft'), ('invoice_line_ids.sale_line_ids', '!=', False)]</field>
+        <field name="context">{'default_move_type': 'out_invoice'}</field>
+    </record>
+
+    <menuitem id="menu_account_sales_invoices_to_review"
+              name="Sales Invoices to Confirm"
+              parent="account.menu_finance_receivables"
+              action="action_account_move_sales_to_review"
+              groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+              sequence="14"/>
+
+    <!--
+        SALESPERSON invoice page: read-only, customer-facing data only.
+        Deliberately NOT inheriting account.view_move_form: that form is
+        full of accounting (account column, Journal Items, journal, fiscal
+        position, Balance, chatter with accounting activities). A separate
+        primary view cannot leak any of it. Opened only through
+        sale.order.action_view_invoice for non-accountants.
+    -->
+    <record id="view_move_form_sales_readonly" model="ir.ui.view">
+        <field name="name">account.move.form.sales.readonly</field>
+        <field name="model">account.move</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form string="Invoice" create="false" edit="false" delete="false" duplicate="false">
+                <field name="currency_id" invisible="1"/>
+                <field name="x_proof_status" invisible="1"/>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,posted"/>
+                </header>
+                <div class="alert alert-info mb-0" role="alert" invisible="state != 'draft'">
+                    <strong>Waiting for Accounting.</strong>
+                    This draft invoice was sent to Accounting, who will review
+                    and confirm it.
+                </div>
+                <sheet>
+                    <div name="button_box" class="oe_button_box">
+                        <button type="object" name="action_view_sale_orders"
+                                class="oe_stat_button" icon="fa-shopping-cart"
+                                invisible="not x_sale_order_ids">
+                            <field name="x_sale_order_ids" invisible="1"/>
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Sales Order</span>
+                            </div>
+                        </button>
+                        <button type="object" name="action_view_payment_proofs"
+                                class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="not x_proof_status or x_proof_status == 'credit'">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Payment Proof</span>
+                                <field name="x_proof_status" class="o_stat_text"/>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <span class="text-muted" invisible="state != 'draft'">Draft Invoice</span>
+                        <h1 invisible="state == 'draft'"><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="invoice_user_id" string="Salesperson"/>
+                        </group>
+                        <group>
+                            <field name="invoice_date"/>
+                            <field name="invoice_date_due"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page name="lines" string="Invoice Lines">
+                            <field name="x_sales_line_ids" nolabel="1" readonly="1">
+                                <list create="false" delete="false" edit="false">
+                                    <field name="display_type" column_invisible="1"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="product_id"/>
+                                    <field name="quantity"/>
+                                    <field name="price_unit"/>
+                                    <field name="tax_ids" widget="many2many_tags"/>
+                                    <field name="price_subtotal"/>
+                                    <field name="price_total"/>
+                                </list>
+                            </field>
+                            <!-- Same breakdown as the Sales Order -->
+                            <group class="oe_subtotal_footer">
+                                <field name="x_bd_untaxed"/>
+                                <field name="x_bd_excise"/>
+                                <field name="x_bd_subtotal"/>
+                                <field name="x_bd_other_income"/>
+                                <field name="x_bd_before_vat"/>
+                                <field name="x_bd_vat"/>
+                                <field name="x_bd_total_before_wht" invisible="not x_bd_wht"/>
+                                <field name="x_bd_wht" invisible="not x_bd_wht"/>
+                                <field name="x_bd_total" class="oe_subtotal_footer_separator"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_move_list_sales_readonly" model="ir.ui.view">
+        <field name="name">account.move.list.sales.readonly</field>
+        <field name="model">account.move</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <list string="Invoices" create="false" edit="false" delete="false">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="name"/>
+                <field name="invoice_date"/>
+                <field name="partner_id" string="Customer"/>
+                <field name="amount_total"/>
+                <field name="x_proof_status" widget="badge"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-success="state == 'posted'"/>
+            </list>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================== Stock Request: list / form / search ===================== -->
+    <record id="view_sale_stock_request_list" model="ir.ui.view">
+        <field name="name">sale.stock.request.list</field>
+        <field name="model">sale.stock.request</field>
+        <field name="arch" type="xml">
+            <list string="Stock Requests"
+                  decoration-warning="state == 'requested'"
+                  decoration-success="state in ('accepted', 'done')"
+                  decoration-danger="state == 'rejected'"
+                  decoration-muted="state == 'cancel'">
+                <field name="name"/>
+                <field name="create_date" string="Requested On"/>
+                <field name="sale_order_name" string="Order"/>
+                <field name="salesperson_id" widget="many2one_avatar_user"/>
+                <field name="warehouse_id" string="For Branch"/>
+                <field name="line_summary" string="Products"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'requested'"
+                       decoration-success="state in ('accepted', 'done')"
+                       decoration-danger="state == 'rejected'"
+                       decoration-muted="state == 'cancel'"/>
+                <field name="response" optional="show"/>
+                <field name="company_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sale_stock_request_form" model="ir.ui.view">
+        <field name="name">sale.stock.request.form</field>
+        <field name="model">sale.stock.request</field>
+        <field name="arch" type="xml">
+            <form string="Stock Request">
+                <field name="can_respond" invisible="1"/>
+                <header>
+                    <button name="action_start_internal_transfer" type="object"
+                            class="btn-primary"
+                            string="Start Internal Transfer"
+                            icon="fa-exchange"
+                            groups="stock.group_stock_manager"
+                            invisible="state != 'requested' or not id"/>
+                    <button name="action_reject" type="object"
+                            string="Not Available"
+                            icon="fa-ban"
+                            groups="stock.group_stock_manager"
+                            invisible="state != 'requested' or not id"/>
+                    <button name="action_open_picking" type="object"
+                            class="btn-primary"
+                            string="Open Internal Transfer"
+                            icon="fa-exchange"
+                            groups="stock.group_stock_manager"
+                            invisible="state != 'accepted' or not picking_id"/>
+                    <button name="action_done" type="object"
+                            string="Mark Transfer as Received"
+                            icon="fa-check"
+                            groups="stock.group_stock_manager"
+                            invisible="state != 'accepted' or picking_id"/>
+                    <button name="action_cancel" type="object"
+                            string="Cancel Request"
+                            invisible="state != 'requested' or not id"
+                            confirm="Cancel this stock request?"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="requested,accepted,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="sale_order_id"
+                                   groups="sales_team.group_sale_salesman"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   readonly="state != 'requested' or id"/>
+                            <field name="sale_order_name"
+                                   groups="!sales_team.group_sale_salesman"/>
+                            <field name="salesperson_id" readonly="1"
+                                   widget="many2one_avatar_user"/>
+                        </group>
+                        <group>
+                            <field name="warehouse_id" readonly="1"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <field name="company_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Products Needed">
+                        <field name="line_ids" nolabel="1" colspan="2"
+                               readonly="state != 'requested'">
+                            <list editable="bottom">
+                                <field name="product_id"
+                                       options="{'no_create': True, 'no_open': True}"/>
+                                <field name="quantity"/>
+                                <field name="uom_id" readonly="1" force_save="1"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Message to Inventory">
+                        <field name="note" nolabel="1" colspan="2"
+                               readonly="state != 'requested'"
+                               placeholder="Customer deadline, urgency, anything useful..."/>
+                    </group>
+                    <group string="Inventory Response"
+                           invisible="state == 'cancel' or (state == 'requested' and not can_respond)">
+                        <field name="response" nolabel="1" colspan="2"
+                               readonly="state != 'requested' or not can_respond"
+                               placeholder="Optional. Leave empty to use the default answer of the button you press."/>
+                        <field name="responded_by" readonly="1" invisible="not responded_by"/>
+                        <field name="responded_date" readonly="1" invisible="not responded_date"/>
+                        <field name="picking_id"
+                               groups="stock.group_stock_manager"
+                               options="{'no_create': True}"
+                               readonly="state not in ('requested', 'accepted')"
+                               invisible="state in ('rejected', 'cancel')"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_sale_stock_request_search" model="ir.ui.view">
+        <field name="name">sale.stock.request.search</field>
+        <field name="model">sale.stock.request</field>
+        <field name="arch" type="xml">
+            <search string="Stock Requests">
+                <field name="name"/>
+                <field name="line_ids" string="Product"
+                       filter_domain="[('line_ids.product_id', 'ilike', self)]"/>
+                <field name="sale_order_name" string="Order"/>
+                <field name="salesperson_id"/>
+                <field name="warehouse_id" string="Branch"/>
+                <filter name="to_respond" string="To Answer"
+                        domain="[('state', '=', 'requested')]"/>
+                <filter name="transfer_planned" string="Transfer Planned"
+                        domain="[('state', '=', 'accepted')]"/>
+                <filter name="not_available" string="Not Available"
+                        domain="[('state', '=', 'rejected')]"/>
+                <filter name="mine" string="My Requests"
+                        domain="[('salesperson_id', '=', uid)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_branch" string="Branch" context="{'group_by': 'warehouse_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_salesperson" string="Salesperson" context="{'group_by': 'salesperson_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ===================== Actions + menus ===================== -->
+    <!-- Inventory Manager worklist: opens on "To Answer". -->
+    <record id="action_sale_stock_request_manager" model="ir.actions.act_window">
+        <field name="name">Branch Stock Requests</field>
+        <field name="res_model">sale.stock.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_to_respond': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No stock request to answer</p>
+            <p>Requests sent by salespeople when a product is not available in their branch appear here.</p>
+        </field>
+    </record>
+
+    <!-- Salesperson: their own requests and the answers (record rule scopes it). -->
+    <record id="action_sale_stock_request_sales" model="ir.actions.act_window">
+        <field name="name">My Stock Requests</field>
+        <field name="res_model">sale.stock.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No stock request yet</p>
+            <p>Use the Request Stock button on a quotation when a product is not available in your branch.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_sale_stock_request_manager"
+              name="Branch Stock Requests"
+              parent="stock.menu_stock_transfers"
+              action="action_sale_stock_request_manager"
+              groups="stock.group_stock_manager"
+              sequence="90"/>
+
+    <menuitem id="menu_sale_stock_request_sales"
+              name="My Stock Requests"
+              parent="sale.sale_order_menu"
+              action="action_sale_stock_request_sales"
+              groups="sales_team.group_sale_salesman"
+              sequence="90"/>
+
+    <!-- ===================== Sale order: filter, button, smart button ===================== -->
+    <record id="view_order_form_branch_products" model="ir.ui.view">
+        <field name="name">sale.order.form.branch.products</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">60</field>
+        <field name="arch" type="xml">
+            <!-- Request Stock button next to the existing header buttons -->
+            <xpath expr="//button[@name='action_cancel']" position="before">
+                <button name="action_request_stock" type="object"
+                        string="Request Stock" icon="fa-truck"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="state not in ('draft', 'sent', 'sale')"
+                        help="Product not available in this branch? Ask the Inventory Manager to transfer it."/>
+            </xpath>
+
+            <!-- Smart button with the number of requests of this order -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="x_stock_request_count" invisible="1"/>
+                <button type="object" name="action_view_stock_requests"
+                        class="oe_stat_button" icon="fa-truck"
+                        groups="sales_team.group_sale_salesman"
+                        invisible="x_stock_request_count == 0">
+                    <field name="x_stock_request_count" widget="statinfo"
+                           string="Stock Requests"/>
+                </button>
+            </xpath>
+
+            <!-- Parent field the line domain needs -->
+            <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="x_branch_product_tmpl_ids" invisible="1"/>
+            </xpath>
+
+            <!-- Product lines: only products the branch can supply -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']"
+                   position="attributes">
+                <attribute name="domain">[('sale_ok', '=', True), ('id', 'in', parent.x_branch_product_tmpl_ids)]</attribute>
+            </xpath>
+            <!-- Odoo 18 may show the variant field instead: filter it too -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']"
+                   position="attributes">
+                <attribute name="domain">[('sale_ok', '=', True), ('product_tmpl_id', 'in', parent.x_branch_product_tmpl_ids)]</attribute>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

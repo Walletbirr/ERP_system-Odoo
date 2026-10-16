@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Popup list (opened from the stat buttons on the order and on the
+         invoice). Read-only for everybody; accountants Approve / Reject
+         from here or from the proof's form. -->
+    <record id="view_sale_order_payment_proof_popup_list" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.popup.list</field>
+        <field name="model">sale.order.payment.proof</field>
+        <field name="arch" type="xml">
+            <list string="Payment Proofs" create="false" edit="false" delete="false"
+                  decoration-danger="state == 'rejected'"
+                  decoration-success="state == 'approved'">
+                <field name="sale_order_id"/>
+                <field name="uploaded_date" string="Uploaded"/>
+                <field name="uploaded_by"/>
+                <field name="download_link" widget="html" string="Payment Proof"/>
+                <field name="client_id_link" widget="html" string="Client ID"/>
+                <field name="notes"/>
+                <field name="payment_journal_id" string="Journal"
+                       groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                       invisible="state != 'approved'"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'pending'"
+                       decoration-warning="state == 'submitted'"
+                       decoration-success="state == 'approved'"
+                       decoration-danger="state == 'rejected'"/>
+                <field name="reject_reason" invisible="state != 'rejected'"/>
+                <button name="action_open_approve_wizard" type="object"
+                        string="Approve" icon="fa-check text-success"
+                        groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                        invisible="state != 'submitted'"/>
+                <button name="action_open_reject_wizard" type="object"
+                        string="Reject" icon="fa-times text-danger"
+                        groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                        invisible="state != 'submitted'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sale_order_payment_proof_form" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.form</field>
+        <field name="model">sale.order.payment.proof</field>
+        <field name="arch" type="xml">
+            <form string="Payment Proof" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_open_approve_wizard" type="object" string="Approve"
+                            class="btn-primary"
+                            groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                            invisible="state != 'submitted'"/>
+                    <button name="action_open_reject_wizard" type="object" string="Reject"
+                            groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                            invisible="state != 'submitted'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="pending,submitted,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="sale_order_id"/>
+                            <field name="uploaded_by"/>
+                            <field name="uploaded_date"/>
+                            <field name="submitted_date" invisible="not submitted_date"/>
+                        </group>
+                        <group>
+                            <field name="download_link" widget="html" string="Payment Proof"/>
+                            <field name="client_id_link" widget="html" string="Client ID"/>
+                            <field name="notes"/>
+                            <field name="payment_journal_id"
+                                   groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                                   invisible="not payment_journal_id"/>
+                            <field name="reviewed_by" invisible="not reviewed_by"/>
+                            <field name="reviewed_date" invisible="not reviewed_date"/>
+                            <field name="reject_reason" invisible="state != 'rejected'"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Approve wizard: the accountant says which journal the payment went to -->
+    <record id="view_payment_proof_approve_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.approve.wizard.form</field>
+        <field name="model">sale.order.payment.proof.approve.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Approve Payment Proof">
+                <field name="proof_ids" widget="many2many_tags" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <group>
+                    <field name="preview_html" widget="html" string="Check files"
+                           invisible="not preview_html"/>
+                    <field name="journal_id"
+                           options="{'no_create': True, 'no_open': True}"
+                           placeholder="Bank / cash journal the payment was received in"/>
+                </group>
+                <div class="text-muted">
+                    This journal will be preselected when the invoice of this
+                    order is paid.
+                </div>
+                <footer>
+                    <button name="action_approve" type="object" string="Approve"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Reject wizard: a reason is mandatory -->
+    <record id="view_payment_proof_reject_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.reject.wizard.form</field>
+        <field name="model">sale.order.payment.proof.reject.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reject Payment Proof">
+                <group>
+                    <field name="proof_ids" widget="many2many_tags" invisible="1"/>
+                    <field name="reason" placeholder="Tell the salesperson what to fix (wrong amount, unreadable file, wrong customer...)"/>
+                </group>
+                <footer>
+                    <button name="action_reject" type="object" string="Reject"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Accountant worklist: payment proofs waiting for a decision. This is
+         the FIRST thing Accounting sees now (before any invoice exists). -->
+    <record id="action_payment_proof_to_review" model="ir.actions.act_window">
+        <field name="name">Payment Proofs to Review</field>
+        <field name="res_model">sale.order.payment.proof</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_sale_order_payment_proof_popup_list"/>
+        <field name="domain">[('state', '=', 'submitted')]</field>
+    </record>
+
+    <menuitem id="menu_account_payment_proofs_to_review"
+              name="Payment Proofs to Review"
+              parent="account.menu_finance_receivables"
+              action="action_payment_proof_to_review"
+              groups="accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+              sequence="13"/>
+
+</odoo>
