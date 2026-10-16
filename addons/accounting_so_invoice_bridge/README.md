@@ -84,32 +84,15 @@ open the invoice read-only: no edit, no confirm.
 - Pay dialog: the proof's journal is now set in `default_get` (a default is not overwritten by the
   computed journal); the computed-journal override stays as a backup.
 
-## v18.0.22.0.0 - Out-of-stock products can be picked and requested
-- The order-line product filter used to offer only products with free stock in the Deduction Branch,
-  so a product the branch had run out of could never be selected: no warning, no Request Stock.
-- Default mode `transferable`: also offers products with free stock in any other branch.
-- System parameter `accounting_so_invoice_bridge.branch_filter_mode`: `transferable` (default),
-  `all` (no stock filter; warning + Confirm block still apply) or `branch_only` (old behaviour).
+## v18.0.22.0.0 - product filter keeps products that need a stock request
+The line filter no longer hides products with 0 on hand, stock fully reserved, or stock only
+arriving: they stay selectable and the stock warning offers Request Stock. A product is offered when
+it needs no stock tracking, or has on-hand stock, incoming stock, or any stock record/movement in the
+Deduction Branch's warehouse. System parameter `accounting_so_invoice_bridge.branch_product_filter`:
+`branch` (default), `available` (old rule: free stock only) or `all` (no stock filter).
 
-## v18.0.22.1.0 - Default filter mode `all`, part-number search
-- Default `branch_filter_mode` is now `all`: any sellable product can be picked (even with zero stock anywhere);
-  the warning + Request Stock button and the Confirm block handle the missing stock.
-- Product dropdowns also search by part number: fields listed in system parameter
-  `accounting_so_invoice_bridge.part_number_fields` (default: default_code, barcode, part_number, x_part_number, ...).
-  Only fields that exist on the model are used.
-
-## v18.0.22.2.0 - Part number / reference search fixed
-- The part-number search also covers any Char field whose label contains "reference", "part number",
-  "SKU", "code"-style words (custom fields included), and non-stored searchable fields such as
-  product.template.default_code.
-
-## v18.0.22.3.0 - Reference search really fixed
-- Root cause: Odoo's product.template name search only checks the internal reference when the domain has no
-  condition on `id`; the order-line filter uses `id in ...`, so only the NAME was searched. The search is now
-  extended directly on product.template / product.product (the previous mixin was bypassed by Odoo's own override).
-
-## v18.0.23.0.0 - Reference search (Odoo 18 mechanism)
-- Odoo 18 has no `_name_search`; earlier attempts were dead code. Real cause: `product.template.name_search`
-  disables the variant (Internal Reference / barcode) search when the domain contains an `id` condition, which the
-  branch filter does. `name_search` is now overridden to keep that search on; custom reference fields are added via
-  `_search_display_name`.
+## v18.0.22.1.0 - Product reference search on order lines
+- Typing an Internal Reference (e.g. `2521P0024`) in the order-line product field now finds the product.
+- Cause: Odoo 18's `product.template.name_search` disables the reference/barcode search when the domain has an
+  `id` condition, which the branch product filter has. `name_search` is overridden to keep it on.
+- Nothing else changed (the branch filter and its modes are untouched).
