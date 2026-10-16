@@ -6,8 +6,14 @@
         <field name="arch" type="xml">
             <form string="Confirm Journal Entry" create="0" edit="0">
                 <field name="is_balanced" invisible="1"/>
+                <field name="is_void" invisible="1"/>
                 <field name="company_currency_id" invisible="1"/>
-                <div class="alert alert-info" role="alert" invisible="not is_balanced">
+                <div class="alert alert-warning" role="alert" invisible="not is_void">
+                    <strong>This voucher is VOID.</strong>
+                    A journal entry with a zero value (0 debit and 0 credit) will be posted
+                    and the payment status will be Void. No money moves.
+                </div>
+                <div class="alert alert-info" role="alert" invisible="not is_balanced or is_void">
                     <strong>Confirm journal entry.</strong>
                     Please review the entries below before posting.
                 </div>
@@ -38,7 +44,9 @@
                 </field>
                 <footer>
                     <button string="Confirm and Post" name="action_confirm_post" type="object"
-                            class="btn-primary" invisible="not is_balanced" data-hotkey="q"/>
+                            class="btn-primary" invisible="not is_balanced or is_void" data-hotkey="q"/>
+                    <button string="Confirm as Void" name="action_confirm_post" type="object"
+                            class="btn-primary" invisible="not is_balanced or not is_void" data-hotkey="q"/>
                     <button string="Cancel" special="cancel" data-hotkey="x"/>
                 </footer>
             </form>

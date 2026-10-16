@@ -15,6 +15,15 @@ class AccountPayment(models.Model):
             ('inbound', 'Cash Receipt Voucher (CRV)'),
         ])
 
+    # Status shown for a voided voucher
+    state = fields.Selection(
+        selection_add=[('void', 'Void')],
+        ondelete={'void': 'set default'})
+
+    is_void = fields.Boolean(
+        string="Void", copy=False,
+        help="Tick when the physical voucher / receipt was voided. The voucher "
+             "is recorded with a zero value journal entry and the status Void.")
     voucher_reference = fields.Char(
         string="Reference", copy=False,
         help="The only source of the journal entry Reference (Purpose is not used). "
@@ -48,14 +57,37 @@ class AccountPayment(models.Model):
     def _onchange_multi_line_ids(self):
         for pay in self:
             if pay.is_multi_line:
+                # Multiple lines and Void exclude each other
+                pay.is_void = False
                 pay.amount = pay._get_multi_line_totals()[0]
+
+    @api.onchange('is_void')
+    def _onchange_is_void(self):
+        for pay in self:
+            if pay.is_void:
+                pay.is_multi_line = False
+                pay.amount = 0.0
+
+    @api.constrains('is_void', 'is_multi_line')
+    def _check_void_not_multi_line(self):
+        for pay in self:
+            if pay.is_void and pay.is_multi_line:
+                raise ValidationError(_(
+                    "A Void payment cannot also be a Multiple Lines payment. "
+                    "Untick one of them."))
+
+    def _sync_void_amount(self):
+        """ A void voucher always has the amount 0. """
+        for pay in self.filtered('is_void'):
+            if not pay.currency_id.is_zero(pay.amount):
+                pay.with_context(skip_multi_line_amount_sync=True).write({'amount': 0.0})
 
     @api.constrains('is_multi_line', 'multi_line_ids')
     def _check_multi_line_has_positive(self):
         """ Lines may be negative (opposite side) and the net may be negative
         too: the bank line then simply goes on the other side. The payment
         Amount (total of the positive lines) must still be above zero. """
-        for pay in self.filtered(lambda p: p.is_multi_line and p.multi_line_ids):
+        for pay in self.filtered(lambda p: p.is_multi_line and not p.is_void and p.multi_line_ids):
             total = pay._get_multi_line_totals()[0]
             if pay.currency_id.compare_amounts(total, 0.0) <= 0:
                 raise ValidationError(_(
@@ -64,7 +96,7 @@ class AccountPayment(models.Model):
     def _sync_multi_line_amount(self):
         """ The amount field is read-only in the form (so the browser does not
         send it back): always rebuild it from the lines on the server. """
-        for pay in self.filtered('is_multi_line'):
+        for pay in self.filtered(lambda p: p.is_multi_line and not p.is_void):
             total = pay._get_multi_line_totals()[0]
             if pay.currency_id.compare_amounts(pay.amount, total) != 0:
                 pay.with_context(skip_multi_line_amount_sync=True).write({'amount': total})
@@ -131,6 +163,7 @@ class AccountPayment(models.Model):
     def create(self, vals_list):
         payments = super().create(vals_list)
         payments._sync_multi_line_amount()
+        payments._sync_void_amount()
         return payments
 
     def write(self, vals):
@@ -141,9 +174,11 @@ class AccountPayment(models.Model):
         res = super().write(vals)
         if (
             not self.env.context.get('skip_multi_line_amount_sync')
-            and ('multi_line_ids' in vals or 'is_multi_line' in vals)
+            and ('multi_line_ids' in vals or 'is_multi_line' in vals
+                 or 'is_void' in vals)
         ):
             self._sync_multi_line_amount()
+            self._sync_void_amount()
         return res
 
     # -------------------------------------------------------------------------
@@ -180,7 +215,29 @@ class AccountPayment(models.Model):
         res = super()._prepare_move_lines_per_type(
             write_off_line_vals=write_off_line_vals, force_balance=force_balance)
         self.ensure_one()
-        if self.is_multi_line and self.multi_line_ids:
+        if self.is_void and self.multi_line_ids:
+            # Void with accounts chosen by the user: every line is posted at 0.
+            bank_account = self.journal_id.default_account_id
+            for liquidity_vals in res.get('liquidity_lines', []):
+                if bank_account:
+                    liquidity_vals['account_id'] = bank_account.id
+                liquidity_vals['amount_currency'] = 0.0
+                liquidity_vals.pop('debit', None)
+                liquidity_vals.pop('credit', None)
+                liquidity_vals['balance'] = 0.0
+            date = self.date or fields.Date.context_today(self)
+            res['counterpart_lines'] = [{
+                'name': line.name or False,
+                'date_maturity': date,
+                'amount_currency': 0.0,
+                'currency_id': self.currency_id.id,
+                'balance': 0.0,
+                'partner_id': (line.partner_id or self.partner_id).id,
+                'account_id': line.account_id.id,
+            } for line in self.multi_line_ids]
+            res['write_off_lines'] = []
+            return res
+        if self.is_multi_line and not self.is_void and self.multi_line_ids:
             # Bank side: always the bank / cash account set on the journal.
             bank_account = self.journal_id.default_account_id
             if not bank_account:
@@ -215,7 +272,7 @@ class AccountPayment(models.Model):
             'is_multi_line', 'multi_line_ids')
 
     def _synchronize_to_moves(self, changed_fields):
-        multi = self.filtered(lambda p: p.is_multi_line and p.multi_line_ids)
+        multi = self.filtered(lambda p: p.is_multi_line and not p.is_void and p.multi_line_ids)
         super(AccountPayment, self - multi)._synchronize_to_moves(changed_fields)
         if not multi:
             return
@@ -238,7 +295,7 @@ class AccountPayment(models.Model):
             pay.move_id.with_context(skip_invoice_sync=True).write(to_write)
 
     def _synchronize_from_moves(self, changed_fields):
-        multi = self.filtered(lambda p: p.is_multi_line and p.multi_line_ids)
+        multi = self.filtered(lambda p: p.is_multi_line and not p.is_void and p.multi_line_ids)
         return super(AccountPayment, self - multi)._synchronize_from_moves(changed_fields)
 
     # -------------------------------------------------------------------------
@@ -250,7 +307,10 @@ class AccountPayment(models.Model):
         listing the debits and credits that will be posted. Nothing is posted
         until the user clicks "Confirm and Post" in that window. """
         self.ensure_one()
-        if self.is_multi_line:
+        if self.is_void:
+            # Void voucher: zero value entry, no money moves.
+            self._sync_void_amount()
+        elif self.is_multi_line:
             if not self.multi_line_ids:
                 raise UserError(_("Add at least one payment line before confirming."))
             self._sync_multi_line_amount()
@@ -291,16 +351,34 @@ class AccountPayment(models.Model):
         }
 
     def action_post(self):
-        for pay in self.filtered('is_multi_line'):
+        for pay in self.filtered(lambda p: p.is_multi_line and not p.is_void):
             if not pay.multi_line_ids:
                 raise UserError(_("Add at least one payment line before confirming."))
             pay._sync_multi_line_amount()
+        self._sync_void_amount()
         # Reference typed on the payment goes on the journal entry.
         self.filtered(lambda p: p.move_id.state == 'draft')._push_reference_to_move()
         res = super().action_post()
         self._push_reference_to_move()
         self._remember_purpose()
+        self._set_void_state()
         return res
+
+    def _set_void_state(self):
+        """ After the zero value entry is posted, a void voucher gets the
+        status Void (it keeps its voucher number). """
+        voids = self.filtered(lambda p: p.is_void and p.state != 'void')
+        if not voids:
+            return
+        # Make sure the number is computed while the state is still In Process.
+        voids.mapped('name')
+        for pay in voids:
+            if pay.move_id.name and pay.name != pay.move_id.name:
+                pay.name = pay.move_id.name
+        voids.write({'state': 'void'})
+        for pay in voids:
+            pay.message_post(body=_(
+                "This voucher was marked as VOID. A zero value journal entry was posted."))
 
     def _remember_purpose(self):
         """ Keep the Purpose typed by the user in their history (not for

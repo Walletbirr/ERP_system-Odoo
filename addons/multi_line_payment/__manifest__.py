@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Multi Line Payments',
-    'version': '18.0.1.7.7',
+    'version': '18.0.1.7.9',
     'category': 'Accounting',
     'summary': 'Customer and vendor payments with several accounts / purposes, like a journal entry',
     'description': """
@@ -12,6 +12,9 @@ payment is used for the bank / cash side of the journal entry.
 Line amounts can be negative to put a line on the opposite side.
 Confirm opens a confirmation window listing the debits and credits that will
 be posted, and nothing is posted until the user agrees.
+A \"Void\" checkbox records a voided physical voucher: a zero value entry is
+posted and the payment status becomes Void. On a void the user may pick the\naccounts in the Payment Lines tab; they are posted at 0.
+The Exclude tick on payment lines is chosen by the user (no automatic tick).
 """,
     'depends': ['account', 'base_accounting_kit'],
     'data': [

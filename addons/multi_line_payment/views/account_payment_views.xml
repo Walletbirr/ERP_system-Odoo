@@ -26,11 +26,14 @@
                 <field name="is_multi_line"
                        readonly="state != 'draft'"
                        invisible="payment_type not in ('inbound', 'outbound')"/>
+                <field name="is_void"
+                       readonly="state != 'draft'"
+                       invisible="payment_type not in ('inbound', 'outbound')"/>
             </xpath>
 
             <!-- The amount is the total of the lines (kept on save with force_save) -->
             <xpath expr="//div[@name='amount_div']/field[@name='amount']" position="attributes">
-                <attribute name="readonly">state != 'draft' or is_multi_line</attribute>
+                <attribute name="readonly">state != 'draft' or is_multi_line or is_void</attribute>
                 <attribute name="force_save">1</attribute>
             </xpath>
 
@@ -48,7 +51,7 @@
             </xpath>
             <!-- Payment lines tab -->
             <xpath expr="//notebook[@name='payment_notebook']" position="inside">
-                <page name="multi_lines" string="Payment Lines" invisible="not is_multi_line">
+                <page name="multi_lines" string="Payment Lines" invisible="not is_multi_line and not is_void">
                     <field name="multi_line_ids" readonly="state != 'draft'">
                         <list editable="bottom">
                             <field name="sequence" widget="handle"/>
@@ -57,8 +60,8 @@
                             <field name="partner_id"/>
                             <field name="name"/>
                             <field name="exclude_from_amount" string="Exclude"
-                                   column_invisible="parent.state != 'draft'"/>
-                            <field name="amount"/>
+                                   column_invisible="parent.state != 'draft' or parent.is_void"/>
+                            <field name="amount" column_invisible="parent.is_void"/>
                         </list>
                     </field>
                 </page>

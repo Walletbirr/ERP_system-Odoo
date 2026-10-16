@@ -14,6 +14,7 @@ class AccountPaymentPostPreview(models.TransientModel):
     journal_id = fields.Many2one(related='payment_id.journal_id')
     partner_id = fields.Many2one(related='payment_id.partner_id')
     date = fields.Date(related='payment_id.date')
+    is_void = fields.Boolean(related='payment_id.is_void')
     memo = fields.Char(related='payment_id.memo')
     voucher_reference = fields.Char(related='payment_id.voucher_reference')
     company_currency_id = fields.Many2one(
