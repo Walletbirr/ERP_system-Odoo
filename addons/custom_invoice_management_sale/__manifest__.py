@@ -1,6 +1,6 @@
 {
     'name': 'Custom Invoice Management - Sales',
-    'version': '18.0.1.0.2',
+    'version': '18.0.1.0.3',
     'summary': 'Selling Price with automatic balancing (auto Other Income line) on Quotations / '
                'Sales Orders, identical to Custom Invoice Management on Customer Invoices.',
     'description': """
@@ -15,7 +15,9 @@ generated from the order.
 What you get on a Quotation / Sales Order
 ------------------------------------------
 * "Selling Price" column on the Order Lines grid (final tax-included price
-  agreed with the customer).
+  agreed with the customer). It is filled in AUTOMATICALLY with the line's
+  tax-included total (VAT included) and follows the line until you type your
+  own price.
 * Automatic balancing: whenever the quotation is saved (or confirmed / sent /
   printed, which save it first), every line with a Selling Price gets a
   dedicated "Other Income" line (taxed with the order's VAT tax) added or

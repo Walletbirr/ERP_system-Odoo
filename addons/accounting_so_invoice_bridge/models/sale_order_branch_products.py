@@ -5,13 +5,18 @@ from odoo.exceptions import UserError
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+    x_branch_filter_off = fields.Integer(
+        compute='_compute_x_branch_product_tmpl_ids',
+        help="Technical: 1 when the product lines are not narrowed by "
+             "branch (mode 'all', or no branch chosen yet), else 0.")
     x_branch_product_tmpl_ids = fields.Many2many(
         'product.template', compute='_compute_x_branch_product_tmpl_ids',
-        string='Products Available in Branch',
-        help="Technical: products the order's branch can sell right now "
-             "(services/consumables, plus storable products with free "
-             "stock in the branch). Drives the product filter on the "
-             "order lines.")
+        string='Products of the Branch',
+        help="Technical: products the order's branch carries (see "
+             "_get_branch_product_filter_mode). Drives the product filter "
+             "on the order lines. Stock shortages are NOT filtered out: "
+             "they are caught by the stock warning, which offers Request "
+             "Stock.")
     x_stock_request_ids = fields.One2many(
         'sale.stock.request', 'sale_order_id', string='Stock Requests')
     x_stock_request_count = fields.Integer(
@@ -25,24 +30,73 @@ class SaleOrder(models.Model):
         self.ensure_one()
         return self.warehouse_id
 
+    @api.model
+    def _get_branch_product_filter_mode(self):
+        """System parameter accounting_so_invoice_bridge.branch_product_filter
+        all       (default) every sellable product can be picked in every
+                  branch, whatever its stock there. A product the branch can
+                  not supply (0 on hand, all reserved, only arriving) is
+                  caught by the stock warning, which offers Request Stock.
+        branch    only the products this branch carries: untracked products
+                  plus stock-tracked products that have, had or will get
+                  stock in the branch.
+        available only products with free stock in the branch right now."""
+        mode = self.env['ir.config_parameter'].sudo().get_param(
+            'accounting_so_invoice_bridge.branch_product_filter', 'all')
+        return mode if mode in ('branch', 'available', 'all') else 'all'
+
+    def _branch_product_ids(self, warehouse, mode):
+        """Ids of the product.product the order lines may offer."""
+        Product = self.env['product.product'].sudo()
+        domain = [('sale_ok', '=', True)]
+        if mode == 'all':
+            return Product.search(domain).ids
+        scoped = Product.with_context(warehouse_id=warehouse.id)
+        if mode == 'available':
+            return scoped.search(domain + [
+                '|', ('is_storable', '=', False),
+                ('free_qty', '>', 0)]).ids
+        # mode == 'branch': a product belongs to the branch when ...
+        view_location = warehouse.view_location_id
+        history = set()
+        if view_location:
+            # ... it has (or had) a stock record there, even at zero ...
+            quants = self.env['stock.quant'].sudo()._read_group(
+                [('location_id', 'child_of', view_location.id)],
+                ['product_id'])
+            # ... or any real stock movement came from / went to the branch
+            # (sold out, transferred in, delivered, waiting to arrive).
+            moves = self.env['stock.move'].sudo()._read_group(
+                [('state', 'not in', ('draft', 'cancel')),
+                 '|', ('location_id', 'child_of', view_location.id),
+                 ('location_dest_id', 'child_of', view_location.id)],
+                ['product_id'])
+            history = {row[0].id for row in quants + moves if row[0]}
+        return scoped.search(domain + [
+            '|', '|', '|',
+            ('is_storable', '=', False),      # services / untracked goods
+            ('qty_available', '!=', 0),       # on hand, even if all reserved
+            ('incoming_qty', '>', 0),         # stock arriving soon
+            ('id', 'in', list(history)),      # sold out / used to be here
+        ]).ids
+
     @api.depends('warehouse_id', 'company_id')
     def _compute_x_branch_product_tmpl_ids(self):
         Product = self.env['product.product'].sudo()
+        mode = self._get_branch_product_filter_mode()
         cache = {}
         for order in self:
             warehouse = order._get_stock_branch()
-            if not warehouse:
-                # No branch chosen yet: do not restrict anything.
-                order.x_branch_product_tmpl_ids = self.env[
-                    'product.template'].sudo().search([('sale_ok', '=', True)])
+            if mode == 'all' or not warehouse:
+                # Nothing to narrow: no id list is built or sent to the
+                # browser (the line domain switches the restriction off).
+                order.x_branch_filter_off = 1
+                order.x_branch_product_tmpl_ids = False
                 continue
+            order.x_branch_filter_off = 0
             if warehouse.id not in cache:
-                products = Product.with_context(
-                    warehouse_id=warehouse.id).search([
-                        ('sale_ok', '=', True),
-                        '|', ('is_storable', '=', False),
-                        ('free_qty', '>', 0)])
-                cache[warehouse.id] = products.product_tmpl_id
+                cache[warehouse.id] = Product.browse(
+                    order._branch_product_ids(warehouse, mode)).product_tmpl_id
             order.x_branch_product_tmpl_ids = cache[warehouse.id]
 
     @api.depends('x_stock_request_ids')
@@ -112,3 +166,21 @@ class SaleOrder(models.Model):
             'context': {'default_sale_order_id': self.id,
                         'default_warehouse_id': self.warehouse_id.id},
         }
+
+
+class ProductTemplate(models.Model):
+    _inherit = 'product.template'
+
+    @api.model
+    def name_search(self, name='', args=None, operator='ilike', limit=100):
+        # Odoo 18 (product.template.name_search) switches the search on the
+        # variants' Internal Reference / barcode OFF whenever the domain has a
+        # condition on 'id'. The order-line product filter is exactly that
+        # ('id', 'in', branch products), so typing a reference such as
+        # "2521P0024" found nothing (only the name was searched).
+        # Ask for the variant search explicitly; the branch filter in `args`
+        # still applies.
+        if name and 'search_product_product' not in self.env.context:
+            self = self.with_context(search_product_product=True)
+        return super(ProductTemplate, self).name_search(
+            name=name, args=args, operator=operator, limit=limit)

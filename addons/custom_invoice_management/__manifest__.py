@@ -1,7 +1,7 @@
 {
     'name': 'Custom Invoice Management',
-    'version': '18.0.3.9.4',
-    'summary': 'Balance each invoice line to an agreed final selling price by auto-computing a Service Charge line (for Excise-taxed vehicle sales).',
+    'version': '18.0.4.0.1',
+    'summary': 'Selling Price with automatic balancing (auto Service Charge line) on Customer Invoices (for Excise-taxed vehicle sales).',
     'description': """
 Custom Invoice Management
 ==========================
@@ -14,21 +14,25 @@ Real-world flow this module supports:
 2. The salesperson negotiates a final, tax-included selling price with the
    customer (e.g. 490,000 Birr) that does not exactly match
    Unit Price + Excise + VAT.
-3. On the Customer Invoice's "Invoice Lines" tab, the accountant enters
-   that agreed amount directly on the product line, in its new
-   "Selling Price" column, then clicks the "Balance" button just below
-   the lines. There is no per-line VAT picker - all products are assumed
-   to share the same VAT tax, so it is resolved once per invoice from
-   whichever VAT (non-Excise) sale tax is already set on the product
+3. On the Customer Invoice's "Invoice Lines" tab, the new "Selling
+   Price" column is filled in AUTOMATICALLY with the line's tax-included
+   total (VAT included) and follows the line until you type your own
+   (higher) price. There is no Balance button and no per-line VAT picker -
+   all products are assumed to share the same VAT tax, so it is resolved
+   once per invoice from the VAT (non-Excise) sale tax on the product
    line(s).
-4. For every line with a Selling Price set, the module adds/updates a
-   dedicated "Service Charge" line (taxed at the invoice's VAT tax) with
-   the exact pre-tax amount needed so Selling Price + that line's own
-   tax-included amount matches exactly. Several lines can each have
-   their own target on the same invoice. Service Charge lines are
-   excluded from the editable "Invoice Lines" grid (they still fully
-   count towards the totals/taxes and are visible in "Journal Items" and
-   on the printed invoice).
+4. Automatic balancing: whenever a draft invoice is saved, every line with
+   a Selling Price gets a dedicated "Service Charge" line (taxed at the
+   invoice's VAT tax) added or updated so that line total + Service Charge
+   == Selling Price. Clearing the Selling Price (or setting it equal to the
+   line total) removes that line's Service Charge line, deleting a product
+   line deletes its Service Charge line, and duplicating an invoice keeps
+   it balanced. Service Charge lines are excluded from the editable
+   "Invoice Lines" grid (they still fully count towards the totals/taxes
+   and are visible in "Journal Items" and on the printed invoice).
+   A Selling Price is required on every product line to POST the invoice
+   (a draft can still be saved without it). Developers can still call
+   ``action_cim_balance`` from a server action / script.
 5. The "Untaxed Amount / Excise Tax / Subtotal / Service Charge /
    Before Vat / Tax / Total" box at the bottom of the "Invoice Lines"
    tab is a custom display-only summary (product lines only, Service
@@ -42,8 +46,8 @@ Setup checklist after installing
    tab > enable "Affect Base of Subsequent Taxes".
 2. On the vehicle product's Sales tab, set Customer Taxes to BOTH the
    Excise tax and the VAT tax (Excise listed/sequenced first).
-3. On the invoice's "Invoice Lines" tab, fill in "Selling Price" on the
-   line(s) you want to balance, then click "Balance".
+3. On the invoice's "Invoice Lines" tab, type a higher "Selling Price" on
+   the line(s) you want to balance and save - balancing is automatic.
 4. (Optional) The "Service Charge Income Account" setting lives at
    Accounting > Configuration > Accounting > "Custom Invoice
    Management" (right next to "Tax Groups"), as well as under

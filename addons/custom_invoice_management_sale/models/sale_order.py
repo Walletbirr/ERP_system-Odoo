@@ -8,6 +8,17 @@ from odoo.addons.custom_invoice_management.models.account_move import cim_is_wht
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+    # Free-text Reference of the order. It travels with the order through the
+    # whole process: it is copied onto every invoice generated from it (see
+    # _prepare_invoice) and from there onto credit notes.
+    cim_reference = fields.Char(
+        string="Reference",
+        copy=False,
+        tracking=True,
+        help="Free-text reference of this order. It is carried over "
+             "automatically to the invoice(s) generated from the order.",
+    )
+
     # ------------------------------------------------------------------
     # Display-only totals box (same fields / meaning as on the invoice).
     # The real accounting (amount_total, tax_totals, the invoice that is
@@ -352,6 +363,14 @@ class SaleOrder(models.Model):
     # ------------------------------------------------------------------
     # Order -> Invoice / duplicate
     # ------------------------------------------------------------------
+    def _prepare_invoice(self):
+        """Carry the order's Reference onto the invoice (regular, final and
+        down-payment invoices all go through here)."""
+        vals = super()._prepare_invoice()
+        if self.cim_reference:
+            vals['cim_reference'] = self.cim_reference
+        return vals
+
     def _create_invoices(self, grouped=False, final=False, date=None):
         moves = super()._create_invoices(grouped=grouped, final=final, date=date)
         moves._cim_link_sale_service_lines()

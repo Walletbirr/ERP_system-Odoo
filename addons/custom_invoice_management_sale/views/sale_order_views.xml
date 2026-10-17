@@ -8,6 +8,13 @@
         <field name="priority">99</field>
         <field name="arch" type="xml">
 
+            <!-- 0. Reference, in the left header block under the Customer. -->
+            <xpath expr="//group[@name='partner_details']" position="inside">
+                <field name="cim_reference"
+                       string="Reference"
+                       readonly="state == 'cancel'"/>
+            </xpath>
+
             <!-- 1. "Selling Price" column right after the Amount column.
                  cim_hide_from_order_lines is loaded (invisible column) so the
                  JS patch can hide the auto-generated Other Income rows. -->
@@ -18,6 +25,9 @@
                        optional="show"
                        invisible="display_type or is_downpayment"/>
                 <field name="cim_hide_from_order_lines" column_invisible="True"/>
+                <!-- Sent with every line so the automatic Selling Price knows
+                     whether the user typed their own price. -->
+                <field name="cim_auto_selling_price" column_invisible="True"/>
             </xpath>
 
             <!-- 2. No "Balance" button any more: the Other Income lines are

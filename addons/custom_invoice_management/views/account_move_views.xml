@@ -6,6 +6,15 @@
         <field name="inherit_id" ref="account.view_move_form"/>
         <field name="arch" type="xml">
 
+            <!-- Reference: new header field, under the Customer. Editable
+                 while the invoice is a draft, read-only afterwards. -->
+            <xpath expr="//group[@id='header_left_group']" position="inside">
+                <field name="cim_reference"
+                       string="Reference"
+                       invisible="move_type not in ('out_invoice', 'out_refund')"
+                       readonly="state != 'draft'"/>
+            </xpath>
+
             <!-- Gap 1: add a "Selling Price" column to the Invoice Lines
                  grid itself, right after the Amount column. VAT is
                  resolved automatically at Balance time from the
@@ -18,19 +27,23 @@
                        string="Selling Price"
                        optional="show"
                        invisible="display_type in ('line_note', 'line_section')"/>
+                <!-- Sent with every line so the automatic Selling Price knows
+                     whether the user typed their own price. -->
+                <field name="cim_auto_selling_price" column_invisible="True"/>
             </xpath>
 
-            <!-- Gap 1 + 2: the "Balance" button, right at the bottom of the
-                 product lines / top of the Terms and Conditions + totals
-                 row, replacing the old "Target Pricing" tab. It reads the
-                 Selling Price entered directly on the lines above. -->
+            <!-- The "Balance" button is no longer shown: the Service Charge
+                 lines are added / updated automatically whenever the invoice
+                 is saved. The button is kept in the view, permanently
+                 hidden, only so that other modules' views that extend it
+                 (xpath on action_cim_balance) keep loading. -->
             <xpath expr="//page[@id='invoice_tab']/group[hasclass('oe_invoice_lines_tab')]"
                    position="before">
                 <button name="action_cim_balance"
                         type="object"
                         string="Balance"
                         class="btn-primary mb-2"
-                        invisible="state != 'draft'"/>
+                        invisible="1"/>
             </xpath>
 
             <!-- Gap 4: replace the native Untaxed Amount / tax breakdown /

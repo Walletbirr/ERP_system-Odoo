@@ -216,18 +216,21 @@
 
             <!-- Parent field the line domain needs -->
             <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="x_branch_filter_off" invisible="1"/>
                 <field name="x_branch_product_tmpl_ids" invisible="1"/>
             </xpath>
 
-            <!-- Product lines: only products the branch can supply -->
+            <!-- Product lines: narrowed by branch only in mode 'branch' / 'available'
+                 (see _get_branch_product_filter_mode); default = all products,
+                 shortages go through the stock warning + Request Stock. -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_template_id']"
                    position="attributes">
-                <attribute name="domain">[('sale_ok', '=', True), ('id', 'in', parent.x_branch_product_tmpl_ids)]</attribute>
+                <attribute name="domain">[('sale_ok', '=', True), '|', (parent.x_branch_filter_off, '=', 1), ('id', 'in', parent.x_branch_product_tmpl_ids)]</attribute>
             </xpath>
             <!-- Odoo 18 may show the variant field instead: filter it too -->
             <xpath expr="//field[@name='order_line']/list/field[@name='product_id']"
                    position="attributes">
-                <attribute name="domain">[('sale_ok', '=', True), ('product_tmpl_id', 'in', parent.x_branch_product_tmpl_ids)]</attribute>
+                <attribute name="domain">[('sale_ok', '=', True), '|', (parent.x_branch_filter_off, '=', 1), ('product_tmpl_id', 'in', parent.x_branch_product_tmpl_ids)]</attribute>
             </xpath>
         </field>
     </record>
