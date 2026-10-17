@@ -74,6 +74,9 @@
                             <field name="reject_reason" invisible="state != 'rejected'"/>
                         </group>
                     </group>
+                    <group string="Order Details">
+                        <field name="order_detail_html" widget="html" nolabel="1" colspan="2"/>
+                    </group>
                 </sheet>
             </form>
         </field>
@@ -126,14 +129,46 @@
         </field>
     </record>
 
-    <!-- Accountant worklist: payment proofs waiting for a decision. This is
-         the FIRST thing Accounting sees now (before any invoice exists). -->
+    <!-- Search view for the Payment Proofs menu: quick filters so the
+         accountant can separate the open worklist from the history. -->
+    <record id="view_sale_order_payment_proof_search" model="ir.ui.view">
+        <field name="name">sale.order.payment.proof.search</field>
+        <field name="model">sale.order.payment.proof</field>
+        <field name="arch" type="xml">
+            <search string="Payment Proofs">
+                <field name="sale_order_id"/>
+                <field name="uploaded_by"/>
+                <field name="reviewed_by"/>
+                <field name="payment_journal_id"/>
+                <filter string="Awaiting Approval" name="filter_submitted"
+                        domain="[('state', '=', 'submitted')]"/>
+                <filter string="Approved" name="filter_approved"
+                        domain="[('state', '=', 'approved')]"/>
+                <filter string="Rejected" name="filter_rejected"
+                        domain="[('state', '=', 'rejected')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_state"
+                            context="{'group_by': 'state'}"/>
+                    <filter string="Reviewed By" name="group_reviewed_by"
+                            context="{'group_by': 'reviewed_by'}"/>
+                    <filter string="Salesperson" name="group_uploaded_by"
+                            context="{'group_by': 'uploaded_by'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Accountant worklist AND history: proofs waiting for a decision stay
+         together with the ones already Approved / Rejected, so Accounting
+         keeps a record of past decisions (use the filters to narrow down).
+         Pending proofs (not yet submitted) are not shown. -->
     <record id="action_payment_proof_to_review" model="ir.actions.act_window">
         <field name="name">Payment Proofs to Review</field>
         <field name="res_model">sale.order.payment.proof</field>
         <field name="view_mode">list,form</field>
         <field name="view_id" ref="view_sale_order_payment_proof_popup_list"/>
-        <field name="domain">[('state', '=', 'submitted')]</field>
+        <field name="search_view_id" ref="view_sale_order_payment_proof_search"/>
+        <field name="domain">[('state', 'in', ('submitted', 'approved', 'rejected'))]</field>
     </record>
 
     <menuitem id="menu_account_payment_proofs_to_review"

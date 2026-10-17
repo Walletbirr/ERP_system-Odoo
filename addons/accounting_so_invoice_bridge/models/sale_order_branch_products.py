@@ -5,6 +5,10 @@ from odoo.exceptions import UserError
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+    x_branch_filter_off = fields.Integer(
+        compute='_compute_x_branch_product_tmpl_ids',
+        help="Technical: 1 when the product lines are not narrowed by "
+             "branch (mode 'all', or no branch chosen yet), else 0.")
     x_branch_product_tmpl_ids = fields.Many2many(
         'product.template', compute='_compute_x_branch_product_tmpl_ids',
         string='Products of the Branch',
@@ -29,14 +33,17 @@ class SaleOrder(models.Model):
     @api.model
     def _get_branch_product_filter_mode(self):
         """System parameter accounting_so_invoice_bridge.branch_product_filter
-        branch    (default) the products this branch carries: stock-tracked
-                  products that have, had or will get stock in the branch,
-                  plus every product without stock tracking.
-        available only products with free stock in the branch right now.
-        all       no stock filter (every sellable product)."""
+        all       (default) every sellable product can be picked in every
+                  branch, whatever its stock there. A product the branch can
+                  not supply (0 on hand, all reserved, only arriving) is
+                  caught by the stock warning, which offers Request Stock.
+        branch    only the products this branch carries: untracked products
+                  plus stock-tracked products that have, had or will get
+                  stock in the branch.
+        available only products with free stock in the branch right now."""
         mode = self.env['ir.config_parameter'].sudo().get_param(
-            'accounting_so_invoice_bridge.branch_product_filter', 'branch')
-        return mode if mode in ('branch', 'available', 'all') else 'branch'
+            'accounting_so_invoice_bridge.branch_product_filter', 'all')
+        return mode if mode in ('branch', 'available', 'all') else 'all'
 
     def _branch_product_ids(self, warehouse, mode):
         """Ids of the product.product the order lines may offer."""
@@ -80,11 +87,13 @@ class SaleOrder(models.Model):
         cache = {}
         for order in self:
             warehouse = order._get_stock_branch()
-            if not warehouse:
-                # No branch chosen yet: do not restrict anything.
-                order.x_branch_product_tmpl_ids = self.env[
-                    'product.template'].sudo().search([('sale_ok', '=', True)])
+            if mode == 'all' or not warehouse:
+                # Nothing to narrow: no id list is built or sent to the
+                # browser (the line domain switches the restriction off).
+                order.x_branch_filter_off = 1
+                order.x_branch_product_tmpl_ids = False
                 continue
+            order.x_branch_filter_off = 0
             if warehouse.id not in cache:
                 cache[warehouse.id] = Product.browse(
                     order._branch_product_ids(warehouse, mode)).product_tmpl_id

@@ -96,3 +96,20 @@ Deduction Branch's warehouse. System parameter `accounting_so_invoice_bridge.bra
 - Cause: Odoo 18's `product.template.name_search` disables the reference/barcode search when the domain has an
   `id` condition, which the branch product filter has. `name_search` is overridden to keep it on.
 - Nothing else changed (the branch filter and its modes are untouched).
+
+## v18.0.23.0.0 - Order details go to Accounting with the payment proof
+- When a salesperson submits (or resubmits) a payment proof, the accountants receive a message on
+  the order with the order details: customer, salesperson, order date, branch / deduction branch,
+  payment terms, the salesperson's note, the product lines (qty, unit price, amount incl. tax,
+  Selling Price) and the totals, plus the proof and client-ID links (eye = view without downloading).
+- The same details are in each accountant's To-Do, and in a new "Order Details" block on the
+  Payment Proof form, so the decision can be taken without opening the order.
+
+## v18.0.23.1.0 - every sellable product can be picked, shortages go through Request Stock
+- A product with 0 on hand in the branch (even one the branch never stocked) now shows in the order-line
+  product field. Picking it triggers the stock warning with Request Stock, then the manager's
+  Start Internal Transfer flow.
+- Default of `accounting_so_invoice_bridge.branch_product_filter` is now `all` (no narrowing). `branch`
+  (carried products only) and `available` (free stock only) remain available.
+- In `all` mode no product-id list is built or sent to the browser (fast on large catalogs): the line
+  domain uses `(parent.x_branch_filter_off, '=', 1)`.

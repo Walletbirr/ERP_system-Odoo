@@ -169,12 +169,69 @@ class TestSaleBalance(AccountTestInvoicingCommon):
         self.assertEqual(order.state, 'sale')
 
     def test_confirm_requires_selling_price_on_every_line(self):
-        order = self._order(products=self.car | self.car2)   # only line 1 has one
+        # Line 2 gets its Selling Price automatically; clearing it by hand
+        # brings the requirement back.
+        order = self._order(products=self.car | self.car2)
+        line2 = order.order_line.filtered(lambda l: l.product_id == self.car2)
+        line2.cim_selling_price = 0.0
         with self.assertRaises(UserError):
             order.action_confirm()
-        order.order_line.filtered(lambda l: l.product_id == self.car2).cim_selling_price = 130000.0
+        line2.cim_selling_price = 130000.0
         order.action_confirm()
         self.assertEqual(order.state, 'sale')
+
+    # ---- automatic Selling Price (tax-included line total) -------------
+    def _plain_order(self, products=None, qty=1):
+        products = products or self.car
+        return self.env['sale.order'].create({
+            'partner_id': self.partner.id,
+            'order_line': [(0, 0, {'product_id': p.id, 'product_uom_qty': qty})
+                           for p in products],
+        })
+
+    def test_selling_price_is_filled_with_tax_included_total(self):
+        order = self._plain_order()
+        line = order.order_line[0]
+        self.assertAlmostEqual(line.cim_selling_price, line.price_total, 2)
+        self.assertAlmostEqual(line.cim_selling_price, 480700.0, 2)
+        # equal to the line total: no Other Income line is needed
+        self.assertFalse(self._service_lines(order))
+        self.assertAlmostEqual(order.amount_total, 480700.0, 2)
+        # so the order can be confirmed without typing anything
+        order.action_confirm()
+        self.assertEqual(order.state, 'sale')
+
+    def test_automatic_selling_price_follows_the_line(self):
+        order = self._plain_order()
+        line = order.order_line[0]
+        line.product_uom_qty = 2
+        self.assertAlmostEqual(line.cim_selling_price, line.price_total, 2)
+        self.assertAlmostEqual(line.cim_selling_price, 961400.0, 2)
+        line.price_unit = 370000.0
+        self.assertAlmostEqual(line.cim_selling_price, line.price_total, 2)
+        self.assertFalse(self._service_lines(order))
+        self.assertAlmostEqual(order.amount_total, line.price_total, 2)
+
+    def test_typed_selling_price_is_kept(self):
+        order = self._plain_order()
+        line = order.order_line[0]
+        line.cim_selling_price = 490000.0
+        self.assertEqual(len(self._service_lines(order)), 1)
+        line.price_unit = 370000.0      # the typed price stays, Other Income adapts
+        self.assertAlmostEqual(line.cim_selling_price, 490000.0, 2)
+        self.assertAlmostEqual(order.amount_total, 490000.0, 2)
+
+    def test_automatic_selling_price_ignores_withholding_tax(self):
+        self.car.taxes_id = [(6, 0, (self.excise | self.vat | self.wht).ids)]
+        order = self._plain_order()
+        line = order.order_line[0]
+        self.assertAlmostEqual(line.cim_selling_price, 480700.0, 2)
+        self.assertFalse(self._service_lines(order))
+
+    def test_other_income_line_gets_no_selling_price(self):
+        order = self._order()
+        self.assertTrue(self._service_lines(order))
+        self.assertFalse(self._service_lines(order).cim_selling_price)
 
     def test_locked_state_blocks_manual_balance_and_skips_auto(self):
         order = self._order()

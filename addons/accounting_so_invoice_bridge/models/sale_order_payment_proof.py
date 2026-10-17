@@ -5,6 +5,7 @@ from markupsafe import Markup, escape
 
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError
+from odoo.tools.misc import format_datetime, formatLang
 
 _logger = logging.getLogger(__name__)
 
@@ -84,6 +85,13 @@ class SaleOrderPaymentProof(models.Model):
         help="Chosen by the accountant when approving: the journal the "
              "customer's payment went into. It comes preselected on the "
              "invoice's Pay dialog.")
+    order_detail_html = fields.Html(
+        string='Order Details', compute='_compute_order_detail_html',
+        sanitize=False,
+        help="Summary of the order behind this proof (customer, salesperson, "
+             "branch, lines, totals). Sent to Accounting with the review "
+             "request and shown on the proof so the accountant can decide "
+             "without opening the order.")
     preview_links = fields.Html(
         string='Preview', compute='_compute_download_link', sanitize=False,
         help='Preview links for both files (used in the salesperson list).')
@@ -187,6 +195,97 @@ class SaleOrderPaymentProof(models.Model):
             ]
             parts = [p for p in parts if p]
             proof.preview_links = Markup('').join(parts) if parts else False
+
+    # ------------------------------------------------------------------
+    # Order details (sent to Accounting with the review request)
+    # ------------------------------------------------------------------
+    @api.depends('sale_order_id')
+    def _compute_order_detail_html(self):
+        for proof in self:
+            proof.order_detail_html = (
+                proof._order_detail_html()
+                if isinstance(proof.id, int) and proof.sale_order_id
+                else False)
+
+    def _order_detail_html(self):
+        """Compact HTML summary of the order. Read with sudo: the
+        accountant must see it even without Sales access."""
+        self.ensure_one()
+        order = self.sale_order_id.sudo()
+        currency = order.currency_id
+
+        def money(amount):
+            return formatLang(self.env, amount, currency_obj=currency)
+
+        th = 'border:1px solid #ccc;padding:3px 8px;background:#f2f2f2;'
+        td = 'border:1px solid #ccc;padding:3px 8px;'
+        facts = [
+            (_('Order'), order.name),
+            (_('Customer'), order.partner_id.display_name),
+            (_('Salesperson'), order.user_id.name),
+            (_('Order date'), format_datetime(self.env, order.date_order)
+             if order.date_order else ''),
+            (_('Branch'), order.x_sale_branch_id.display_name),
+            (_('Deduction branch'), order.warehouse_id.display_name),
+            (_('Payment terms'), order.payment_term_id.display_name),
+            (_('Salesperson note'), self.notes),
+        ]
+        facts_html = Markup('').join(
+            Markup('<tr><td style="%s;font-weight:bold">%s</td>'
+                   '<td style="%s">%s</td></tr>') % (td, label, td, value)
+            for label, value in facts if value)
+
+        # "Selling Price" exists when custom_invoice_management_sale is there.
+        line_model = self.env['sale.order.line']
+        with_selling_price = 'cim_selling_price' in line_model._fields
+        lines = order.order_line.filtered(
+            lambda l: not l.display_type and l.product_id
+            and not getattr(l, 'cim_hide_from_order_lines', False))
+        head = [_('Product'), _('Qty'), _('Unit price'), _('Amount (incl. tax)')]
+        if with_selling_price:
+            head.append(_('Selling price'))
+        head_html = Markup('').join(
+            Markup('<th style="%s">%s</th>') % (th, h) for h in head)
+        rows_html = Markup('')
+        for line in lines:
+            cells = [
+                line.product_id.display_name,
+                '%g %s' % (line.product_uom_qty, line.product_uom.name or ''),
+                money(line.price_unit),
+                money(line.price_total),
+            ]
+            if with_selling_price:
+                cells.append(money(line['cim_selling_price']))
+            rows_html += Markup('<tr>%s</tr>') % Markup('').join(
+                Markup('<td style="%s">%s</td>') % (td, c) for c in cells)
+
+        totals = [(_('Untaxed amount'), order.amount_untaxed),
+                  (_('Taxes'), order.amount_tax),
+                  (_('Total'), order.amount_total)]
+        totals_html = Markup('').join(
+            Markup('<tr><td style="%s;font-weight:bold">%s</td>'
+                   '<td style="%s;text-align:right">%s</td></tr>')
+            % (td, label, td, money(amount)) for label, amount in totals)
+
+        return (
+            Markup('<table style="border-collapse:collapse;margin-bottom:8px">'
+                   '%s</table>') % facts_html
+            + Markup('<table style="border-collapse:collapse;margin-bottom:8px">'
+                     '<tr>%s</tr>%s</table>') % (head_html, rows_html)
+            + Markup('<table style="border-collapse:collapse">%s</table>')
+            % totals_html)
+
+    def _proof_files_html(self):
+        """Proof / Client ID links (eye = view without downloading)."""
+        self.ensure_one()
+        parts = []
+        if self.download_link:
+            parts.append(Markup('<b>%s</b> %s') % (
+                _('Payment proof:'), Markup(self.download_link)))
+        if self.client_id_link:
+            parts.append(Markup('<b>%s</b> %s') % (
+                _('Client ID:'), Markup(self.client_id_link)))
+        return Markup('<br/>').join(parts)
 
     def _post_note(self, body):
         """Silent audit-trail note on the order and its draft invoices.
@@ -428,15 +527,31 @@ class SaleOrderPaymentProof(models.Model):
                  'message': message, 'sticky': False})
 
     def _notify_accounting_to_review(self):
-        """Salesperson submitted (or resubmitted) a proof: one To-Do per
-        accountant on the order, plus a live toast. Skipped if that
-        accountant already has an open review To-Do on the order."""
+        """Salesperson submitted (or resubmitted) a proof: Accounting gets
+        the ORDER DETAILS (a message on the order, so it reaches their
+        inbox / email), one To-Do per accountant with the same details, and
+        a live toast. A To-Do is skipped if that accountant already has an
+        open review To-Do on the order; the message is sent every time, so
+        a resubmission always arrives with the current order."""
         recipients = self._get_reviewers() - self.env.user
         if not recipients:
             return
         todo = self.env.ref('mail.mail_activity_data_todo',
                             raise_if_not_found=False)
         for order in self.sale_order_id.sudo():
+            proofs = self.filtered(
+                lambda p: p.sale_order_id.id == order.id).sudo()
+            details = Markup('<p>%s</p>%s<p>%s</p>') % (
+                _("%(user)s sent a payment proof for approval.",
+                  user=self.env.user.name),
+                Markup('<br/>').join(p._proof_files_html() for p in proofs),
+                proofs[:1]._order_detail_html())
+            order.message_post(
+                subject=_("Payment proof to review: %s", order.name),
+                body=details,
+                partner_ids=recipients.partner_id.ids,
+                subtype_xmlid='mail.mt_comment',
+                message_type='comment')
             for user in recipients:
                 open_todo = order.activity_ids.filtered(
                     lambda a: a.summary == REVIEW_PROOF_SUMMARY
@@ -446,8 +561,10 @@ class SaleOrderPaymentProof(models.Model):
                         'mail.mail_activity_data_todo',
                         user_id=user.id,
                         summary=REVIEW_PROOF_SUMMARY,
-                        note=_("Open Payment Proofs, check the proof and the "
-                               "client ID, then Approve or Reject."))
+                        note=Markup('<p>%s</p>%s') % (
+                            _("Open Payment Proofs, check the proof and the "
+                              "client ID, then Approve or Reject."),
+                            proofs[:1]._order_detail_html()))
                 self._toast(
                     user, _('Payment Proof to Review'),
                     _('%(order)s for %(customer)s is waiting for your '
