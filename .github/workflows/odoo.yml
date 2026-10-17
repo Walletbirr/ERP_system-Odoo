@@ -42,7 +42,7 @@ jobs:
   # ---------------------------------------------------------------------------
   deploy-production:
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux]
+    runs-on: [self-hosted, production]
     environment: production
     concurrency:
       group: deploy-production
