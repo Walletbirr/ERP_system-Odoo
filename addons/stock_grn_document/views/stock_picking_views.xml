@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Targets the "origin" field (labeled "Source Document" in the
+        form) by its name attribute rather than by guessing surrounding
+        div/column structure — name-based xpath is the standard, robust
+        way to extend a core view, since it doesn't depend on layout
+        details that can shift between versions. If "origin" ever isn't
+        present in stock.view_picking_form, this view simply fails to
+        install with a clear error at install/upgrade time — it can't
+        silently break an already-running instance the way a runtime
+        script could.
+    -->
+    <record id="view_picking_form_inherit_grn_document" model="ir.ui.view">
+        <field name="name">stock.picking.form.inherit.grn.document</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='origin']" position="after">
+                <field name="x_grn_document_filename" invisible="1"/>
+                <field name="x_grn_document"
+                       filename="x_grn_document_filename"
+                       string="GRN Document"
+                       invisible="picking_type_code != 'internal'"
+                       required="picking_type_code == 'internal'"
+                       readonly="state == 'done'"
+                       options="{'accepted_file_extensions': '.pdf,.jpg,.jpeg,.png'}"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

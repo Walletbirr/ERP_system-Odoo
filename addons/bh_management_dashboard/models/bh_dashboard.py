@@ -53,6 +53,10 @@ class BhManagementDashboard(models.Model):
         # _get_receivable_payable_data.
         finance_data['receivable_breakdown'] = rp['receivable_breakdown']
         finance_data['payable_breakdown'] = rp['payable_breakdown']
+        # Additive info (not shown by the current UI): credit-side balances
+        # that were excluded from the Receivable / Payable headline figures.
+        finance_data['receivable_unapplied_credits'] = rp['unapplied_credits']
+        finance_data['payable_unapplied_debits'] = rp['unapplied_debits']
 
         return {
             'sales':         self._get_sales_data(date_from, date_to),
@@ -433,67 +437,71 @@ class BhManagementDashboard(models.Model):
     # RECEIVABLE / PAYABLE
     # ─────────────────────────────────────────────────────────────────────
     def _get_receivable_payable_data(self, date_to):
-        """Receivable & Payable, taken from the Chart of Accounts balance
-        of every account of type 'asset_receivable' / 'liability_payable'
-        — i.e. exactly what Odoo's own "Balance" smart button shows on
-        those accounts — same approach as _get_cash_at_bank_data, and for
-        the same reason: summing account_move.amount_residual per-invoice
-        can drift from the true GL balance (write-offs, manual journal
-        entries against the AR/AP account, exchange adjustments, credit
-        notes reconciled outside the invoice, etc. all move the account
-        balance without necessarily moving amount_residual in lockstep).
+        """Receivable & Payable as of date_to, from the General Ledger
+        (posted journal items on 'asset_receivable' / 'liability_payable'
+        accounts).
 
-        Like Cash & Bank, this is a running total as of date_to, NOT
-        bounded by date_from — Receivable/Payable are point-in-time
-        balances, not period movements, so switching the dashboard
-        period still shows "balance as of the end of that period"
-        rather than zeroing out for any period that isn't this month.
+        Balances are first grouped per (partner, account) — the same
+        grouping the drill-down modal uses — and only then summed:
 
-        Sign convention: asset_receivable accounts are debit-normal, so
-        SUM(balance) is already positive when customers owe money.
-        liability_payable accounts are credit-normal, so SUM(balance) is
-        negative when the company owes money — negated here so
-        total_payable is reported as a positive "amount owed" figure,
-        matching how total_receivable reads and how the mobile/web UI
-        already expects it.
+          * Receivable = sum of the POSITIVE (debit-side) balances, i.e.
+            what customers actually owe us.
+          * Payable    = sum of the POSITIVE amounts owed (credit-side
+            balances, sign-flipped), i.e. what we actually owe vendors.
 
-        Also returns a simple per-partner/account OPEN BALANCE breakdown
-        for the drill-down modal (receivable_breakdown / payable_breakdown)
-        — just "who" and "how much", no aging/due-date bucketing.
+        Opposite-side balances (customer advances / unapplied payments /
+        unapplied credit notes on receivable accounts, vendor
+        overpayments on payable accounts) are NOT netted against the
+        headline figure. Netting them is what previously produced a
+        negative "Accounts Receivable" total while every row in the
+        drill-down list was positive. They are returned separately as
+        'unapplied_credits' / 'unapplied_debits' for reference.
 
-        The breakdown is built from OPEN (unreconciled) lines only, while
-        the total_receivable/total_payable KPIs above stay computed from
-        ALL posted lines as before, so existing behavior doesn't change;
-        the breakdown is additive drill-down detail. In practice the two
-        should match closely since reconciled entries net to zero, but
-        they can differ by small amounts in edge cases (partial
-        reconciliation, exchange adjustments) — the KPI totals remain the
-        source of truth.
+        The KPI total and the drill-down modal now use exactly the same
+        population of lines (all posted lines up to date_to), so the total
+        always equals the sum of the rows in the modal.
+
+        Like Cash & Bank, this is a point-in-time balance as of date_to,
+        NOT bounded by date_from.
         """
         self.env.cr.execute("""
+            WITH bal AS (
+                SELECT aa.account_type,
+                       aml.partner_id,
+                       aml.account_id,
+                       SUM(aml.balance) AS bal
+                FROM account_move_line aml
+                JOIN account_account aa
+                  ON aa.id = aml.account_id
+                WHERE aa.account_type IN ('asset_receivable', 'liability_payable')
+                  AND aml.parent_state = 'posted'
+                  AND aml.company_id  = %s
+                  AND aml.date       <= %s::date
+                GROUP BY aa.account_type, aml.partner_id, aml.account_id
+            )
             SELECT
-                COALESCE(SUM(
-                    CASE WHEN aa.account_type = 'asset_receivable'
-                         THEN aml.balance ELSE 0 END
-                ), 0)  AS total_receivable,
-                COALESCE(SUM(
-                    CASE WHEN aa.account_type = 'liability_payable'
-                         THEN -aml.balance ELSE 0 END
-                ), 0)  AS total_payable
-            FROM account_move_line aml
-            JOIN account_account aa
-              ON aa.id = aml.account_id
-            WHERE aa.account_type IN ('asset_receivable', 'liability_payable')
-              AND aml.parent_state = 'posted'
-              AND aml.company_id  = %s
-              AND aml.date       <= %s::date
+                COALESCE(SUM(CASE WHEN account_type = 'asset_receivable'
+                                   AND bal > 0 THEN bal ELSE 0 END), 0)
+                    AS total_receivable,
+                COALESCE(SUM(CASE WHEN account_type = 'asset_receivable'
+                                   AND bal < 0 THEN -bal ELSE 0 END), 0)
+                    AS unapplied_credits,
+                COALESCE(SUM(CASE WHEN account_type = 'liability_payable'
+                                   AND bal < 0 THEN -bal ELSE 0 END), 0)
+                    AS total_payable,
+                COALESCE(SUM(CASE WHEN account_type = 'liability_payable'
+                                   AND bal > 0 THEN bal ELSE 0 END), 0)
+                    AS unapplied_debits
+            FROM bal
         """, (self.env.company.id, date_to))
         row = self.env.cr.dictfetchone()
 
         return {
-            'total_receivable': row['total_receivable'],
-            'total_payable':    row['total_payable'],
-            'as_of':            date_to,
+            'total_receivable':  row['total_receivable'],
+            'total_payable':     row['total_payable'],
+            'unapplied_credits': row['unapplied_credits'],
+            'unapplied_debits':  row['unapplied_debits'],
+            'as_of':             date_to,
             'receivable_breakdown': self._partner_balance_breakdown(
                 'asset_receivable', date_to, negate=False
             ),
@@ -503,9 +511,17 @@ class BhManagementDashboard(models.Model):
         }
 
     def _partner_balance_breakdown(self, account_type, date_to, negate=False):
-        """Per-partner (or per-account, when no partner is set) open
-        balance for one account type — just a name and a total, capped at
-        15 rows for the modal, ordered by size. No due-date/aging logic.
+        """Per-partner (or per-account, when no partner is set) balance
+        for one account type — just a name and a total, ordered by size.
+        No due-date/aging logic.
+
+        Uses the SAME population as the KPI total in
+        _get_receivable_payable_data (all posted lines up to date_to) and
+        only lists rows whose amount is positive ("amount owed"), so the
+        rows add up to the headline figure. The row count is also what the
+        card caption ("N customers / N vendors") displays, so the list is
+        no longer cut at 15 rows (capped at 500 as a safety limit; the
+        modal scrolls).
 
         Many lines here have no res.partner attached at all — this company's
         Chart of Accounts uses a dedicated named account per payee instead
@@ -548,11 +564,10 @@ class BhManagementDashboard(models.Model):
               AND aml.parent_state = 'posted'
               AND aml.company_id  = %(company_id)s
               AND aml.date       <= %(date_to)s::date
-              AND aml.reconciled  = false
             GROUP BY rp.id, rp.name, aa.id, aa.name
-            HAVING COALESCE(SUM({sign} * aml.balance), 0) != 0
+            HAVING COALESCE(SUM({sign} * aml.balance), 0) > 0
             ORDER BY total DESC
-            LIMIT 15
+            LIMIT 500
         """, {
             'date_to':      date_to,
             'account_type': account_type,
