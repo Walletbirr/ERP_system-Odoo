@@ -174,9 +174,11 @@
                                    invisible="state != 'rejected'"/>
                             <button name="action_submit" type="object"
                                     string="Submit" icon="fa-paper-plane"
+                                    class="o_ab_submit_proof"
                                     invisible="not parent.payment_proof_editable or state != 'pending'"/>
                             <button name="action_submit" type="object"
                                     string="Resubmit" icon="fa-repeat"
+                                    class="o_ab_submit_proof"
                                     invisible="not parent.payment_proof_editable or state != 'rejected'"/>
                             <button name="action_reopen" type="object"
                                     string="Reopen" icon="fa-undo"
@@ -191,6 +193,11 @@
                                     invisible="state != 'submitted'"/>
                         </list>
                     </field>
+                    <div class="text-muted small mt-2"
+                         invisible="not payment_proof_editable or x_payment_proof_status not in ('pending', 'rejected')">
+                        <i class="fa fa-pencil"/> Click a line to change its files or notes. It stays
+                        editable until you press Submit.
+                    </div>
                 </page>
             </xpath>
         </field>

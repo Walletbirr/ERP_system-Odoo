@@ -149,6 +149,19 @@ class SaleOrder(models.Model):
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------
+    def action_submit_payment_proofs(self):
+        """Submit every Pending / Rejected proof line of this order (used
+        by the Submit button's auto-save flow, see proof_autosave.js)."""
+        self.ensure_one()
+        proofs = self.payment_proof_ids.filtered(
+            lambda p: p.state in ('pending', 'rejected'))
+        if not proofs:
+            raise UserError(_(
+                "There is no payment proof to submit. Add a line in the "
+                "Payment Proofs tab and attach the files."))
+        proofs.action_submit()
+        return True
+
     def action_view_payment_proofs(self):
         """Read-only popup of every proof on this order. Accountants open a
         row to Approve / Reject it."""

@@ -203,4 +203,13 @@
                                     ('request_id.company_id', 'in', company_ids)]</field>
     </record>
 
+    <!-- Banks of a payment: multi-company. -->
+    <record id="rule_bridge_payment_bank_line_company" model="ir.rule">
+        <field name="name">Payment Bank Line: multi-company</field>
+        <field name="model_id" ref="model_bridge_payment_bank_line"/>
+        <field name="global" eval="True"/>
+        <field name="domain_force">['|', ('company_id', '=', False),
+                                    ('company_id', 'in', company_ids)]</field>
+    </record>
+
 </odoo>

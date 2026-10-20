@@ -17,7 +17,7 @@
                 <field name="download_link" widget="html" string="Payment Proof"/>
                 <field name="client_id_link" widget="html" string="Client ID"/>
                 <field name="notes"/>
-                <field name="payment_journal_id" string="Journal"
+                <field name="payment_bank_summary" string="Banks"
                        groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
                        invisible="state != 'approved'"/>
                 <field name="state" widget="badge"
@@ -66,13 +66,24 @@
                             <field name="download_link" widget="html" string="Payment Proof"/>
                             <field name="client_id_link" widget="html" string="Client ID"/>
                             <field name="notes"/>
-                            <field name="payment_journal_id"
-                                   groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
-                                   invisible="not payment_journal_id"/>
                             <field name="reviewed_by" invisible="not reviewed_by"/>
                             <field name="reviewed_date" invisible="not reviewed_date"/>
                             <field name="reject_reason" invisible="state != 'rejected'"/>
                         </group>
+                    </group>
+                    <group string="Banks"
+                           groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                           invisible="not payment_bank_ids and not payment_journal_id">
+                        <field name="payment_bank_ids" nolabel="1" colspan="2"
+                               invisible="not payment_bank_ids">
+                            <list create="false" delete="false" edit="false">
+                                <field name="journal_id"/>
+                                <field name="amount" sum="Total"/>
+                                <field name="currency_id" column_invisible="1"/>
+                            </list>
+                        </field>
+                        <field name="payment_journal_id" string="Journal"
+                               invisible="payment_bank_ids"/>
                     </group>
                     <group string="Order Details">
                         <field name="order_detail_html" widget="html" nolabel="1" colspan="2"/>
@@ -82,7 +93,10 @@
         </field>
     </record>
 
-    <!-- Approve wizard: the accountant says which journal the payment went to -->
+    <!-- Approve wizard. Default: pick the ONE bank the money arrived in.
+         Tick "more than one bank" and the order total is shown on top; the
+         accountant then enters every bank and its amount from scratch, and
+         the total can never go over the order total. -->
     <record id="view_payment_proof_approve_wizard_form" model="ir.ui.view">
         <field name="name">sale.order.payment.proof.approve.wizard.form</field>
         <field name="model">sale.order.payment.proof.approve.wizard</field>
@@ -90,20 +104,83 @@
             <form string="Approve Payment Proof">
                 <field name="proof_ids" widget="many2many_tags" invisible="1"/>
                 <field name="company_id" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="can_split" invisible="1"/>
+                <field name="bank_total" invisible="1"/>
+                <field name="bank_state" invisible="1"/>
+
                 <group>
-                    <field name="preview_html" widget="html" string="Check files"
-                           invisible="not preview_html"/>
-                    <field name="journal_id"
-                           options="{'no_create': True, 'no_open': True}"
-                           placeholder="Bank / cash journal the payment was received in"/>
+                    <group>
+                        <field name="sale_order_id" options="{'no_open': True}"
+                               invisible="not sale_order_id"/>
+                        <field name="partner_id" options="{'no_open': True}"
+                               invisible="not partner_id"/>
+                        <field name="order_total" invisible="multi_bank or not sale_order_id"/>
+                    </group>
+                    
                 </group>
-                <div class="text-muted">
-                    This journal will be preselected when the invoice of this
-                    order is paid.
+
+                <!-- ONE BANK (default) -->
+                <group invisible="multi_bank">
+                    <field name="journal_id" string="Bank"
+                           required="not multi_bank"
+                           options="{'no_create': True, 'no_open': True}"
+                           placeholder="Which bank did the money arrive in?"/>
+                </group>
+
+                <group invisible="not can_split">
+                    <field name="multi_bank"/>
+                </group>
+
+                <!-- SEVERAL BANKS -->
+                <div invisible="not multi_bank">
+                    <div class="text-center border rounded py-3 mb-3 bg-100">
+                        <div class="text-muted">Order total: the banks together cannot be more than this</div>
+                        <field name="order_total" class="oe_inline fs-2 fw-bold"/>
+                    </div>
+
+                    <field name="bank_line_ids" nolabel="1">
+                        <list editable="bottom">
+                            <control>
+                                <create string="Add a bank"/>
+                            </control>
+                            <field name="sequence" widget="handle"/>
+                            <field name="journal_id" string="Bank"
+                                   options="{'no_create': True, 'no_open': True}"
+                                   domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', parent.company_id)]"
+                                   placeholder="Choose the bank..."/>
+                            <field name="amount" string="Amount Received" sum="Entered"/>
+                            <field name="currency_id" column_invisible="1"/>
+                        </list>
+                    </field>
+
+                    <div class="alert alert-secondary mt-2 mb-0" role="alert"
+                         invisible="bank_state != 'empty'">
+                        <i class="fa fa-info-circle"/> Click <strong>Add a bank</strong>,
+                        choose the bank and type the amount it received.
+                    </div>
+                    <div class="alert alert-warning mt-2 mb-0" role="alert"
+                         invisible="bank_state != 'partial'">
+                        <i class="fa fa-hourglass-half"/> Still to enter:
+                        <field name="bank_difference" class="oe_inline fw-bold"/>.
+                        You can approve a partial payment, but check the amounts first.
+                    </div>
+                    <div class="alert alert-success mt-2 mb-0" role="alert"
+                         invisible="bank_state != 'full'">
+                        <i class="fa fa-check-circle"/> The banks add up to the order total.
+                        You can approve.
+                    </div>
+                    <div class="alert alert-danger mt-2 mb-0" role="alert"
+                         invisible="bank_state != 'over'">
+                        <i class="fa fa-times-circle"/> The amounts are more than the order total.
+                        Reduce them before approving.
+                    </div>
                 </div>
+
                 <footer>
-                    <button name="action_approve" type="object" string="Approve"
-                            class="btn-primary" data-hotkey="q"/>
+                    <button name="action_approve" type="object" string="Approve Payment"
+                            class="btn-primary" data-hotkey="q"
+                            invisible="multi_bank and bank_state == 'over'"/>
                     <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
                 </footer>
             </form>
@@ -139,7 +216,9 @@
                 <field name="sale_order_id"/>
                 <field name="uploaded_by"/>
                 <field name="reviewed_by"/>
-                <field name="payment_journal_id"/>
+                <field name="payment_bank_ids" string="Bank"
+                       groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
+                       filter_domain="[('payment_bank_ids.journal_id', 'ilike', self)]"/>
                 <filter string="Awaiting Approval" name="filter_submitted"
                         domain="[('state', '=', 'submitted')]"/>
                 <filter string="Approved" name="filter_approved"

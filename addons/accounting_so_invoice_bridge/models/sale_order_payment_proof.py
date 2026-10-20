@@ -19,8 +19,12 @@ INVOICE_READY_SUMMARY = 'Payment approved: create the invoice'
 # Only the Submit / Reopen / Approve / Reject buttons may change these.
 PROTECTED_FIELDS = {
     'state', 'submitted_date', 'reviewed_by', 'reviewed_date',
-    'reject_reason', 'payment_journal_id',
+    'reject_reason', 'payment_journal_id', 'payment_bank_ids',
 }
+# Who may see which bank / how much (same audience as the journal).
+BANK_GROUPS = ('account.group_account_invoice,account.group_account_user,'
+               'accounting_so_invoice_bridge.group_sale_invoice_creator,'
+               'base.group_system')
 PREVIEW_IMAGE_EXT = ('png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg')
 # The salesperson's content: frozen once submitted or approved.
 CONTENT_FIELDS = {'proof_file', 'proof_filename', 'client_id_file',
@@ -84,7 +88,16 @@ class SaleOrderPaymentProof(models.Model):
         copy=False, domain="[('type', 'in', ('bank', 'cash'))]",
         help="Chosen by the accountant when approving: the journal the "
              "customer's payment went into. It comes preselected on the "
-             "invoice's Pay dialog.")
+             "invoice's Pay dialog. With several banks it is the first one.")
+    payment_bank_ids = fields.One2many(
+        'sale.order.payment.proof.bank', 'proof_id', string='Banks',
+        readonly=True, copy=False, groups=BANK_GROUPS,
+        help="Chosen by the accountant when approving: every bank the "
+             "customer's payment was deposited in, with the amount in each. "
+             "They are listed on the invoice's Pay dialog.")
+    payment_bank_summary = fields.Char(
+        string='Banks', compute='_compute_payment_bank_summary',
+        groups=BANK_GROUPS)
     order_detail_html = fields.Html(
         string='Order Details', compute='_compute_order_detail_html',
         sanitize=False,
@@ -109,6 +122,24 @@ class SaleOrderPaymentProof(models.Model):
              'Binary cell in a list view can be stuck showing only the '
              'file size, so this always resolves to a working link.',
     )
+
+    @api.depends('payment_journal_id', 'payment_bank_ids.journal_id',
+                 'payment_bank_ids.amount')
+    def _compute_payment_bank_summary(self):
+        """"Bank A: 300,000.00 + Bank B: 190,000.00". Proofs approved
+        before multi-bank existed only have the single journal."""
+        for proof in self:
+            banks = proof.sudo().payment_bank_ids
+            if banks:
+                currency = proof.sale_order_id.currency_id
+                proof.payment_bank_summary = ' + '.join(
+                    '%s: %s' % (bank.journal_id.display_name,
+                                formatLang(self.env, bank.amount,
+                                           currency_obj=currency))
+                    for bank in banks)
+            else:
+                proof.payment_bank_summary = (
+                    proof.payment_journal_id.display_name or False)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -413,21 +444,36 @@ class SaleOrderPaymentProof(models.Model):
             'context': {'default_proof_ids': [(6, 0, self.ids)]},
         }
 
-    def action_approve(self, journal=None):
+    def action_approve(self, journal=None, bank_lines=None):
+        """Approve. ``bank_lines`` is a list of (journal, amount): every
+        bank the payment was deposited in. ``journal`` alone (old call
+        style) still works and means one bank without an amount."""
         self._check_reviewer()
+        bank_lines = list(bank_lines or [])
+        if bank_lines:
+            if len(self) > 1:
+                raise UserError(_(
+                    "Banks and amounts belong to one payment proof: approve "
+                    "the payment proofs one at a time."))
+            journal = bank_lines[0][0]
         if not journal:
             raise UserError(_(
                 "Select the journal the payment was received in."))
+        journals = journal
+        for bank_journal, _amount in bank_lines:
+            journals |= bank_journal
         for proof in self:
             if proof.state != 'submitted':
                 raise UserError(_(
                     'Only a payment proof that is awaiting approval can be '
                     'approved.'))
-            if journal.type not in ('bank', 'cash') or (
-                    journal.company_id != proof.sale_order_id.company_id):
-                raise UserError(_(
-                    "The journal must be a bank or cash journal of the "
-                    "company of order %s.", proof.sale_order_id.name))
+            for bank_journal in journals:
+                if bank_journal.type not in ('bank', 'cash') or (
+                        bank_journal.company_id
+                        != proof.sale_order_id.company_id):
+                    raise UserError(_(
+                        "The journal must be a bank or cash journal of the "
+                        "company of order %s.", proof.sale_order_id.name))
         self.sudo().write({
             'state': 'approved',
             'payment_journal_id': journal.id,
@@ -435,10 +481,26 @@ class SaleOrderPaymentProof(models.Model):
             'reviewed_date': fields.Datetime.now(),
             'reject_reason': False,
         })
+        if bank_lines:
+            proof = self.sudo()
+            proof.payment_bank_ids.unlink()
+            self.env['sale.order.payment.proof.bank'].sudo().create([{
+                'proof_id': proof.id,
+                'sequence': 10 * index,
+                'journal_id': bank_journal.id,
+                'amount': amount,
+            } for index, (bank_journal, amount) in enumerate(bank_lines, 1)])
+            currency = proof.sale_order_id.currency_id
+            banks_text = ', '.join(
+                '%s: %s' % (bank_journal.display_name,
+                            formatLang(self.env, amount, currency_obj=currency))
+                for bank_journal, amount in bank_lines)
+        else:
+            banks_text = journal.display_name
         self._post_note(_(
             "%(user)s approved the payment proof (payment journal: "
             "%(journal)s).", user=self.env.user.name,
-            journal=journal.display_name))
+            journal=banks_text))
         self._safe(self._close_review_activities, _("Payment proof approved."))
         self._safe(self._notify_sales_approved)
 
