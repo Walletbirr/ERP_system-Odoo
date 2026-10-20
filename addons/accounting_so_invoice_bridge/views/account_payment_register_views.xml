@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Invoice "Pay" dialog. When the payment proof was approved with
+         several banks, the standard Journal field turns into one row per
+         bank (bank + amount) and the standard Amount becomes their total.
+         With one bank nothing changes. -->
+    <record id="view_account_payment_register_form_bridge_banks" model="ir.ui.view">
+        <field name="name">account.payment.register.form.bridge.banks</field>
+        <field name="model">account.payment.register</field>
+        <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="arch" type="xml">
+            <!-- Must come BEFORE the bank list is inserted below: otherwise this
+                 xpath would match the Amount column of that list instead. -->
+            <xpath expr="//field[@name='amount']" position="attributes">
+                <attribute name="readonly">bridge_multi_bank</attribute>
+            </xpath>
+            <xpath expr="//field[@name='journal_id']" position="attributes">
+                <attribute name="invisible">bridge_multi_bank</attribute>
+            </xpath>
+            <xpath expr="//field[@name='journal_id']" position="after">
+                <field name="bridge_multi_bank" invisible="1"/>
+                <field name="bridge_bank_line_ids" nolabel="1" colspan="2"
+                       invisible="not bridge_multi_bank">
+                    <list editable="bottom">
+                        <control>
+                            <create string="Add another bank"/>
+                        </control>
+                        <field name="sequence" widget="handle"/>
+                        <field name="journal_id"
+                               options="{'no_create': True, 'no_open': True}"
+                               domain="[('type', 'in', ('bank', 'cash')), ('company_id', '=', parent.company_id)]"/>
+                        <field name="amount" sum="Total"/>
+                        <field name="currency_id" column_invisible="1"/>
+                    </list>
+                </field>
+            </xpath>
+        </field>
+    </record>
+</odoo>

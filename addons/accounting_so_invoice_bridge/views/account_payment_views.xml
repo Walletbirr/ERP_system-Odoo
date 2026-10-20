@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A payment received in several banks stays ONE payment (one reference,
+         one journal entry). Its form lists the banks under the Journal and the
+         Amount can no longer be edited by hand (it is the total of the banks).
+         A payment with one bank looks exactly as before. -->
+    <record id="view_account_payment_form_bridge_banks" model="ir.ui.view">
+        <field name="name">account.payment.form.bridge.banks</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='amount_div']/field[@name='amount']" position="attributes">
+                <attribute name="readonly">state != 'draft' or bridge_is_multi_bank</attribute>
+            </xpath>
+            <xpath expr="//group[@name='group2']/field[@name='journal_id']" position="after">
+                <field name="bridge_is_multi_bank" invisible="1"/>
+                <field name="bridge_bank_line_ids" nolabel="1" colspan="2"
+                       readonly="1" invisible="not bridge_is_multi_bank">
+                    <list>
+                        <field name="journal_id"/>
+                        <field name="amount" sum="Total"/>
+                        <field name="currency_id" column_invisible="1"/>
+                    </list>
+                </field>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_payment_list_bridge_banks" model="ir.ui.view">
+        <field name="name">account.payment.list.bridge.banks</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='journal_id']" position="after">
+                <field name="bridge_bank_summary" string="Banks" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

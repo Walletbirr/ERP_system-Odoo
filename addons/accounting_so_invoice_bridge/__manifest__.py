@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.23.1.0',
+    'version': '18.0.28.0.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -52,12 +52,15 @@ before ("Can Create Invoice from Sales Order"), now renamed.
         'views/sale_stock_request_views.xml',
         'views/sale_order_invoice_list_views.xml',
         'views/account_move_views.xml',
+        'views/account_payment_register_views.xml',
+        'views/account_payment_views.xml',
         'report/report_invoice_sales.xml',
     ],
     'assets': {
         'web.assets_backend': [
             'accounting_so_invoice_bridge/static/src/js/stock_warning_request.js',
             'accounting_so_invoice_bridge/static/src/js/proof_preview.js',
+            'accounting_so_invoice_bridge/static/src/js/proof_autosave.js',
         ],
     },
     'installable': True,

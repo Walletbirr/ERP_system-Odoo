@@ -67,7 +67,7 @@
                             <field name="download_link" widget="html" string="Payment Proof"/>
                             <field name="client_id_link" widget="html" string="Client ID"/>
                             <field name="notes"/>
-                            <field name="payment_journal_id" string="Journal"
+                            <field name="payment_bank_summary" string="Banks"
                                    groups="account.group_account_invoice,account.group_account_user,accounting_so_invoice_bridge.group_sale_invoice_creator,base.group_system"
                                    invisible="state != 'approved'"/>
                             <field name="state" widget="badge"
