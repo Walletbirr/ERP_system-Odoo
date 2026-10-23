@@ -16,6 +16,11 @@ class BingetStockDashboard extends Component {
         this.cog = useImportCog({
             model: "stock.quant",
             context: { inventory_mode: true },
+            exportUrl: "/binget/export/stock",
+            exportData: () => ({
+                warehouse_id:
+                    this.state.view === "overview" ? 0 : this.state.currentWarehouseId,
+            }),
         });
 
         this.state = useState({
