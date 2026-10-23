@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
 import { useService } from "@web/core/utils/hooks";
+import { download } from "@web/core/network/download";
 
 const { useState, useRef, useExternalListener } = owl;
 
@@ -8,7 +9,7 @@ const { useState, useRef, useExternalListener } = owl;
  * Settings (cog) menu with an "Import records" entry, identical in behaviour to
  * the standard Odoo control-panel cog (opens the stock base_import wizard).
  *
- * @param {Object} params  { model: string, context?: Object }
+ * @param {Object} params  { model, context?, exportUrl?, exportData?() }
  *   Static values, or pass functions returning them.
  */
 export function useImportCog(params) {
@@ -43,6 +44,14 @@ export function useImportCog(params) {
                 type: "ir.actions.client",
                 tag: "import",
                 params: { model: p.model, context: p.context || {} },
+            });
+        },
+        async exportRecords() {
+            close();
+            const p = typeof params === "function" ? params() : params;
+            await download({
+                url: p.exportUrl,
+                data: p.exportData ? p.exportData() : {},
             });
         },
     };

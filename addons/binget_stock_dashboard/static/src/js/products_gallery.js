@@ -17,6 +17,7 @@ class BingetProductsGallery extends Component {
         this.cog = useImportCog({
             model: "product.template",
             context: { default_is_storable: true },
+            exportUrl: "/binget/export/products",
         });
 
         this.state = useState({
