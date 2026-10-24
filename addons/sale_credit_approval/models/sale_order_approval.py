@@ -14,6 +14,7 @@ class SaleOrderApproval(models.Model):
     role = fields.Selection(
         [
             ('sales', 'Sales'),
+            ('accounting', 'Accounting'),
             ('high_level_manager', 'High-Level Manager'),
         ],
         required=True,

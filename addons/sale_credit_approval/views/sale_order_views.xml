@@ -69,10 +69,10 @@
                  and the manager's Credit-Approval screen render status
                  identically. -->
             <xpath expr="//header/field[@name='state']" position="attributes">
-                <attribute name="invisible">requires_credit_approval</attribute>
+                <attribute name="invisible">requires_credit_approval or approval_state != 'not_required'</attribute>
             </xpath>
             <xpath expr="//header/field[@name='state']" position="after">
-                <div class="o_credit_approval_status_group" invisible="not requires_credit_approval">
+                <div class="o_credit_approval_status_group" invisible="not requires_credit_approval and approval_state == 'not_required'">
                     <field name="state" widget="badge"
                            class="o_credit_approval_status"
                            decoration-info="state == 'draft'"
@@ -94,19 +94,19 @@
                      invisible="approval_state != 'to_approve'">
                     Waiting for approval from
                     <field name="high_level_manager_id" readonly="1" nolabel="1"/>
-                    before this order can be confirmed.
+                    before the invoice can be created.
                 </div>
                 <div class="alert alert-danger" role="alert"
                      invisible="approval_state != 'rejected'">
                     This order was rejected by the High-Level Manager. Review it,
-                    then click "Request Approval" again to resubmit.
+                    then send it for approval again.
                 </div>
             </xpath>
 
             <!-- Approvals trail -->
             <xpath expr="//notebook" position="inside">
                 <page string="Approvals" name="credit_approvals"
-                      invisible="not requires_credit_approval">
+                      invisible="not requires_credit_approval and approval_state == 'not_required'">
                     <field name="approval_ids" readonly="1">
                         <list>
                             <field name="role"/>

@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Sales Credit Order Approval',
-    'version': '18.0.1.3.0',
+    'name': 'Sales Approval',
+    'version': '18.0.1.5.0',
     'category': 'Sales',
-    'summary': 'Require High-Level Manager approval before confirming any Sales Order',
+    'summary': 'High-Level Manager approval of Sales Orders (after Accounting approves the payment)',
     'description': """
-        Adds a manager-approval workflow that applies to EVERY Sales Order,
-        regardless of payment term.
+        Adds a High-Level Manager approval step to Sales Orders.
 
-        - When a Sales Order is confirmed, an approval request (activity +
-          chatter notification) is sent to the High-Level Manager configured
-          in Executive Dashboard > Configuration > Approval Settings.
-        - The order cannot be confirmed until that manager approves it.
+        - An approval request (activity + chatter notification) is sent to
+          the High-Level Manager configured in Executive Dashboard >
+          Configuration > Approval Settings.
+        - With accounting_so_invoice_bridge installed the request is sent
+          automatically AFTER Accounting approves the payment proof; the
+          salesperson can create the invoice only once the manager approves.
         - An "Approvals" tab on the Sales Order shows the full approval
-          trail (Sales submission + Manager decision).
+          trail (Sales / Accounting submission + Manager decision).
         - A notification bell in the Executive Dashboard's top navbar shows
           the current manager's pending request count.
     """,

@@ -102,7 +102,7 @@ patch(BhManagementDashboard.prototype, {
         });
     },
 
-    // ── "Recent Credit Approval Requests" table (Approvals tab) ────────────
+    // ── "Recent Approval Requests" table (Approvals tab) ────────────
     // Search + status filter + pagination over the (backend-capped-at-200)
     // `recent` list. Filtering client-side is fine here since the list is
     // small and this avoids an extra round-trip on every keystroke.

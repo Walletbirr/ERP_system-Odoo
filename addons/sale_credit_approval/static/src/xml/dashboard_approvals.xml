@@ -22,7 +22,7 @@
         <xpath expr="//div[hasclass('bh-topbar-title')]/t[last()]" position="after">
             <t t-elif="state.activeTab === 'approvals'">
                 <i class="fa fa-check-square-o bh-title-icon"/>
-                Credit Approvals
+                Sales Approvals
             </t>
         </xpath>
 
@@ -30,7 +30,7 @@
                 / Higher Management Reporting" text that used to sit at the
                 far right of the top navbar. Visible on every tab (it's in
                 the navbar, not inside a tab body), so a manager sees new
-                credit-approval requests the moment they open the Executive
+                approval requests the moment they open the Executive
                 Dashboard, regardless of which tab they land on. Reuses the
                 exact same action_required data as the Sales-tab panel, so
                 the count/list is always in sync with it. -->
@@ -149,14 +149,14 @@
                 content so it lands inside the same "bh-content" wrapper as
                 every other tab. Read-only summary table - the "Requests
                 Needing Your Action" panel above (Sales tab) is where
-                actionable items now live, and the full Credit Approvals
-                list (Executive Dashboard > Credit Approvals) still has the
+                actionable items now live, and the full Sales Approvals
+                list (Executive Dashboard > Sales Approvals) still has the
                 real Approve/Reject workflow. -->
         <xpath expr="//div[@t-if=&quot;state.activeTab === &apos;hr&apos;&quot;]" position="after">
             <!-- APPROVALS TAB -->
             <div t-if="state.activeTab === 'approvals'">
                 <div t-if="state.data.approvals.summary.total == 0" class="bh-info-banner">
-                    <i class="fa fa-info-circle"/> No Credit Sales orders require approval yet.
+                    <i class="fa fa-info-circle"/> No Sales orders require approval yet.
                 </div>
                 <div class="bh-kpi-row">
                     <div class="bh-kpi-card orange">
@@ -176,14 +176,14 @@
                     </div>
                     <div class="bh-kpi-card purple">
                         <div class="bh-kpi-icon"><i class="fa fa-list-alt"/></div>
-                        <div class="bh-kpi-label">Total Credit Orders</div>
+                        <div class="bh-kpi-label">Total Orders</div>
                         <div class="bh-kpi-value" t-esc="state.data.approvals.summary.total"/>
                     </div>
                 </div>
                 <div class="bh-charts-row">
                     <div class="bh-chart-panel full-width">
                         <div class="bh-panel-title-row">
-                            <div class="bh-panel-title">Recent Credit Approval Requests</div>
+                            <div class="bh-panel-title">Recent Approval Requests</div>
                             <div class="bh-table-filters">
                                 <div class="bh-filter-group">
                                     <label class="bh-filter-label">Filter</label>

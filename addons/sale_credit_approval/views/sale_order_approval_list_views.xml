@@ -6,7 +6,7 @@
         <field name="name">sale.order.credit.approval.list</field>
         <field name="model">sale.order</field>
         <field name="arch" type="xml">
-            <list string="Credit Approvals" create="0" import="0"
+            <list string="Sales Approvals" create="0" import="0"
                   decoration-warning="approval_state == 'to_approve'"
                   decoration-success="approval_state == 'approved'"
                   decoration-muted="approval_state == 'rejected'">
@@ -25,11 +25,11 @@
                 <button name="action_approve_credit_order" type="object"
                         string="Approve" class="btn-success" icon="fa-check"
                         invisible="not can_approve_credit"
-                        confirm="Approve this Credit Sales order?"/>
+                        confirm="Approve this Sales order?"/>
                 <button name="action_reject_credit_order" type="object"
                         string="Reject" class="btn-danger" icon="fa-times"
                         invisible="not can_approve_credit"
-                        confirm="Reject this Credit Sales order?"/>
+                        confirm="Reject this Sales order?"/>
             </list>
         </field>
     </record>
@@ -39,7 +39,7 @@
         <field name="name">sale.order.credit.approval.search</field>
         <field name="model">sale.order</field>
         <field name="arch" type="xml">
-            <search string="Credit Approvals">
+            <search string="Sales Approvals">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="user_id" string="Salesperson"/>
@@ -60,20 +60,19 @@
 
     <!-- Action -->
     <record id="action_sale_order_credit_approvals" model="ir.actions.act_window">
-        <field name="name">Credit Approvals</field>
+        <field name="name">Sales Approvals</field>
         <field name="res_model">sale.order</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id" ref="view_sale_order_credit_approval_search"/>
-        <field name="domain">[('requires_credit_approval', '=', True)]</field>
+        <field name="domain">[('approval_state', '!=', 'not_required')]</field>
         <field name="context">{'search_default_to_approve': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                No Credit Sales orders yet.
+                No Sales Orders waiting for approval.
             </p>
             <p>
-                Sales Orders using a payment term flagged "Requires High-Level
-                Manager Approval" will show up here once a salesperson submits
-                them for confirmation.
+                Sales Orders show up here once Accounting has approved their
+                payment proof and they need your decision.
             </p>
         </field>
     </record>
@@ -95,7 +94,7 @@
     <!-- Menu: sits in the Executive Dashboard app, between Management
          Overview and Configuration, visible to the same executive group -->
     <menuitem id="menu_sale_order_credit_approvals"
-              name="Credit Approvals"
+              name="Sales Approvals"
               parent="bh_management_dashboard.menu_bh_dashboard_root"
               action="action_sale_order_credit_approvals"
               sequence="2"

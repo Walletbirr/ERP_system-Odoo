@@ -73,44 +73,56 @@ class SaleOrder(models.Model):
     # Workflow actions
     # ------------------------------------------------------------------
     def action_request_approval(self):
-        """Send this order to the configured High-Level Manager for review."""
+        """Send this order to the configured High-Level Manager for review
+        (Sales-initiated path: only orders flagged requires_credit_approval)."""
         for order in self:
             if not order.requires_credit_approval:
                 continue
-            manager = order._get_configured_manager()
-            if not manager:
-                raise UserError(_(
-                    "No High-Level Manager is configured for order approvals.\n"
-                    "Go to Executive Dashboard > Configuration > Approval "
-                    "Settings and set one before confirming this order."
-                ))
+            order._request_manager_approval(previous_steps=[{
+                'role': 'sales',
+                'user_id': order.user_id.id or self.env.user.id,
+                'status': 'approved',
+                'date': fields.Datetime.now(),
+                'note': _('Submitted for approval'),
+            }])
 
+    def _request_manager_approval(self, previous_steps=None):
+        """Put the order in front of the High-Level Manager.
+
+        ``previous_steps`` are already-decided trail lines (a list of
+        sale.order.approval vals) shown before the manager's pending line,
+        e.g. the Sales submission, or Accounting's payment approval when
+        the request comes from accounting_so_invoice_bridge.
+
+        Does NOT check requires_credit_approval: callers decide when an
+        order needs the manager.
+        """
+        manager = self._get_configured_manager()
+        if not manager:
+            raise UserError(_(
+                "No High-Level Manager is configured for order approvals.\n"
+                "Go to Executive Dashboard > Configuration > Approval "
+                "Settings and set one first."
+            ))
+        for order in self:
             # Reset any previous pending step, keep history of decided ones
             order.approval_ids.filtered(lambda a: a.status == 'pending').unlink()
+            steps = [(0, 0, dict(vals)) for vals in (previous_steps or [])]
+            steps.append((0, 0, {
+                'role': 'high_level_manager',
+                'user_id': manager.id,
+                'status': 'pending',
+            }))
             order.write({
                 'approval_state': 'to_approve',
-                'approval_ids': [
-                    (0, 0, {
-                        'role': 'sales',
-                        'user_id': order.user_id.id or self.env.user.id,
-                        'status': 'approved',
-                        'date': fields.Datetime.now(),
-                        'note': _('Submitted for approval'),
-                    }),
-                    (0, 0, {
-                        'role': 'high_level_manager',
-                        'user_id': manager.id,
-                        'status': 'pending',
-                    }),
-                ],
+                'approval_ids': steps,
             })
 
             order.activity_schedule(
                 'mail.mail_activity_data_todo',
                 summary=_('Approve Sales Order %s', order.name),
                 note=_(
-                    'Order %(order)s for %(customer)s needs your approval '
-                    'before it can be confirmed.',
+                    'Order %(order)s for %(customer)s needs your approval.',
                     order=order.name, customer=order.partner_id.name,
                 ),
                 user_id=manager.id,
@@ -119,6 +131,12 @@ class SaleOrder(models.Model):
                 body=_('Approval requested from %s for this order.', manager.name),
                 partner_ids=manager.partner_id.ids,
             )
+
+    def _after_manager_decision(self, decision, note=None):
+        """Hook called after the manager approved ('approved') or rejected
+        ('rejected') the order. Other modules extend it (e.g.
+        accounting_so_invoice_bridge notifies the salesperson)."""
+        return True
 
     def action_approve_credit_order(self, note=None):
         for order in self:
@@ -138,12 +156,16 @@ class SaleOrder(models.Model):
                 activities.action_feedback(feedback=_('Approved by %s', self.env.user.name))
             order.message_post(body=_('Sales order approved by %s.', self.env.user.name))
 
-            # Smart follow-through: once approved there is nothing left for
-            # the salesperson to decide, so confirm the order right away
-            # instead of waiting for a second manual click. At this point
-            # approval_state == 'approved', so action_confirm() below falls
-            # straight through to the normal sale.order confirmation.
-            order.action_confirm()
+            # Smart follow-through (approval BEFORE confirmation): once
+            # approved there is nothing left for the salesperson to
+            # decide, so confirm the order right away. Only for orders
+            # that are not confirmed yet: when the approval comes AFTER
+            # Accounting approved the payment, the order is already a
+            # Sales Order and must NOT be confirmed a second time (that
+            # would re-run delivery procurement).
+            if order.state in ('draft', 'sent'):
+                order.action_confirm()
+            order._after_manager_decision('approved', note=note)
 
     def action_reject_credit_order(self, reason=None):
         for order in self:
@@ -162,6 +184,7 @@ class SaleOrder(models.Model):
             if activities:
                 activities.action_feedback(feedback=_('Rejected by %s', self.env.user.name))
             order.message_post(body=_('Sales order rejected by %s.', self.env.user.name))
+            order._after_manager_decision('rejected', note=reason)
 
     # ------------------------------------------------------------------
     # Confirm override

@@ -4,7 +4,7 @@ from odoo import models
 
 class BhManagementDashboard(models.Model):
     """Extends the Executive Dashboard (bh_management_dashboard) with a
-    Credit-Approvals section, WITHOUT bh_management_dashboard depending on
+    Sales-Approvals section, WITHOUT bh_management_dashboard depending on
     this module. sale_credit_approval already depends on
     bh_management_dashboard (see __manifest__.py), so the dependency only
     goes one way - same pattern already used for the "Credit Approvals"
@@ -31,7 +31,9 @@ class BhManagementDashboard(models.Model):
         so can_approve_credit below still reflects the real logged-in user.
         """
         Order = self.env['sale.order'].sudo()
-        domain = [('requires_credit_approval', '=', True)]
+        # Any order that went through the approval flow (post-payment
+        # approvals do not set requires_credit_approval).
+        domain = [('approval_state', '!=', 'not_required')]
 
         summary = {
             'pending': Order.search_count(domain + [('approval_state', '=', 'to_approve')]),

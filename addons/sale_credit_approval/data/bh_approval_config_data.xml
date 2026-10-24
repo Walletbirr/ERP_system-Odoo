@@ -5,4 +5,13 @@
         <field name="name">Sales Approval Settings</field>
     </record>
 
+
+    <!-- Mobile push notifications. The secret is NOT created here: set
+         bh_push.secret yourself (same value as PUSH_WEBHOOK_SECRET in the
+         BFF). Without it, pushes are simply off. -->
+    <record id="param_bh_push_bff_url" model="ir.config_parameter">
+        <field name="key">bh_push.bff_url</field>
+        <field name="value">http://localhost:4000</field>
+    </record>
+
 </odoo>

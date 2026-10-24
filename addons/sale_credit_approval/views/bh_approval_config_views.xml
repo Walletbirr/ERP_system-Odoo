@@ -8,17 +8,17 @@
             <form string="Sales Approval Configuration">
                 <sheet>
                     <div class="oe_title">
-                        <h1>Credit Sales Approval Settings</h1>
+                        <h1>Sales Approval Settings</h1>
                     </div>
                     <group>
                         <field name="high_level_manager_id" options="{'no_create': True}"/>
                     </group>
                     <p class="text-muted">
-                        The selected user receives an approval request whenever a
-                        Sales Order using a payment term flagged
-                        "Requires High-Level Manager Approval" (e.g. Credit Sales)
-                        is confirmed. Only this user (or an Administrator) can
-                        approve or reject those orders.
+                        The selected user receives an approval request for every
+                        Sales Order once Accounting has approved its payment
+                        proof. The salesperson can create the invoice only after
+                        this user approves. Only this user (or an Administrator)
+                        can approve or reject those orders.
                     </p>
                 </sheet>
             </form>
@@ -35,8 +35,8 @@
     </record>
 
     <menuitem id="menu_bh_approval_config"
-              name="Configuration"
-              parent="bh_management_dashboard.menu_bh_dashboard_root"
+              name="Approval Settings"
+              parent="bh_management_dashboard.menu_bh_dashboard_config"
               action="action_bh_approval_config"
               sequence="10"
               groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
