@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'BH Management Dashboard',
-    'version': '18.0.1.2.1',
+    'version': '18.0.1.9.0',
     'category': 'Reporting',
     'summary': 'Higher Management Reporting Dashboard for BINGET HOLDING PLC',
     'description': """
@@ -25,6 +25,7 @@
         'security/ir.model.access.csv',
         'views/bh_dashboard_views.xml',
         'views/bh_dashboard_menus.xml',
+        'views/bh_dashboard_config_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

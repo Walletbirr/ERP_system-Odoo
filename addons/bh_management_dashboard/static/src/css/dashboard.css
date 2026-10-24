@@ -955,3 +955,54 @@
   color: #8a8478;
   font-size: 13px;
 }
+
+/* ── Credit / Deposit — category summary modal + side-by-side tables ──── */
+.bh-modal-panel.bh-modal-wide {
+  max-width: 560px;
+}
+.bh-brk-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px 20px 20px;
+}
+@media (max-width: 520px) {
+  .bh-brk-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.bh-brk-card {
+  border: 1px solid #eee5d8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #fff;
+}
+.bh-brk-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b6255;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh-brk-card-label i {
+  color: #a07840;
+}
+.bh-brk-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #7c5c2e;
+  margin: 8px 0 4px;
+}
+.bh-brk-card-sub {
+  font-size: 11.5px;
+  color: #8a8478;
+}
+.bh_dashboard .bh-panel-title.bh-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}

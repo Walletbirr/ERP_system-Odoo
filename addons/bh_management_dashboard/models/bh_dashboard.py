@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
+import logging
+import re
+
 from odoo import models, fields, api
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+
+_logger = logging.getLogger(__name__)
 
 
 class BhManagementDashboard(models.Model):
@@ -29,23 +34,36 @@ class BhManagementDashboard(models.Model):
         if not date_to:
             date_to = today.strftime('%Y-%m-%d')
 
+        # Balances (receivable, payable, cash, credit, deposit) are "as of"
+        # figures: never look past today, even if the selected period ends in
+        # the future (e.g. "This Month" ending on the 30th).
+        balance_date = min(date_to, today.strftime('%Y-%m-%d'))
+
         finance_data = self._get_finance_data(date_from, date_to)
         # Credit / deposit reports live in their own optional modules
         # (customer_credit_report / customer_deposit_credit). They are not
         # hard 'depends' of this module — each getter checks whether the
         # relevant fields exist on res.partner and returns None if not, so
         # the Finance tab simply hides the section instead of erroring out.
-        finance_data['customer_credit'] = self._get_customer_credit_data()
-        finance_data['customer_deposits'] = self._get_customer_deposit_data()
+        finance_data['customer_credit'] = self._get_customer_credit_data(balance_date)
+        finance_data['customer_deposits'] = self._get_customer_deposit_data(balance_date)
         # Cash & Bank balances — a running total as of date_to, not a
         # period movement, so it always reflects the true balance an
         # executive would expect (see _get_cash_at_bank_data docstring).
-        finance_data['cash_at_bank'] = self._get_cash_at_bank_data(date_to)
+        finance_data['cash_at_bank'] = self._get_cash_at_bank_data(balance_date)
+        # Credit sales = confirmed customer invoices that are not paid yet.
+        # A savepoint keeps a failure here from aborting the whole request.
+        try:
+            with self.env.cr.savepoint():
+                finance_data['credit_sales'] = self._get_credit_sales_data(balance_date)
+        except Exception:
+            _logger.exception("bh_management_dashboard: credit sales failed")
+            finance_data['credit_sales'] = None
         # Receivable / Payable — Chart of Accounts balance as of date_to,
         # same approach as Cash & Bank, overriding the invoice-residual
         # figures computed above (see _get_receivable_payable_data
         # docstring for why).
-        rp = self._get_receivable_payable_data(date_to)
+        rp = self._get_receivable_payable_data(balance_date)
         finance_data['summary']['total_receivable'] = rp['total_receivable']
         finance_data['summary']['total_payable'] = rp['total_payable']
         # Drill-down detail for the Receivable/Payable modals — simple
@@ -55,10 +73,20 @@ class BhManagementDashboard(models.Model):
         finance_data['payable_breakdown'] = rp['payable_breakdown']
         # Additive info (not shown by the current UI): credit-side balances
         # that were excluded from the Receivable / Payable headline figures.
+        finance_data['receivable_configured'] = rp.get('receivable_configured', True)
+        finance_data['payable_configured'] = rp.get('payable_configured', True)
         finance_data['receivable_unapplied_credits'] = rp['unapplied_credits']
         finance_data['payable_unapplied_debits'] = rp['unapplied_debits']
 
+        try:
+            company_data = self._get_company_data()
+        except Exception:
+            # The Company tab must never take the whole dashboard down.
+            _logger.exception("bh_management_dashboard: company data failed")
+            company_data = None
+
         return {
+            'company':       company_data,
             'sales':         self._get_sales_data(date_from, date_to),
             'inventory':     self._get_inventory_data(),
             'finance':       finance_data,
@@ -162,29 +190,54 @@ class BhManagementDashboard(models.Model):
         """)
         monthly_trend = self.env.cr.dictfetchall()
 
-        # ── Top 5 customers by revenue in period ──
-        self.env.cr.execute("""
-            SELECT
-                rp.name                            AS customer,
-                COALESCE(SUM(so.amount_total), 0)  AS total
-            FROM sale_order so
-            JOIN res_partner rp ON so.partner_id = rp.id
-            WHERE
-                (so.date_order AT TIME ZONE 'UTC')::date >= %s::date
-                AND (so.date_order AT TIME ZONE 'UTC')::date <= %s::date
-                AND so.state NOT IN ('cancel')
-            GROUP BY rp.name
-            ORDER BY total DESC
-            LIMIT 5
-        """, (date_from, date_to))
-        top_customers = self.env.cr.dictfetchall()
-
-        return {
+        # ── Top customers (and dealers) by revenue in period ──
+        # custom_contacts_manager (optional) adds the Contact Category. When
+        # it is installed, a contact whose category is "Client" is a DEALER
+        # on the mobile app, and every other contact is a CUSTOMER, so the
+        # two lists never overlap. Without it, customers are all contacts
+        # (as before) and no dealer list is sent (the app then says dealer
+        # sales are not available).
+        has_category = 'contact_type_code' in self.env['res.partner']._fields
+        top_customers = self._get_top_partners_by_revenue(
+            date_from, date_to,
+            "AND COALESCE(rp.contact_type_code, '') <> 'client'"
+            if has_category else "",
+            'customer')
+        result = {
             'summary':       summary,
             'comparison':    comparison,
             'monthly_trend': monthly_trend,
             'top_customers': top_customers,
         }
+        if has_category:
+            result['top_dealers'] = self._get_top_partners_by_revenue(
+                date_from, date_to,
+                "AND rp.contact_type_code = 'client'", 'dealer')
+        return result
+
+    def _get_top_partners_by_revenue(self, date_from, date_to, extra_where,
+                                     alias, limit=10):
+        """Total non-cancelled sales per contact in the period, biggest
+        first. `extra_where` is a fixed SQL fragment written in this module
+        (never user input); `alias` names the first column ('customer' /
+        'dealer'), which is what the mobile app reads."""
+        assert alias in ('customer', 'dealer')
+        self.env.cr.execute("""
+            SELECT
+                rp.name                            AS %s,
+                COALESCE(SUM(so.amount_total), 0)  AS total
+            FROM sale_order so
+            JOIN res_partner rp ON so.partner_id = rp.id
+            WHERE
+                (so.date_order AT TIME ZONE 'UTC')::date >= %%s::date
+                AND (so.date_order AT TIME ZONE 'UTC')::date <= %%s::date
+                AND so.state NOT IN ('cancel')
+                %s
+            GROUP BY rp.name
+            ORDER BY total DESC
+            LIMIT %%s
+        """ % (alias, extra_where), (date_from, date_to, limit))
+        return self.env.cr.dictfetchall()
 
     # ─────────────────────────────────────────────────────────────────────
     # INVENTORY
@@ -192,8 +245,9 @@ class BhManagementDashboard(models.Model):
     def _get_stock_value(self):
         """Return (total_value, {location_id: value}) for internal locations.
 
-        value = quantity on hand x product cost (standard_price) in the
-        current company. Runs sudo() because the mobile endpoint calls this
+        value = quantity on hand x product SALES price (lst_price) in the
+        current company, i.e. stock valued at selling price, not cost.
+        Runs sudo() because the mobile endpoint calls this
         with_user(<executive>) and an executive is not necessarily a stock
         user; the rest of this dashboard reads through raw SQL for the same
         reason.
@@ -206,7 +260,7 @@ class BhManagementDashboard(models.Model):
         products = self.env['product.product'].sudo().with_company(
             self.env.company
         ).browse([product.id for product, _loc, _qty in rows])
-        cost = {p.id: p.standard_price or 0.0 for p in products}
+        cost = {p.id: p.lst_price or 0.0 for p in products}
 
         by_location = {}
         for product, location, qty in rows:
@@ -214,6 +268,30 @@ class BhManagementDashboard(models.Model):
                 + (qty or 0.0) * cost.get(product.id, 0.0)
         by_location = {k: round(v, 2) for k, v in by_location.items()}
         return round(sum(by_location.values()), 2), by_location
+
+    @staticmethod
+    def _merge_stock_by_branch(location_rows, warehouse_names,
+                               value_by_location, limit=6):
+        """One row per branch: quantity and value of all its internal
+        locations added up, biggest first. A location that belongs to no
+        warehouse keeps its own full name."""
+        merged = {}
+        for r in location_rows:
+            wid = r.get('warehouse_id')
+            key = ('w', wid) if wid else ('l', r['location_id'])
+            row = merged.setdefault(key, {
+                'location_id': r['location_id'],
+                'location': (warehouse_names.get(wid) if wid else None)
+                            or r['location'],
+                'qty': 0.0,
+                'value': 0.0,
+            })
+            row['qty'] += float(r['qty'] or 0)
+            row['value'] += float(value_by_location.get(r['location_id'], 0.0))
+        rows = sorted(merged.values(), key=lambda x: x['qty'], reverse=True)
+        for row in rows:
+            row['value'] = round(row['value'], 2)
+        return rows[:limit]
 
     def _get_inventory_data(self):
         self.env.cr.execute("""
@@ -227,8 +305,7 @@ class BhManagementDashboard(models.Model):
         """)
         summary = self.env.cr.dictfetchone()
 
-        # Stock value = on-hand quantity x current product cost, the same
-        # basis as Inventory > Stock overview. It deliberately does NOT sum
+        # Stock value = on-hand quantity x product sales price (lst_price). It deliberately does NOT sum
         # stock.valuation.layer: layers are empty/zero when stock came in
         # via inventory adjustment or opening import, or while the product
         # cost was still 0, which made this card show 0.00.
@@ -239,17 +316,25 @@ class BhManagementDashboard(models.Model):
             SELECT
                 sl.id                              AS location_id,
                 sl.complete_name                   AS location,
+                sl.warehouse_id                    AS warehouse_id,
                 COALESCE(SUM(sq.quantity), 0)      AS qty
             FROM stock_quant sq
             JOIN stock_location sl ON sq.location_id = sl.id
             WHERE sl.usage = 'internal'
-            GROUP BY sl.id, sl.complete_name
-            ORDER BY SUM(sq.quantity) DESC
-            LIMIT 6
+            GROUP BY sl.id, sl.complete_name, sl.warehouse_id
         """)
-        by_location = self.env.cr.dictfetchall()
-        for row in by_location:
-            row['value'] = value_by_location.get(row['location_id'], 0.0)
+        location_rows = self.env.cr.dictfetchall()
+        # Show the BRANCH (warehouse) name, e.g. "Koye Branch", not the short
+        # technical location code ("WH/Stock"). Sub-locations of one branch
+        # are added together. Same names as "Top Branches by Sales".
+        warehouse_ids = {r['warehouse_id'] for r in location_rows
+                         if r['warehouse_id']}
+        warehouse_names = {
+            w.id: w.name for w in
+            self.env['stock.warehouse'].sudo().browse(list(warehouse_ids)).exists()
+        }
+        by_location = self._merge_stock_by_branch(
+            location_rows, warehouse_names, value_by_location, limit=6)
 
         self.env.cr.execute("""
             SELECT
@@ -298,11 +383,12 @@ class BhManagementDashboard(models.Model):
                                                                 AS total_invoices,
                 COALESCE(SUM(
                     CASE WHEN move_type = 'out_invoice' AND state = 'posted'
-                         THEN amount_total ELSE 0 END
+                         THEN amount_total_signed ELSE 0 END
                 ), 0)                                           AS total_invoiced
             FROM account_move
-            WHERE invoice_date BETWEEN %s::date AND %s::date
-        """, (date_from, date_to))
+            WHERE company_id = %s
+              AND invoice_date BETWEEN %s::date AND %s::date
+        """, (self.env.company.id, date_from, date_to))
         summary = self.env.cr.dictfetchone()
 
         # ── Period-over-period comparison (previous period, same length) ──
@@ -311,11 +397,12 @@ class BhManagementDashboard(models.Model):
             SELECT
                 COALESCE(SUM(
                     CASE WHEN move_type = 'out_invoice' AND state = 'posted'
-                         THEN amount_total ELSE 0 END
+                         THEN amount_total_signed ELSE 0 END
                 ), 0)                                           AS total_invoiced
             FROM account_move
-            WHERE invoice_date BETWEEN %s::date AND %s::date
-        """, (prev_from, prev_to))
+            WHERE company_id = %s
+              AND invoice_date BETWEEN %s::date AND %s::date
+        """, (self.env.company.id, prev_from, prev_to))
         prev = self.env.cr.dictfetchone()
         comparison = {
             'prev_date_from':     prev_from,
@@ -577,91 +664,221 @@ class BhManagementDashboard(models.Model):
         return self.env.cr.dictfetchall()
 
     # ─────────────────────────────────────────────────────────────────────
-    # CUSTOMER CREDIT  (from the optional 'customer_credit_report' module)
+    # CREDIT / DEPOSIT  —  break-down helpers
+    #
+    # Everything below is driven ONLY by the accounts selected in
+    # Executive Dashboard > Configuration > Finance Accounts. A category
+    # with no accounts selected shows nothing (never a fallback to "all").
     # ─────────────────────────────────────────────────────────────────────
-    def _get_customer_credit_data(self):
-        """Outstanding customer credit summary for executives.
+    def _breakdown_account_rows(self, accounts, date_to, negate=False):
+        """Posted ledger balance, as of date_to, of each selected account.
 
-        Sourced from res.partner fields added by 'customer_credit_report'
-        (x_total_sale_amount, x_total_invoiced, x_credit_amount_paid,
-        x_remaining_balance) plus the native 'credit' field (Outstanding
-        Credit). Those compute fields are not stored, so this is done via
-        the ORM (not raw SQL) — the 'credit' field has a custom search
-        method that still lets us filter server-side efficiently.
-
-        Returns None if 'customer_credit_report' isn't installed, so the
-        UI can hide the section instead of showing empty/zero data.
+        `negate` flips the sign for credit-normal accounts (deposits), so a
+        positive number always means "money held / owed" in the card's sense.
         """
+        if not accounts:
+            return []
+        self.env.cr.execute("""
+            SELECT aml.account_id, COALESCE(SUM(aml.balance), 0)
+            FROM account_move_line aml
+            WHERE aml.account_id = ANY(%s::int[])
+              AND aml.parent_state = 'posted'
+              AND aml.company_id  = %s
+              AND aml.date       <= %s::date
+            GROUP BY aml.account_id
+        """, (accounts.ids, self.env.company.id, date_to))
+        balances = dict(self.env.cr.fetchall())
+        sign = -1.0 if negate else 1.0
+        rows = [{
+            'id':      a.id,
+            'code':    a.code,
+            'name':    a.name,
+            'balance': sign * balances.get(a.id, 0.0),
+        } for a in accounts.sudo().with_company(self.env.company)]
+        rows.sort(key=lambda r: r['balance'], reverse=True)
+        return rows
+
+    _STAFF_PREFIX = re.compile(
+        r'^\s*staff?\s+(?:receivable|recivable|receivale|debtor)(?=[\s\-:(])[\s\-:(]*',
+        re.I)
+    _CUSTOMER_PREFIX = re.compile(r'^\s*customer(?=[\s\-:])[\s\-:]*', re.I)
+
+    @api.model
+    def _clean_account_name(self, name):
+        """Display name for a ledger line that has no contact: the account
+        name without the code and without the 'STAFF RECEIVABLE' / 'STAFF
+        DEBTOR' / 'Customer' label. Anything that doesn't match safely is
+        left as is."""
+        name = (name or '').strip()
+        out = self._STAFF_PREFIX.sub('', name)
+        out = self._CUSTOMER_PREFIX.sub('', out)
+        if out.count(')') > out.count('('):
+            out = out.rstrip(' )')
+        return out.strip() or name
+
+    def _group_balances(self, accounts, date_to, negate=False):
+        """Who holds a balance on `accounts`: one entry per partner (or per
+        account when a posted line has no partner), positive amounts only.
+
+        Returns [{'partner_id', 'amount', 'account'}] sorted by amount.
+        'account' is the cleaned-up NAME (no code) of the account carrying
+        most of it.
+        """
+        if not accounts:
+            return []
+        self.env.cr.execute("""
+            SELECT aml.partner_id, aml.account_id, COALESCE(SUM(aml.balance), 0)
+            FROM account_move_line aml
+            WHERE aml.account_id = ANY(%s::int[])
+              AND aml.parent_state = 'posted'
+              AND aml.company_id  = %s
+              AND aml.date       <= %s::date
+            GROUP BY aml.partner_id, aml.account_id
+            HAVING ABS(SUM(aml.balance)) > 0.005
+        """, (accounts.ids, self.env.company.id, date_to))
+        # Read the result set NOW. Reading a.code / a.name below runs more
+        # queries on this same cursor, which would discard these rows.
+        ledger = self.env.cr.fetchall()
+        names = {a.id: a.name or ''
+                 for a in accounts.sudo().with_company(self.env.company)}
+        sign = -1.0 if negate else 1.0
+        per = {}
+        for pid, aid, bal in ledger:
+            key = ('p', pid) if pid else ('a', aid)
+            entry = per.setdefault(
+                key, {'partner_id': pid, 'amount': 0.0, 'by_account': {}})
+            entry['amount'] += sign * bal
+            entry['by_account'][aid] = abs(bal)
+        out = []
+        for entry in per.values():
+            if entry['amount'] <= 0.01:
+                continue
+            aid = max(entry['by_account'], key=entry['by_account'].get)
+            out.append({
+                'partner_id': entry['partner_id'],
+                'amount':     entry['amount'],
+                'account':    self._clean_account_name(names.get(aid, '')),
+            })
+        out.sort(key=lambda e: e['amount'], reverse=True)
+        return out
+
+    def _partner_group_rows(self, entries, builder):
+        """Turn _group_balances() entries into table rows. `builder(partner,
+        entry)` returns the row dict; partner is False for ledger lines that
+        carry no partner."""
         Partner = self.env['res.partner']
-        if 'x_remaining_balance' not in Partner._fields:
-            return None
+        ids = [e['partner_id'] for e in entries if e['partner_id']]
+        partners = {p.id: p for p in Partner.browse(ids)}
+        return [builder(partners.get(e['partner_id']), e) for e in entries[:500]]
 
-        partners = Partner.search([
-            ('customer_rank', '>', 0),
-            ('credit', '>', 0.01),
-        ])
+    # ─────────────────────────────────────────────────────────────────────
+    # CREDIT
+    # ─────────────────────────────────────────────────────────────────────
+    def _get_customer_credit_data(self, date_to=None):
+        """Outstanding credit, split into 'From Customers' and 'From Staff'.
 
-        top = partners.sorted(key=lambda p: p.credit, reverse=True)[:10]
-        top_customers = [{
-            'customer':            p.name,
-            'orders':              p.sale_order_count,
-            'total_invoiced':      p.x_total_invoiced,
-            'amount_paid':         p.x_credit_amount_paid,
-            'outstanding_credit':  p.credit,
-            'remaining_balance':   p.x_remaining_balance,
-        } for p in top]
+        Each side is the balance held on the accounts selected for it in
+        Configuration > Finance Accounts, and nothing else. Invoiced / Paid /
+        Orders are the per-contact figures of 'customer_credit_report' when
+        that module is installed (0 otherwise).
+        """
+        date_to = date_to or fields.Date.today().strftime('%Y-%m-%d')
+        cfg = self._finance_config()
 
+        def builder(p, e):
+            return {
+                'name':           p.name if p else e['account'],
+                'total_invoiced': getattr(p, 'x_total_invoiced', 0.0) if p else 0.0,
+                'amount_paid':    getattr(p, 'x_credit_amount_paid', 0.0) if p else 0.0,
+                'outstanding':    e['amount'],
+            }
+
+        def group(label, accounts):
+            entries = self._group_balances(accounts, date_to)
+            return {
+                'label': label,
+                'total': sum(e['amount'] for e in entries),
+                'count': len(entries),
+                'rows':  self._partner_group_rows(entries, builder),
+                'hint':  ('No outstanding credit on the selected accounts.'
+                          if accounts else
+                          'No accounts selected. Add them under '
+                          'Configuration > Finance Accounts.'),
+            }
+
+        customer = group('From Customers', cfg.credit_customer_account_ids)
+        staff = group('From Staff', cfg.credit_staff_account_ids)
+        rows = customer['rows'] + staff['rows']
         return {
+            'configured': bool(cfg.credit_customer_account_ids
+                               or cfg.credit_staff_account_ids),
             'summary': {
-                'customer_count':    len(partners),
-                'total_outstanding': sum(partners.mapped('credit')),
-                'total_invoiced':    sum(partners.mapped('x_total_invoiced')),
-                'total_paid':        sum(partners.mapped('x_credit_amount_paid')),
+                'customer_count':    customer['count'] + staff['count'],
+                'total_outstanding': customer['total'] + staff['total'],
+                'total_invoiced':    sum(r['total_invoiced'] for r in rows),
+                'total_paid':        sum(r['amount_paid'] for r in rows),
             },
-            'top_customers': top_customers,
+            'breakdown': {'customer': customer, 'staff': staff},
         }
 
     # ─────────────────────────────────────────────────────────────────────
-    # CUSTOMER DEPOSITS  (from the optional 'customer_deposit_credit' module)
+    # DEPOSIT
     # ─────────────────────────────────────────────────────────────────────
-    def _get_customer_deposit_data(self):
-        """Customer deposit / advance-credit summary for executives.
+    def _get_customer_deposit_data(self, date_to=None):
+        """Deposits, split into 'From Owner' and 'From Customers'.
 
-        Sourced from res.partner fields added by 'customer_deposit_credit'
-        (deposit_total_paid, deposit_total_invoiced, deposit_total_refunded,
-        deposit_balance, is_deposit_customer). Those fields ARE stored, so
-        we can search + order on them directly through the ORM.
-
-        Returns None if 'customer_deposit_credit' isn't installed, so the
-        UI can hide the section instead of showing empty/zero data.
+        Each side is the balance held on the accounts selected for it in
+        Configuration > Finance Accounts, and nothing else. Paid / Invoiced /
+        Refunded are the per-contact figures of 'customer_deposit_credit'
+        when that module is installed (0 otherwise).
         """
-        Partner = self.env['res.partner']
-        if 'deposit_balance' not in Partner._fields:
-            return None
+        date_to = date_to or fields.Date.today().strftime('%Y-%m-%d')
+        cfg = self._finance_config()
 
-        partners = Partner.search(
-            [('is_deposit_customer', '=', True)],
-            order='deposit_balance desc',
-        )
-  
-        top_customers = [{
-            'customer':         p.name,
-            'total_paid':       p.deposit_total_paid,
-            'total_invoiced':   p.deposit_total_invoiced,
-            'total_refunded':   p.deposit_total_refunded,
-            'deposit_balance':  p.deposit_balance,
-            'last_transaction': fields.Datetime.to_string(p.deposit_last_transaction_date)
-                                 if p.deposit_last_transaction_date else False,
-        } for p in partners[:10]]
+        def builder(p, e):
+            return {
+                'name':           p.name if p else e['account'],
+                'total_paid':     getattr(p, 'deposit_total_paid', 0.0) if p else 0.0,
+                'total_invoiced': getattr(p, 'deposit_total_invoiced', 0.0) if p else 0.0,
+                'total_refunded': getattr(p, 'deposit_total_refunded', 0.0) if p else 0.0,
+                'balance':        e['amount'],
+            }
+
+        cust_accounts = cfg.deposit_customer_account_ids
+        entries = self._group_balances(cust_accounts, date_to, negate=True)
+        cust_rows = self._partner_group_rows(entries, builder)
+        customer = {
+            'label': 'From Customers',
+            'total': sum(e['amount'] for e in entries),
+            'count': len(entries),
+            'rows':  cust_rows,
+            'hint':  ('No deposit balance on the selected accounts.'
+                      if cust_accounts else
+                      'No accounts selected. Add them under '
+                      'Configuration > Finance Accounts.'),
+        }
+
+        owner_accounts = cfg.deposit_owner_account_ids
+        owner_rows = self._breakdown_account_rows(
+            owner_accounts, date_to, negate=True)
+        owner = {
+            'label': 'From Owner',
+            'total': sum(r['balance'] for r in owner_rows),
+            'count': len(owner_rows),
+            'rows':  owner_rows,
+            'hint':  'No accounts selected. Add them under '
+                     'Configuration > Finance Accounts.',
+        }
 
         return {
+            'configured': bool(cust_accounts or owner_accounts),
             'summary': {
-                'customer_count':  len(partners),
-                'total_balance':   sum(partners.mapped('deposit_balance')),
-                'total_paid':      sum(partners.mapped('deposit_total_paid')),
-                'total_refunded':  sum(partners.mapped('deposit_total_refunded')),
+                'customer_count': customer['count'],
+                'total_balance':  customer['total'] + owner['total'],
+                'total_paid':     sum(r['total_paid'] for r in cust_rows),
+                'total_refunded': sum(r['total_refunded'] for r in cust_rows),
             },
-            'top_customers': top_customers,
+            'breakdown': {'owner': owner, 'customer': customer},
         }
 
     # ─────────────────────────────────────────────────────────────────────

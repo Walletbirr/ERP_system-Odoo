@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- "Is Staff" flag on the contact form -->
+    <record id="view_partner_form_bh_is_staff" model="ir.ui.view">
+        <field name="name">res.partner.form.bh.is.staff</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="category_id" position="after">
+                <field name="bh_is_staff"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- "Staff" filter in the contact search -->
+    <record id="view_res_partner_filter_bh_is_staff" model="ir.ui.view">
+        <field name="name">res.partner.select.bh.is.staff</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='inactive']" position="before">
+                <filter string="Staff" name="bh_is_staff" domain="[('bh_is_staff', '=', True)]"/>
+                <separator/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Bulk helpers: select contacts in the list > Actions > Mark / Unmark as Staff -->
+    <record id="action_bh_partner_mark_staff" model="ir.actions.server">
+        <field name="name">Mark as Staff</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">records.write({'bh_is_staff': True})</field>
+    </record>
+
+    <record id="action_bh_partner_unmark_staff" model="ir.actions.server">
+        <field name="name">Unmark as Staff</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">records.write({'bh_is_staff': False})</field>
+    </record>
+
+</odoo>

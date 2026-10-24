@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_bh_dashboard_config_form" model="ir.ui.view">
+        <field name="name">bh.dashboard.config.form</field>
+        <field name="model">bh.dashboard.config</field>
+        <field name="arch" type="xml">
+            <form string="Finance Accounts" create="0" delete="0">
+                <header>
+                    <button name="action_suggest_breakdown_accounts" type="object"
+                            string="Suggest Credit &amp; Deposit accounts"
+                            class="btn-secondary"
+                            help="Fills the Credit / Deposit lists from your chart of accounts. Existing choices are kept."/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Finance Accounts</h1>
+                    </div>
+                    <p class="text-muted">
+                        Choose which ledger accounts feed the Finance cards of the
+                        Executive Dashboard. A card shows only the accounts selected
+                        here. Leave a list empty to keep that card's default
+                        (all Receivable accounts, all Payable accounts, or the
+                        default account of every Bank and Cash journal).
+                    </p>
+                    <group>
+                        <field name="company_id" invisible="1"/>
+                        <field name="receivable_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                        <field name="payable_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                        <field name="cash_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+
+                    <div class="oe_title mt-4">
+                        <h2>Credit &amp; Deposit Break-down</h2>
+                    </div>
+                    <p class="text-muted">
+                        The <b>Credit</b> and <b>Deposit</b> cards on the Finance tab open a
+                        break-down window. Pick the accounts that belong to each source;
+                        each is shown as its own table on the Finance tab.
+                        <b>Only the accounts selected here are counted.</b> A source with
+                        no accounts selected shows nothing. <b>Credit:</b> the balance held
+                        on the Customer accounts and on the Staff accounts. <b>Deposit:</b>
+                        the balance held on the Owner accounts and on the Customer accounts.
+                    </p>
+                    <group string="Credit">
+                        <field name="credit_customer_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                        <field name="credit_staff_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+                    <group string="Deposit">
+                        <field name="deposit_customer_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                        <field name="deposit_owner_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+
+                    <div class="oe_title mt-4">
+                        <h2>Company (Operations tab)</h2>
+                    </div>
+                    <p class="text-muted">
+                        The mobile app's <b>Operations &gt; Company &gt; Finance</b> screens.
+                        Pick the ledger accounts for each one; the totals and the history are
+                        read from the posted entries on them (all dates, not only the period
+                        selected on the dashboard). Leave a list empty to show nothing there.
+                    </p>
+                    <group string="Company Finance">
+                        <field name="loan_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                        <field name="owner_account_ids" widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+                    <p class="text-muted">
+                        <b>Owner Account:</b> one account serves both owner operations.
+                        A <b>Debit</b> on it (Credit Bank) is an <b>Owner Withdrawal</b>; a
+                        <b>Credit</b> on it (Debit Bank) is an <b>Owner Fund</b>. To keep
+                        each owner apart in the app, put the owner as the
+                        <i>Partner</i> on the journal entry. Entries that were reversed
+                        are ignored.
+                    </p>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Opens the current company's record (created on first use). -->
+    <record id="action_bh_dashboard_config" model="ir.actions.server">
+        <field name="name">Finance Accounts</field>
+        <field name="model_id" ref="model_bh_dashboard_config"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_config()</field>
+    </record>
+
+    <!-- "Configuration" is now a folder: other modules (e.g. Sales Credit
+         Approval's Approval Settings) put their settings under it. -->
+    <menuitem id="menu_bh_dashboard_config"
+              name="Configuration"
+              parent="menu_bh_dashboard_root"
+              sequence="10"
+              groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
+
+    <menuitem id="menu_bh_dashboard_config_finance"
+              name="Finance Accounts"
+              parent="menu_bh_dashboard_config"
+              action="action_bh_dashboard_config"
+              sequence="20"
+              groups="bh_management_dashboard.group_bh_executive,base.group_system"/>
+
+</odoo>

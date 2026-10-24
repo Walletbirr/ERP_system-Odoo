@@ -92,14 +92,22 @@ export class BhManagementDashboard extends Component {
             selectedPeriod:   "last_3_months",
             periods:          [],
             periodsLoading:   false,
-            // Pagination — Finance tab Customer Credit / Customer Deposits tables
-            creditPage:       1,
-            depositPage:      1,
+            // Pagination — one page counter per Credit / Deposit table
+            pages: {
+                credit_customer:  1,
+                credit_staff:     1,
+                deposit_owner:    1,
+                deposit_customer: 1,
+            },
             // Cash at Bank — per-journal breakdown modal
             showCashModal:    false,
             // Receivable / Payable — per-partner aging breakdown modals
             showReceivableModal: false,
             showPayableModal:    false,
+            // Credit / Deposit — source break-down modals
+            // (Customers vs Staff, Owner vs Customers)
+            showCreditModal:     false,
+            showDepositModal:    false,
         });
 
         this.charts         = {};
@@ -159,8 +167,7 @@ export class BhManagementDashboard extends Component {
             this.state.data    = data;
             this.state.loading = false;
             // New data -> pages 1..N may no longer line up, reset to page 1
-            this.state.creditPage  = 1;
-            this.state.depositPage = 1;
+            for (const k in this.state.pages) this.state.pages[k] = 1;
             // onPatched will handle chart rendering after DOM update
 
         } catch (e) {
@@ -190,28 +197,23 @@ export class BhManagementDashboard extends Component {
     onDateToChange(ev)   { this.state.dateTo   = ev.target.value; this.state.selectedPeriod = "custom"; }
     onRefresh()          { this.loadData(); }
 
-    // ── Pagination — Customer Credit / Customer Deposits tables ────────────────
-    // Simple 5-rows-per-page client-side pagination. Data for these tables is
-    // already a small top-N list from the server, so slicing on the client
-    // is enough — no extra round-trip needed.
+    // ── Pagination — Credit / Deposit tables ───────────────────────────────────
+    // Simple 5-rows-per-page client-side pagination; the server already
+    // sends each table's full (capped) row list.
 
     pagedList(list, page) { return bhPageSlice(list, page); }
     totalPages(list)      { return bhTotalPages(list); }
 
-    creditPrevPage() {
-        if (this.state.creditPage > 1) this.state.creditPage--;
-    }
-    creditNextPage() {
-        const list = this.state.data?.finance?.customer_credit?.top_customers || [];
-        if (this.state.creditPage < bhTotalPages(list)) this.state.creditPage++;
+    pageStep(id, delta, length) {
+        const last = Math.max(1, Math.ceil((length || 0) / BH_PAGE_SIZE));
+        const next = this.state.pages[id] + delta;
+        this.state.pages[id] = Math.min(last, Math.max(1, next));
     }
 
-    depositPrevPage() {
-        if (this.state.depositPage > 1) this.state.depositPage--;
-    }
-    depositNextPage() {
-        const list = this.state.data?.finance?.customer_deposits?.top_customers || [];
-        if (this.state.depositPage < bhTotalPages(list)) this.state.depositPage++;
+    // Share of the card total, for the break-down modals.
+    pct(part, total) {
+        const t = parseFloat(total || 0);
+        return t > 0 ? Math.round(parseFloat(part || 0) / t * 100) + "%" : "—";
     }
 
     // ── Cash at Bank modal ───────────────────────────────────────────────────
@@ -223,6 +225,12 @@ export class BhManagementDashboard extends Component {
     closeReceivableModal() { this.state.showReceivableModal = false; }
     openPayableModal()     { this.state.showPayableModal = true; }
     closePayableModal()    { this.state.showPayableModal = false; }
+
+    // ── Credit / Deposit break-down modals ───────────────────────────────────
+    openCreditModal()   { this.state.showCreditModal = true; }
+    closeCreditModal()  { this.state.showCreditModal = false; }
+    openDepositModal()  { this.state.showDepositModal = true; }
+    closeDepositModal() { this.state.showDepositModal = false; }
 
     // ── Period selector ───────────────────────────────────────────────────────
 
@@ -423,6 +431,15 @@ export class BhManagementDashboard extends Component {
         this._bar("chart-top-customers", cn, [
             { label: "Revenue (ETB)", data: cv, backgroundColor: PALETTE.slice(0, cv.length) },
         ]);
+
+        // Top Branches (present only when accounting_so_invoice_bridge is installed)
+        if (s.top_branches) {
+            const bn = s.top_branches.map(b => b.branch);
+            const bv = s.top_branches.map(b => parseFloat(b.total || 0));
+            this._bar("chart-top-branches", bn, [
+                { label: "Total Sales (ETB)", data: bv, backgroundColor: PALETTE.slice(0, bv.length) },
+            ]);
+        }
     }
 
     _invCharts(s) {
@@ -447,28 +464,6 @@ export class BhManagementDashboard extends Component {
             ["Receivable", "Payable"],
             [parseFloat(s.summary.total_receivable || 0), parseFloat(s.summary.total_payable || 0)]
         );
-
-        // Optional sections — only rendered if the sibling report module
-        // (customer_credit_report / customer_deposit_credit) is installed.
-        const credit = s.customer_credit;
-        if (credit && (credit.top_customers || []).length) {
-            this._bar("chart-credit-top",
-                credit.top_customers.map(c => c.customer),
-                [{ label: "Outstanding Credit (ETB)",
-                   data: credit.top_customers.map(c => parseFloat(c.outstanding_credit || 0)),
-                   backgroundColor: "rgba(220,53,69,0.75)" }]
-            );
-        }
-
-        const deposits = s.customer_deposits;
-        if (deposits && (deposits.top_customers || []).length) {
-            this._bar("chart-deposit-top",
-                deposits.top_customers.map(d => d.customer),
-                [{ label: "Deposit Balance (ETB)",
-                   data: deposits.top_customers.map(d => parseFloat(d.deposit_balance || 0)),
-                   backgroundColor: "rgba(32,201,151,0.75)" }]
-            );
-        }
     }
 
     _poCharts(s) {

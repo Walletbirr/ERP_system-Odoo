@@ -133,7 +133,7 @@
                 <div class="bh-kpi-row">
                     <div class="bh-kpi-card green">
                         <div class="bh-kpi-icon"><i class="fa fa-line-chart"/></div>
-                        <div class="bh-kpi-label">Total Revenue</div>
+                        <div class="bh-kpi-label">Total Sales</div>
                         <div class="bh-kpi-value" t-out="fmtCur(state.data.sales.summary.total_revenue)"/>
                         <div t-if="state.data.sales.summary.total_revenue" t-att-class="'bh-trend-chip ' + trendClass(state.data.sales.comparison.revenue_change_pct)">
                             <i t-att-class="trendIcon(state.data.sales.comparison.revenue_change_pct)"/>
@@ -186,6 +186,32 @@
                                             <td t-esc="c_index + 1"/>
                                             <td t-esc="c.customer"/>
                                             <td t-out="fmtCur(c.total)"/>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- Top Branches: only present when accounting_so_invoice_bridge
+                     (which owns the Branch field) is installed. -->
+                <div class="bh-charts-row" t-if="state.data.sales.top_branches">
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Top Branches by Sales</div>
+                        <div class="bh-canvas-wrap"><canvas id="chart-top-branches"/></div>
+                    </div>
+                    <div class="bh-chart-panel">
+                        <div class="bh-panel-title">Branch Sales Breakdown</div>
+                        <div class="bh-table-wrap">
+                            <table class="bh-table">
+                                <thead><tr><th>#</th><th>Branch</th><th>Orders</th><th>Total Sales (ETB)</th></tr></thead>
+                                <tbody>
+                                    <t t-foreach="state.data.sales.top_branches" t-as="b" t-key="b_index">
+                                        <tr>
+                                            <td t-esc="b_index + 1"/>
+                                            <td t-esc="b.branch"/>
+                                            <td t-esc="b.orders"/>
+                                            <td t-out="fmtCur(b.total)"/>
                                         </tr>
                                     </t>
                                 </tbody>
@@ -302,174 +328,261 @@
                     </div>
                 </div>
 
-                <!-- CUSTOMER CREDIT (customer_credit_report) -->
+                <!-- CREDIT -->
                 <div class="bh-section-heading">
-                    <div class="bh-section-title"><i class="fa fa-exclamation-circle"/> Customer Credit</div>
-                    <div class="bh-section-sub">Customers with outstanding balances on invoiced sales</div>
+                    <div class="bh-section-title"><i class="fa fa-exclamation-circle"/> Credit</div>
+                    <div class="bh-section-sub">Outstanding balances on the accounts selected in Configuration</div>
                 </div>
-                <div t-if="!state.data.finance.customer_credit" class="bh-module-hint">
-                    <i class="fa fa-info-circle"/>
-                    <span>Install the <strong>Customer Credit Report</strong> module to see this section.</span>
+                <div t-if="!state.data.finance.customer_credit.configured" class="bh-info-banner">
+                    <i class="fa fa-info-circle"/> No Credit accounts selected yet. Choose them under Executive Dashboard &gt; Configuration &gt; Finance Accounts.
                 </div>
                 <t t-else="">
-                    <div t-if="state.data.finance.customer_credit.summary.customer_count === 0" class="bh-info-banner">
-                        <i class="fa fa-info-circle"/> No customers currently have outstanding credit.
-                    </div>
-                    <t t-else="">
-                        <div class="bh-kpi-row">
-                            <div class="bh-kpi-card red">
-                                <div class="bh-kpi-icon"><i class="fa fa-exclamation-triangle"/></div>
-                                <div class="bh-kpi-label">Total Outstanding Credit</div>
-                                <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_outstanding)"/>
-                                <div class="bh-kpi-sub">Still owed by customers</div>
-                            </div>
-                            <div class="bh-kpi-card green">
-                                <div class="bh-kpi-icon"><i class="fa fa-file-text-o"/></div>
-                                <div class="bh-kpi-label">Total Invoiced</div>
-                                <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_invoiced)"/>
-                            </div>
-                            <div class="bh-kpi-card blue">
-                                <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
-                                <div class="bh-kpi-label">Total Paid</div>
-                                <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_paid)"/>
-                            </div>
-                            <div class="bh-kpi-card purple">
-                                <div class="bh-kpi-icon"><i class="fa fa-users"/></div>
-                                <div class="bh-kpi-label">Customers With Credit</div>
-                                <div class="bh-kpi-value" t-esc="state.data.finance.customer_credit.summary.customer_count"/>
-                            </div>
+                    <div class="bh-kpi-row">
+                        <div class="bh-kpi-card red bh-clickable" t-on-click="openCreditModal">
+                            <div class="bh-kpi-icon"><i class="fa fa-exclamation-triangle"/></div>
+                            <div class="bh-kpi-label">Total Outstanding Credit</div>
+                            <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_outstanding)"/>
+                            <div class="bh-kpi-caret"><i class="fa fa-list-ul"/> Customers vs Staff — view breakdown</div>
                         </div>
-                        <div class="bh-charts-row">
+                        <div class="bh-kpi-card green">
+                            <div class="bh-kpi-icon"><i class="fa fa-file-text-o"/></div>
+                            <div class="bh-kpi-label">Total Invoiced</div>
+                            <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_invoiced)"/>
+                        </div>
+                        <div class="bh-kpi-card blue">
+                            <div class="bh-kpi-icon"><i class="fa fa-check-circle"/></div>
+                            <div class="bh-kpi-label">Total Paid</div>
+                            <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_paid)"/>
+                        </div>
+                        <div class="bh-kpi-card purple">
+                            <div class="bh-kpi-icon"><i class="fa fa-users"/></div>
+                            <div class="bh-kpi-label">People With Credit</div>
+                            <div class="bh-kpi-value" t-esc="state.data.finance.customer_credit.summary.customer_count"/>
+                        </div>
+                    </div>
+                    <div class="bh-charts-row">
+                        <t t-foreach="['customer', 'staff']" t-as="k" t-key="k">
+                            <t t-set="grp" t-value="state.data.finance.customer_credit.breakdown[k]"/>
                             <div class="bh-chart-panel">
-                                <div class="bh-panel-title">Top 10 Customers by Outstanding Credit</div>
-                                <div class="bh-canvas-wrap"><canvas id="chart-credit-top"/></div>
-                            </div>
-                            <div class="bh-chart-panel">
-                                <div class="bh-panel-title">Credit Detail</div>
-                                <div class="bh-table-wrap">
+                                <div class="bh-panel-title bh-split">
+                                    <span><i t-att-class="'fa ' + (k === 'staff' ? 'fa-id-badge' : 'fa-users')"/> <t t-esc="grp.label"/></span>
+                                    <span class="bh-badge danger" t-out="fmtCur(grp.total)"/>
+                                </div>
+                                <div t-if="!grp.rows.length" class="bh-modal-empty" t-esc="grp.hint"/>
+                                <div t-else="" class="bh-table-wrap">
                                     <table class="bh-table">
                                         <thead>
                                             <tr>
-                                                <th>#</th><th>Customer</th><th>Orders</th>
-                                                <th>Invoiced</th><th>Paid</th><th>Outstanding</th>
+                                                <th>#</th><th>Name</th><th>Outstanding</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <t t-foreach="pagedList(state.data.finance.customer_credit.top_customers, state.creditPage)" t-as="c" t-key="c_index">
+                                            <t t-foreach="pagedList(grp.rows, state.pages['credit_' + k])" t-as="r" t-key="r_index">
                                                 <tr>
-                                                    <td t-esc="(state.creditPage - 1) * 5 + c_index + 1"/>
-                                                    <td t-esc="c.customer"/>
-                                                    <td t-esc="c.orders"/>
-                                                    <td t-out="fmtCur(c.total_invoiced)"/>
-                                                    <td t-out="fmtCur(c.amount_paid)"/>
-                                                    <td>
-                                                        <span class="bh-badge danger" t-out="fmtCur(c.outstanding_credit)"/>
-                                                    </td>
+                                                    <td t-esc="(state.pages['credit_' + k] - 1) * 5 + r_index + 1"/>
+                                                    <td t-esc="r.name"/>
+                                                    <td><span class="bh-badge danger" t-out="fmtCur(r.outstanding)"/></td>
                                                 </tr>
                                             </t>
                                         </tbody>
                                     </table>
-                                    <div t-if="state.data.finance.customer_credit.top_customers.length > 5" class="bh-pagination">
-                                        <button class="bh-page-btn" t-on-click="creditPrevPage" t-att-disabled="state.creditPage === 1">
+                                    <div t-if="grp.rows.length &gt; 5" class="bh-pagination">
+                                        <button class="bh-page-btn" t-on-click="() =&gt; this.pageStep('credit_' + k, -1, grp.rows.length)" t-att-disabled="state.pages['credit_' + k] === 1">
                                             <i class="fa fa-chevron-left"/>
                                         </button>
                                         <span class="bh-page-info">
-                                            Page <t t-esc="state.creditPage"/> of <t t-esc="totalPages(state.data.finance.customer_credit.top_customers)"/>
+                                            Page <t t-esc="state.pages['credit_' + k]"/> of <t t-esc="totalPages(grp.rows)"/>
                                         </span>
-                                        <button class="bh-page-btn" t-on-click="creditNextPage" t-att-disabled="state.creditPage === totalPages(state.data.finance.customer_credit.top_customers)">
+                                        <button class="bh-page-btn" t-on-click="() =&gt; this.pageStep('credit_' + k, 1, grp.rows.length)" t-att-disabled="state.pages['credit_' + k] === totalPages(grp.rows)">
                                             <i class="fa fa-chevron-right"/>
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </t>
+                        </t>
+                    </div>
                 </t>
 
-                <!-- CUSTOMER DEPOSITS (customer_deposit_credit) -->
+                <!-- DEPOSIT -->
                 <div class="bh-section-heading">
-                    <div class="bh-section-title"><i class="fa fa-piggy-bank"/> Customer Deposits</div>
-                    <div class="bh-section-sub">Customers who paid more than they've been invoiced for</div>
+                    <div class="bh-section-title"><i class="fa fa-piggy-bank"/> Deposit</div>
+                    <div class="bh-section-sub">Advance payments held on the accounts selected in Configuration</div>
                 </div>
-                <div t-if="!state.data.finance.customer_deposits" class="bh-module-hint">
-                    <i class="fa fa-info-circle"/>
-                    <span>Install the <strong>Customer Deposit Credit</strong> module to see this section.</span>
+                <div t-if="!state.data.finance.customer_deposits.configured" class="bh-info-banner">
+                    <i class="fa fa-info-circle"/> No Deposit accounts selected yet. Choose them under Executive Dashboard &gt; Configuration &gt; Finance Accounts.
                 </div>
                 <t t-else="">
-                    <div t-if="state.data.finance.customer_deposits.summary.customer_count === 0" class="bh-info-banner">
-                        <i class="fa fa-info-circle"/> No customers currently have deposit credit.
-                    </div>
-                    <t t-else="">
-                        <div class="bh-kpi-row">
-                            <div class="bh-kpi-card teal">
-                                <div class="bh-kpi-icon"><i class="fa fa-piggy-bank"/></div>
-                                <div class="bh-kpi-label">Total Deposit Balance</div>
-                                <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_balance)"/>
-                                <div class="bh-kpi-sub">Available for future orders</div>
-                            </div>
-                            <div class="bh-kpi-card green">
-                                <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-down"/></div>
-                                <div class="bh-kpi-label">Total Paid In</div>
-                                <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_paid)"/>
-                            </div>
-                            <div class="bh-kpi-card orange">
-                                <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-up"/></div>
-                                <div class="bh-kpi-label">Total Refunded</div>
-                                <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_refunded)"/>
-                            </div>
-                            <div class="bh-kpi-card purple">
-                                <div class="bh-kpi-icon"><i class="fa fa-users"/></div>
-                                <div class="bh-kpi-label">Customers With Deposits</div>
-                                <div class="bh-kpi-value" t-esc="state.data.finance.customer_deposits.summary.customer_count"/>
-                            </div>
+                    <div class="bh-kpi-row">
+                        <div class="bh-kpi-card teal bh-clickable" t-on-click="openDepositModal">
+                            <div class="bh-kpi-icon"><i class="fa fa-piggy-bank"/></div>
+                            <div class="bh-kpi-label">Total Deposit Balance</div>
+                            <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_balance)"/>
+                            <div class="bh-kpi-caret"><i class="fa fa-list-ul"/> Owner vs Customers — view breakdown</div>
                         </div>
-                        <div class="bh-charts-row">
-                            <div class="bh-chart-panel">
-                                <div class="bh-panel-title">Top 10 Customers by Deposit Balance</div>
-                                <div class="bh-canvas-wrap"><canvas id="chart-deposit-top"/></div>
+                        <div class="bh-kpi-card green">
+                            <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-down"/></div>
+                            <div class="bh-kpi-label">Total Paid In</div>
+                            <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_paid)"/>
+                        </div>
+                        <div class="bh-kpi-card orange">
+                            <div class="bh-kpi-icon"><i class="fa fa-arrow-circle-up"/></div>
+                            <div class="bh-kpi-label">Total Refunded</div>
+                            <div class="bh-kpi-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_refunded)"/>
+                        </div>
+                        <div class="bh-kpi-card purple">
+                            <div class="bh-kpi-icon"><i class="fa fa-users"/></div>
+                            <div class="bh-kpi-label">Customers With Deposits</div>
+                            <div class="bh-kpi-value" t-esc="state.data.finance.customer_deposits.summary.customer_count"/>
+                        </div>
+                    </div>
+                    <div class="bh-charts-row">
+                        <!-- LEFT: From Owner (rows are accounts) -->
+                        <t t-set="own" t-value="state.data.finance.customer_deposits.breakdown.owner"/>
+                        <div class="bh-chart-panel">
+                            <div class="bh-panel-title bh-split">
+                                <span><i class="fa fa-user-circle"/> <t t-esc="own.label"/></span>
+                                <span class="bh-badge success" t-out="fmtCur(own.total)"/>
                             </div>
-                            <div class="bh-chart-panel">
-                                <div class="bh-panel-title">Deposit Detail</div>
-                                <div class="bh-table-wrap">
-                                    <table class="bh-table">
-                                        <thead>
+                            <div t-if="!own.rows.length" class="bh-modal-empty" t-esc="own.hint"/>
+                            <div t-else="" class="bh-table-wrap">
+                                <table class="bh-table">
+                                    <thead><tr><th>#</th><th>Account</th><th>Code</th><th>Balance</th></tr></thead>
+                                    <tbody>
+                                        <t t-foreach="pagedList(own.rows, state.pages.deposit_owner)" t-as="r" t-key="r.id">
                                             <tr>
-                                                <th>#</th><th>Customer</th><th>Paid</th>
-                                                <th>Invoiced</th><th>Refunded</th><th>Balance</th><th>Last Txn</th>
+                                                <td t-esc="(state.pages.deposit_owner - 1) * 5 + r_index + 1"/>
+                                                <td t-esc="r.name"/>
+                                                <td t-esc="r.code"/>
+                                                <td><span t-att-class="'bh-badge ' + (r.balance &lt; 0 ? 'danger' : 'success')" t-out="fmtCur(r.balance)"/></td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            <t t-foreach="pagedList(state.data.finance.customer_deposits.top_customers, state.depositPage)" t-as="d" t-key="d_index">
-                                                <tr>
-                                                    <td t-esc="(state.depositPage - 1) * 5 + d_index + 1"/>
-                                                    <td t-esc="d.customer"/>
-                                                    <td t-out="fmtCur(d.total_paid)"/>
-                                                    <td t-out="fmtCur(d.total_invoiced)"/>
-                                                    <td t-out="fmtCur(d.total_refunded)"/>
-                                                    <td>
-                                                        <span class="bh-badge success" t-out="fmtCur(d.deposit_balance)"/>
-                                                    </td>
-                                                    <td t-esc="d.last_transaction ? d.last_transaction.split(' ')[0] : '—'"/>
-                                                </tr>
-                                            </t>
-                                        </tbody>
-                                    </table>
-                                    <div t-if="state.data.finance.customer_deposits.top_customers.length > 5" class="bh-pagination">
-                                        <button class="bh-page-btn" t-on-click="depositPrevPage" t-att-disabled="state.depositPage === 1">
-                                            <i class="fa fa-chevron-left"/>
-                                        </button>
-                                        <span class="bh-page-info">
-                                            Page <t t-esc="state.depositPage"/> of <t t-esc="totalPages(state.data.finance.customer_deposits.top_customers)"/>
-                                        </span>
-                                        <button class="bh-page-btn" t-on-click="depositNextPage" t-att-disabled="state.depositPage === totalPages(state.data.finance.customer_deposits.top_customers)">
-                                            <i class="fa fa-chevron-right"/>
-                                        </button>
-                                    </div>
+                                        </t>
+                                    </tbody>
+                                </table>
+                                <div t-if="own.rows.length &gt; 5" class="bh-pagination">
+                                    <button class="bh-page-btn" t-on-click="() =&gt; this.pageStep('deposit_owner', -1, own.rows.length)" t-att-disabled="state.pages['deposit_owner'] === 1">
+                                        <i class="fa fa-chevron-left"/>
+                                    </button>
+                                    <span class="bh-page-info">
+                                        Page <t t-esc="state.pages['deposit_owner']"/> of <t t-esc="totalPages(own.rows)"/>
+                                    </span>
+                                    <button class="bh-page-btn" t-on-click="() =&gt; this.pageStep('deposit_owner', 1, own.rows.length)" t-att-disabled="state.pages['deposit_owner'] === totalPages(own.rows)">
+                                        <i class="fa fa-chevron-right"/>
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </t>
+                        <!-- RIGHT: From Customers -->
+                        <t t-set="cus" t-value="state.data.finance.customer_deposits.breakdown.customer"/>
+                        <div class="bh-chart-panel">
+                            <div class="bh-panel-title bh-split">
+                                <span><i class="fa fa-users"/> <t t-esc="cus.label"/></span>
+                                <span class="bh-badge success" t-out="fmtCur(cus.total)"/>
+                            </div>
+                            <div t-if="!cus.rows.length" class="bh-modal-empty" t-esc="cus.hint"/>
+                            <div t-else="" class="bh-table-wrap">
+                                <table class="bh-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th><th>Name</th><th>Paid</th>
+                                            <th>Invoiced</th><th>Refunded</th><th>Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="pagedList(cus.rows, state.pages.deposit_customer)" t-as="r" t-key="r_index">
+                                            <tr>
+                                                <td t-esc="(state.pages.deposit_customer - 1) * 5 + r_index + 1"/>
+                                                <td t-esc="r.name"/>
+                                                <td t-out="fmtCur(r.total_paid)"/>
+                                                <td t-out="fmtCur(r.total_invoiced)"/>
+                                                <td t-out="fmtCur(r.total_refunded)"/>
+                                                <td><span class="bh-badge success" t-out="fmtCur(r.balance)"/></td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                                <div t-if="cus.rows.length &gt; 5" class="bh-pagination">
+                                    <button class="bh-page-btn" t-on-click="() =&gt; this.pageStep('deposit_customer', -1, cus.rows.length)" t-att-disabled="state.pages['deposit_customer'] === 1">
+                                        <i class="fa fa-chevron-left"/>
+                                    </button>
+                                    <span class="bh-page-info">
+                                        Page <t t-esc="state.pages['deposit_customer']"/> of <t t-esc="totalPages(cus.rows)"/>
+                                    </span>
+                                    <button class="bh-page-btn" t-on-click="() =&gt; this.pageStep('deposit_customer', 1, cus.rows.length)" t-att-disabled="state.pages['deposit_customer'] === totalPages(cus.rows)">
+                                        <i class="fa fa-chevron-right"/>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </t>
+
+                <!-- CREDIT — category summary modal -->
+                <div t-if="state.showCreditModal and state.data.finance.customer_credit" class="bh-modal-backdrop" t-on-click="closeCreditModal">
+                    <div class="bh-modal-panel bh-modal-wide" t-on-click.stop="">
+                        <div class="bh-modal-header">
+                            <div>
+                                <div class="bh-modal-title">Credit</div>
+                                <div class="bh-modal-subtitle">As of <t t-esc="state.data.date_to"/></div>
+                            </div>
+                            <button class="bh-modal-close" t-on-click="closeCreditModal">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                        <div class="bh-modal-total">
+                            <span class="bh-modal-total-label">Total Outstanding Credit</span>
+                            <span class="bh-modal-total-value" t-out="fmtCur(state.data.finance.customer_credit.summary.total_outstanding)"/>
+                        </div>
+                        <div class="bh-brk-cards">
+                            <t t-foreach="['customer', 'staff']" t-as="k" t-key="k">
+                                <t t-set="grp" t-value="state.data.finance.customer_credit.breakdown[k]"/>
+                                <div class="bh-brk-card">
+                                    <div class="bh-brk-card-label">
+                                        <i t-att-class="'fa ' + (k === 'staff' ? 'fa-id-badge' : (k === 'owner' ? 'fa-user-circle' : 'fa-users'))"/>
+                                        <t t-esc="grp.label"/>
+                                    </div>
+                                    <div class="bh-brk-card-value" t-out="fmtCur(grp.total)"/>
+                                    <div class="bh-brk-card-sub">
+                                        <t t-esc="grp.count + (k === 'staff' ? ' staff' : ' customers')"/> · <t t-esc="pct(grp.total, state.data.finance.customer_credit.summary.total_outstanding)"/> of total
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DEPOSIT — category summary modal -->
+                <div t-if="state.showDepositModal and state.data.finance.customer_deposits" class="bh-modal-backdrop" t-on-click="closeDepositModal">
+                    <div class="bh-modal-panel bh-modal-wide" t-on-click.stop="">
+                        <div class="bh-modal-header">
+                            <div>
+                                <div class="bh-modal-title">Deposit</div>
+                                <div class="bh-modal-subtitle">As of <t t-esc="state.data.date_to"/></div>
+                            </div>
+                            <button class="bh-modal-close" t-on-click="closeDepositModal">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                        <div class="bh-modal-total">
+                            <span class="bh-modal-total-label">Total Deposit Balance</span>
+                            <span class="bh-modal-total-value" t-out="fmtCur(state.data.finance.customer_deposits.summary.total_balance)"/>
+                        </div>
+                        <div class="bh-brk-cards">
+                            <t t-foreach="['owner', 'customer']" t-as="k" t-key="k">
+                                <t t-set="grp" t-value="state.data.finance.customer_deposits.breakdown[k]"/>
+                                <div class="bh-brk-card">
+                                    <div class="bh-brk-card-label">
+                                        <i t-att-class="'fa ' + (k === 'staff' ? 'fa-id-badge' : (k === 'owner' ? 'fa-user-circle' : 'fa-users'))"/>
+                                        <t t-esc="grp.label"/>
+                                    </div>
+                                    <div class="bh-brk-card-value" t-out="fmtCur(grp.total)"/>
+                                    <div class="bh-brk-card-sub">
+                                        <t t-esc="k === 'owner' ? (grp.count + ' accounts') : (grp.count + ' customers')"/> · <t t-esc="pct(grp.total, state.data.finance.customer_deposits.summary.total_balance)"/> of total
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- CASH AT BANK — breakdown modal -->
                 <div t-if="state.showCashModal" class="bh-modal-backdrop" t-on-click="closeCashModal">
