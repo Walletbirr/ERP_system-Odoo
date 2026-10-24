@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.28.0.0',
+    'version': '18.0.29.0.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -15,8 +15,12 @@ Sales -> Accounting workflow with Payment Proof approval
    proof on their "Payment Proofs to Review" worklist.
 4. The accountant downloads the files, then Approves or Rejects (reason
    required; the salesperson fixes and resubmits).
-5. When every proof is Approved, the salesperson is notified and ONLY THEN
-   does the Create Invoice button appear (also enforced on the server).
+5. When every proof is Approved, the order is sent automatically to the
+   High-Level Manager (Sales Approval module). Only when the manager
+   approves is the salesperson notified, and ONLY THEN does the Create
+   Invoice button appear (also enforced on the server). If the manager
+   rejects, the salesperson fixes the issue and presses Send to Manager.
+   Credit payment terms skip both the proof and this approval.
 6. The invoice is created as DRAFT; Accounting is notified a second time,
    checks the accounting setup (accounts, taxes, amounts) and confirms it.
    Only Accounting can confirm.

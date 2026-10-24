@@ -449,6 +449,16 @@ class SaleOrderPaymentProof(models.Model):
         bank the payment was deposited in. ``journal`` alone (old call
         style) still works and means one bank without an amount."""
         self._check_reviewer()
+        # The approved order goes to the High-Level Manager next: refuse
+        # (before anything is written) if nobody is configured to receive it.
+        needs_manager = self.sale_order_id.sudo().filtered(
+            lambda o: not o.x_is_credit_payment_term)
+        if needs_manager and not needs_manager[:1]._get_configured_manager():
+            raise UserError(_(
+                "No High-Level Manager is configured, so the order cannot "
+                "be sent for approval after your payment approval. Ask an "
+                "Administrator to set one in Executive Dashboard > "
+                "Configuration > Approval Settings, then approve again."))
         bank_lines = list(bank_lines or [])
         if bank_lines:
             if len(self) > 1:
@@ -502,7 +512,7 @@ class SaleOrderPaymentProof(models.Model):
             "%(journal)s).", user=self.env.user.name,
             journal=banks_text))
         self._safe(self._close_review_activities, _("Payment proof approved."))
-        self._safe(self._notify_sales_approved)
+        self._after_accounting_approval()
 
     def action_open_reject_wizard(self):
         self._check_reviewer()
@@ -645,29 +655,22 @@ class SaleOrderPaymentProof(models.Model):
             if acts:
                 acts.action_feedback(feedback=feedback)
 
-    def _notify_sales_approved(self):
-        """All proofs of the order are Approved: tell the salesperson the
-        invoice can now be created."""
-        todo = self.env.ref('mail.mail_activity_data_todo',
-                            raise_if_not_found=False)
+    def _after_accounting_approval(self):
+        """Accounting approved. When every proof of an order is approved,
+        the order goes to the High-Level Manager; the salesperson is told
+        to create the invoice only after the manager approves (see
+        sale.order._after_manager_decision). Credit-term orders never get
+        here (no proof). Deliberately NOT best-effort: a failure rolls the
+        approval back instead of leaving the order stuck."""
         for order in self.sale_order_id.sudo():
-            if (order.x_payment_proof_status != 'approved'
-                    or order.invoice_status == 'invoiced'):
+            if (order.state != 'sale'
+                    or order.x_payment_proof_status != 'approved'
+                    or order.invoice_status == 'invoiced'
+                    or order.x_is_credit_payment_term):
                 continue
-            users = (order.user_id | order.payment_proof_ids.uploaded_by)\
-                .filtered('active')
-            for user in users:
-                open_todo = order.activity_ids.filtered(
-                    lambda a: a.summary == INVOICE_READY_SUMMARY
-                    and a.user_id == user)
-                if todo and not open_todo:
-                    order.activity_schedule(
-                        'mail.mail_activity_data_todo',
-                        user_id=user.id,
-                        summary=INVOICE_READY_SUMMARY,
-                        note=_("Accounting approved the payment proof. "
-                               "Press Create Invoice."))
-                self._toast(
-                    user, _('Payment Proof Approved'),
-                    _('%(order)s: approved by Accounting. You can create '
-                      'the invoice now.', order=order.name))
+            if order.approval_state in ('not_required', 'rejected'):
+                order._request_manager_after_payment()
+            elif order.approval_state == 'approved':
+                # Manager already approved earlier: nothing left to wait for.
+                self._safe(order._notify_sales_invoice_ready)
+            # 'to_approve': already with the manager, nothing to do.

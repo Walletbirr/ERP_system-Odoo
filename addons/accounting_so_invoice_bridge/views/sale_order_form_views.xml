@@ -23,6 +23,13 @@
                 <field name="x_is_credit_payment_term" invisible="1"/>
                 <field name="x_payment_proof_status" invisible="1"/>
                 <field name="x_invoice_unlocked" invisible="1"/>
+                <field name="approval_state" invisible="1"/>
+                <!-- Manual (re)send to the High-Level Manager: normally it
+                     is sent automatically when Accounting approves the
+                     payment proof; this covers a manager rejection. -->
+                <button name="action_request_manager_approval" type="object"
+                        string="Send to Manager" class="btn-primary"
+                        invisible="not can_create_invoice or state != 'sale' or x_is_credit_payment_term or x_payment_proof_status != 'approved' or approval_state not in ('not_required', 'rejected')"/>
             </xpath>
             <xpath expr="//button[@id='create_invoice']" position="attributes">
                 <attribute name="invisible">invoice_status != 'to invoice' or not can_create_invoice or not x_invoice_unlocked</attribute>
@@ -57,6 +64,24 @@
                       invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_invoice_unlocked or x_payment_proof_status != 'rejected'">
                     <i class="fa fa-times-circle me-1"/>
                     Payment proof rejected: fix it and Resubmit (see Payment Proofs tab)
+                </span>
+                <span class="alert alert-info py-1 px-2 mb-0 ms-3 d-inline-flex align-items-center"
+                      role="alert"
+                      invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_is_credit_payment_term or x_payment_proof_status != 'approved' or approval_state != 'to_approve'">
+                    <i class="fa fa-hourglass-half me-1"/>
+                    Payment approved. Waiting for the High-Level Manager to approve the order
+                </span>
+                <span class="alert alert-danger py-1 px-2 mb-0 ms-3 d-inline-flex align-items-center"
+                      role="alert"
+                      invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_is_credit_payment_term or x_payment_proof_status != 'approved' or approval_state != 'rejected'">
+                    <i class="fa fa-times-circle me-1"/>
+                    Rejected by the High-Level Manager: see the Approvals tab, then press Send to Manager again
+                </span>
+                <span class="alert alert-warning py-1 px-2 mb-0 ms-3 d-inline-flex align-items-center"
+                      role="alert"
+                      invisible="not can_create_invoice or state != 'sale' or invoice_status != 'to invoice' or x_is_credit_payment_term or x_payment_proof_status != 'approved' or approval_state != 'not_required'">
+                    <i class="fa fa-exclamation-triangle me-1"/>
+                    Payment approved. Press Send to Manager to get the order approved
                 </span>
             </xpath>
         </field>
