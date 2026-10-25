@@ -271,7 +271,7 @@ class BhManagementDashboard(models.Model):
 
     @staticmethod
     def _merge_stock_by_branch(location_rows, warehouse_names,
-                               value_by_location, limit=6):
+                               value_by_location, limit=None):
         """One row per branch: quantity and value of all its internal
         locations added up, biggest first. A location that belongs to no
         warehouse keeps its own full name."""
@@ -291,7 +291,7 @@ class BhManagementDashboard(models.Model):
         rows = sorted(merged.values(), key=lambda x: x['qty'], reverse=True)
         for row in rows:
             row['value'] = round(row['value'], 2)
-        return rows[:limit]
+        return rows[:limit] if limit else rows
 
     def _get_inventory_data(self):
         self.env.cr.execute("""
@@ -334,7 +334,7 @@ class BhManagementDashboard(models.Model):
             self.env['stock.warehouse'].sudo().browse(list(warehouse_ids)).exists()
         }
         by_location = self._merge_stock_by_branch(
-            location_rows, warehouse_names, value_by_location, limit=6)
+            location_rows, warehouse_names, value_by_location)
 
         self.env.cr.execute("""
             SELECT
