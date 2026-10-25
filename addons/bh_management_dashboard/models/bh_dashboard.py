@@ -825,31 +825,35 @@ class BhManagementDashboard(models.Model):
     # DEPOSIT
     # ─────────────────────────────────────────────────────────────────────
     def _get_customer_deposit_data(self, date_to=None):
-        """Deposits, split into 'From Owner' and 'From Customers'.
+        """Customer deposits from the accounts selected in
+        Configuration > Finance Accounts > Deposit - Customer Accounts.
 
-        Each side is the balance held on the accounts selected for it in
-        Configuration > Finance Accounts, and nothing else. Paid / Invoiced /
-        Refunded are the per-contact figures of 'customer_deposit_credit'
-        when that module is installed (0 otherwise).
+        These are typically liability / payable-type accounts that hold
+        advances paid by customers (money the company still owes them).
+        We return partner-level positive balances (negate=True so a credit
+        balance becomes a positive "deposit held" figure).
+
+        Owner accounts are still returned under breakdown.owner for
+        backward compatibility, but the mobile Deposit tab focuses only
+        on the customer side.
         """
         date_to = date_to or fields.Date.today().strftime('%Y-%m-%d')
         cfg = self._finance_config()
 
         def builder(p, e):
             return {
-                'name':           p.name if p else e['account'],
-                'total_paid':     getattr(p, 'deposit_total_paid', 0.0) if p else 0.0,
-                'total_invoiced': getattr(p, 'deposit_total_invoiced', 0.0) if p else 0.0,
-                'total_refunded': getattr(p, 'deposit_total_refunded', 0.0) if p else 0.0,
-                'balance':        e['amount'],
+                'name':    p.name if p else e['account'],
+                'balance': e['amount'],
             }
 
+        # ── Customer deposits (main report) ─────────────────────────────
         cust_accounts = cfg.deposit_customer_account_ids
         entries = self._group_balances(cust_accounts, date_to, negate=True)
         cust_rows = self._partner_group_rows(entries, builder)
+        customer_total = sum(e['amount'] for e in entries)
         customer = {
-            'label': 'From Customers',
-            'total': sum(e['amount'] for e in entries),
+            'label': 'Customers',
+            'total': customer_total,
             'count': len(entries),
             'rows':  cust_rows,
             'hint':  ('No deposit balance on the selected accounts.'
@@ -858,6 +862,7 @@ class BhManagementDashboard(models.Model):
                       'Configuration > Finance Accounts.'),
         }
 
+        # ── Owner (kept for compatibility, not shown on new mobile UI) ──
         owner_accounts = cfg.deposit_owner_account_ids
         owner_rows = self._breakdown_account_rows(
             owner_accounts, date_to, negate=True)
@@ -871,14 +876,19 @@ class BhManagementDashboard(models.Model):
         }
 
         return {
-            'configured': bool(cust_accounts or owner_accounts),
+            'configured': bool(cust_accounts),
             'summary': {
+                # Primary KPIs used by the redesigned mobile Deposit tab
+                'total_balance':  customer_total,
                 'customer_count': customer['count'],
-                'total_balance':  customer['total'] + owner['total'],
-                'total_paid':     sum(r['total_paid'] for r in cust_rows),
-                'total_refunded': sum(r['total_refunded'] for r in cust_rows),
+                # Kept for any older client that still reads these keys
+                'total_paid':     0.0,
+                'total_refunded': 0.0,
             },
-            'breakdown': {'owner': owner, 'customer': customer},
+            'breakdown': {
+                'customer': customer,
+                'owner': owner,
+            },
         }
 
     # ─────────────────────────────────────────────────────────────────────
