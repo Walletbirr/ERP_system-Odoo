@@ -8,6 +8,7 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
+# This is Full Controller for Dashboard
 
 class BhDashboardController(http.Controller):
 
@@ -154,3 +155,5 @@ class BhDashboardController(http.Controller):
         dashboard = request.env['bh.management.dashboard'].with_user(uid)
         data = dashboard.get_dashboard_data(date_from=date_from, date_to=date_to)
         return data
+
+    
