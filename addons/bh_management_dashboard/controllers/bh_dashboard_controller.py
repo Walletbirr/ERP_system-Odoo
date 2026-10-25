@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 from odoo import http
 from odoo.exceptions import AccessDenied
@@ -95,29 +95,43 @@ class BhDashboardController(http.Controller):
 
         user = request.env['res.users'].sudo().browse(uid)
 
+        api_key = None
+        last_error = None
         try:
             # Replace any previous mobile key for this user so old ones don't
             # pile up in Settings > Users > Account Security every login.
-            ApiKeys = request.env['res.users.apikeys'].sudo()
-            ApiKeys.search([
+            request.env['res.users.apikeys'].sudo().search([
                 ('user_id', '=', uid),
                 ('name', '=', 'Mobile Dashboard App'),
             ]).unlink()
-
-            # This Odoo build's _generate() requires an explicit expiration
-            # date (some versions default it internally, this one doesn't).
-            # 1 year out — the app silently re-mints a fresh key on every
-            # login anyway, so this mainly guards against a very long-lived
-            # unused key sitting around.
-            expiration_date = date.today() + timedelta(days=365)
-
-            api_key = request.env['res.users.apikeys'].with_user(uid)._generate(
-                scope='rpc',
-                name='Mobile Dashboard App',
-                expiration_date=expiration_date,
-            )
         except Exception:
-            _logger.exception('BH Dashboard: failed to generate mobile API key for uid %s', uid)
+            _logger.exception('BH Dashboard: could not clear old mobile keys for uid %s', uid)
+
+        # Odoo checks a normal (non-admin) user's key expiry against the
+        # longest "API Keys Maximum Duration" of their groups, and that check
+        # compares datetimes - so we must pass a real datetime (not a date),
+        # slightly under the limit. Admins skip the check, which is why the
+        # old date-based call worked for them but failed for managers.
+        # Try the longest first, then fall back so login never breaks just
+        # because a user's groups allow a shorter key.
+        for days in (364, 89, 29, 6):
+            try:
+                with request.env.cr.savepoint():
+                    api_key = request.env['res.users.apikeys'].with_user(uid)._generate(
+                        scope='rpc',
+                        name='Mobile Dashboard App',
+                        expiration_date=datetime.now() + timedelta(days=days),
+                    )
+                break
+            except Exception as exc:
+                last_error = exc
+                _logger.warning(
+                    'BH Dashboard: API key (%s days) refused for uid %s: %s',
+                    days, uid, exc)
+
+        if not api_key:
+            _logger.error('BH Dashboard: failed to generate mobile API key for uid %s: %r',
+                          uid, last_error)
             return {'error': 'key_generation_failed'}
 
         return {
