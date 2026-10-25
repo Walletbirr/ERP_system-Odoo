@@ -56,6 +56,7 @@ class BhManagementDashboard(models.Model):
         row (action_required + recent) can be enriched with:
           branch          - the order's Branch (where the sale happened)
           payment_term    - the order's payment terms
+          amount_tax      - the order's total tax (what Odoo shows on it)
           order_lines     - the products sold (Other Income line left out)
           payment_proofs  - the payment slips (metadata only, no file)
         Rows are matched by their `id` (the sale.order id). A failure here
@@ -112,6 +113,7 @@ class BhManagementDashboard(models.Model):
             row['branch'] = order.x_sale_branch_id.name or ''
             row['payment_term'] = (order.payment_term_id.name
                                    or row.get('payment_term') or '')
+            row['amount_tax'] = order.amount_tax
             row['order_lines'] = self._bridge_approval_lines(order)
             row['payment_proofs'] = proofs_by_order.get(order.id, [])
 
@@ -119,14 +121,22 @@ class BhManagementDashboard(models.Model):
         """Products sold, as the salesperson sees them: no section / note
         lines and no auto-generated Other Income line. `amount` is the
         Selling Price (tax included) when there is one, else the line's
-        tax-included total."""
-        has_selling_price = 'cim_selling_price' in self.env['sale.order.line']._fields
+        tax-included total.
+
+        `tax_amount` is the tax on the line INCLUDING the tax on its own
+        Other Income line (the one generated to reach the Selling Price), so
+        the amounts of all lines add up to the order's total tax."""
+        Line = self.env['sale.order.line']
+        has_selling_price = 'cim_selling_price' in Line._fields
+        has_service_link = 'cim_service_line_id' in Line._fields
         result = []
         for line in order.order_line.sorted(lambda l: (l.sequence, l.id)):
             if (line.display_type or not line.product_id
                     or getattr(line, 'cim_hide_from_order_lines', False)):
                 continue
             selling = line['cim_selling_price'] if has_selling_price else 0.0
+            service = line['cim_service_line_id'] if has_service_link else None
+            tax_amount = line.price_tax + (service.price_tax if service else 0.0)
             result.append({
                 'product': line.product_id.display_name,
                 'quantity': line.product_uom_qty,
@@ -134,6 +144,7 @@ class BhManagementDashboard(models.Model):
                 'unit_price': line.price_unit,
                 'amount': selling or line.price_total,
                 'subtotal': line.price_subtotal,
+                'tax_amount': tax_amount,
                 'taxes': ', '.join(line.tax_id.mapped('name')),
             })
         return result
