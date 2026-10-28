@@ -169,6 +169,14 @@ class AccountPaymentRegister(models.TransientModel):
         plus the bank rows (only when there really are several banks; one
         row is just a normal payment in that bank)."""
         vals = super()._create_payment_vals_from_wizard(batch_result)
+        # Carry the invoice Reference (which comes from the sales order) to
+        # the payment Reference of multi_line_payment.
+        refs = []
+        for ref in batch_result['lines'].move_id.mapped('cim_reference'):
+            if ref and ref not in refs:
+                refs.append(ref)
+        if refs:
+            vals['voucher_reference'] = ', '.join(refs)
         if self.bridge_multi_bank:
             rows = self._bridge_bank_rows()
             if len(rows) > 1:

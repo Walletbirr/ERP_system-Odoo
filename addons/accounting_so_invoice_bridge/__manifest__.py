@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.29.0.0',
+    'version': '18.0.29.2.1',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -45,7 +45,7 @@ before ("Can Create Invoice from Sales Order"), now renamed.
     'author': 'Custom Development',
     'license': 'LGPL-3',
     'depends': ['sale', 'sale_stock', 'stock', 'account', 'bus', 'mail', 'sale_credit_approval',
-                'custom_invoice_management'],
+                'custom_invoice_management', 'multi_line_payment'],
     'data': [
         'data/sale_stock_request_data.xml',
         'security/security.xml',
