@@ -5,6 +5,10 @@ from odoo import models
 
 _logger = logging.getLogger(__name__)
 
+# Products listed per branch in the mobile app's branch popup (safety cap;
+# the app pages through them).
+BRANCH_PRODUCT_LIMIT = 200
+
 
 class BhManagementDashboard(models.Model):
     """Adds "Top Branches by Sales" to the Executive Dashboard's Sales tab,
@@ -27,9 +31,14 @@ class BhManagementDashboard(models.Model):
         """Total sales per Branch (the branch where the sale happened, NOT
         the Deduction Branch the stock leaves from), using exactly the same
         period and filters as the Top Customers query: non-cancelled
-        orders, date_order inclusive on both ends."""
+        orders, date_order inclusive on both ends.
+
+        Each row also carries `products` (what that branch sold, see
+        _get_branch_products) for the mobile app's branch detail popup.
+        `branch_id` is the warehouse id, or None for the "No Branch" row."""
         self.env.cr.execute("""
             SELECT
+                sw.id                              AS branch_id,
                 COALESCE(sw.name, 'No Branch')     AS branch,
                 COUNT(so.id)                       AS orders,
                 COALESCE(SUM(so.amount_total), 0)  AS total
@@ -39,11 +48,98 @@ class BhManagementDashboard(models.Model):
                 (so.date_order AT TIME ZONE 'UTC')::date >= %s::date
                 AND (so.date_order AT TIME ZONE 'UTC')::date <= %s::date
                 AND so.state NOT IN ('cancel')
-            GROUP BY COALESCE(sw.name, 'No Branch')
+            GROUP BY sw.id, sw.name
             ORDER BY total DESC
             LIMIT %s
         """, (date_from, date_to, limit))
-        return self.env.cr.dictfetchall()
+        branches = self.env.cr.dictfetchall()
+        try:
+            with self.env.cr.savepoint():
+                products = self._get_branch_products(
+                    date_from, date_to, [b['branch_id'] for b in branches])
+        except Exception:
+            # The branch totals still show; the app says the product list
+            # is not available when `products` is None.
+            _logger.exception(
+                "accounting_so_invoice_bridge: could not build the products "
+                "per branch.")
+            products = None
+        for branch in branches:
+            branch['products'] = (None if products is None
+                                  else products.get(branch['branch_id'], []))
+        return branches
+
+    def _get_branch_products(self, date_from, date_to, branch_ids,
+                             limit=BRANCH_PRODUCT_LIMIT):
+        """Products sold per Branch, over exactly the orders behind the
+        branch totals (same period, same day boundaries, non-cancelled).
+
+        Returns {branch_id (None = No Branch): [{name, quantity, uom,
+        orders, amount}]}, biggest amount first. `amount` is tax included
+        and includes the product's own Other Income line, so the products
+        of a branch add up to the branch total. Section / note lines, down
+        payments and the Other Income lines themselves are not listed."""
+        if not branch_ids:
+            return {}
+        real_ids = [bid for bid in branch_ids if bid]
+        self.env.cr.execute("""
+            SELECT so.id, so.x_sale_branch_id
+            FROM sale_order so
+            WHERE
+                (so.date_order AT TIME ZONE 'UTC')::date >= %s::date
+                AND (so.date_order AT TIME ZONE 'UTC')::date <= %s::date
+                AND so.state NOT IN ('cancel')
+                AND (so.x_sale_branch_id = ANY(%s)
+                     OR (%s AND so.x_sale_branch_id IS NULL))
+        """, (date_from, date_to, real_ids or [0],
+              None in branch_ids))
+        branch_of_order = dict(self.env.cr.fetchall())
+        if not branch_of_order:
+            return {}
+
+        Line = self.env['sale.order.line'].sudo()
+        has_hidden = 'cim_hide_from_order_lines' in Line._fields
+        has_service = 'cim_service_line_id' in Line._fields
+        lines = Line.search([('order_id', 'in', list(branch_of_order)),
+                             ('display_type', '=', False),
+                             ('product_id', '!=', False)])
+
+        groups = {}  # (branch_id, product_id) -> row
+        for line in lines:
+            if line.is_downpayment or (has_hidden
+                                       and line.cim_hide_from_order_lines):
+                continue
+            amount = line.price_total
+            if has_service and line.cim_service_line_id:
+                amount += line.cim_service_line_id.price_total
+            product = line.product_id
+            qty = line.product_uom_qty
+            if line.product_uom and line.product_uom != product.uom_id:
+                qty = line.product_uom._compute_quantity(
+                    qty, product.uom_id, raise_if_failure=False)
+            branch_id = branch_of_order[line.order_id.id] or None
+            row = groups.get((branch_id, product.id))
+            if row is None:
+                row = groups[(branch_id, product.id)] = {
+                    'name': product.with_context(
+                        display_default_code=False).display_name,
+                    'quantity': 0.0,
+                    'uom': product.uom_id.name or '',
+                    'amount': 0.0,
+                    '_orders': set(),
+                }
+            row['quantity'] += qty
+            row['amount'] += amount
+            row['_orders'].add(line.order_id.id)
+
+        result = {}
+        for (branch_id, _pid), row in groups.items():
+            row['orders'] = len(row.pop('_orders'))
+            result.setdefault(branch_id, []).append(row)
+        for rows in result.values():
+            rows.sort(key=lambda r: (-r['amount'], r['name'].lower()))
+            del rows[limit:]
+        return result
 
     # ------------------------------------------------------------------
     # Approvals tab: branch, payment term, product lines and payment slips

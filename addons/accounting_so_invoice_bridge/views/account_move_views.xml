@@ -112,7 +112,16 @@
         <field name="model">account.move</field>
         <field name="arch" type="xml">
             <list string="Sales Invoices to Confirm" create="false">
-                <field name="name"/>
+                <!-- Drafts have no number yet ("/"), so the column only
+                     showed blanks on this worklist. -->
+                <field name="name" column_invisible="1"/>
+                <!-- Order the invoice was created from (Odoo fills it with
+                     the Sales Order number, e.g. S00062). -->
+                <field name="invoice_origin" string="Sales Order"/>
+                <!-- The "Reference" shown on the invoice form: cim_reference
+                     (custom_invoice_management), carried over from the
+                     Sales Order's own Reference. NOT Odoo's standard `ref`. -->
+                <field name="cim_reference" string="Reference" optional="show"/>
                 <field name="create_date" string="Created"/>
                 <field name="partner_id" string="Customer"/>
                 <field name="invoice_user_id" string="Salesperson"/>
