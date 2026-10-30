@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_cash_sale" model="ir.ui.view">
+        <field name="name">account.move.form.cash.sale</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Cash Sale" name="cash_sale"
+                      invisible="not x_is_cash_sale">
+                    <group>
+                        <field name="x_is_cash_sale" invisible="1"/>
+                        <field name="x_cash_order_id"/>
+                    </group>
+                    <field name="x_cash_bank_line_ids" readonly="1">
+                        <list>
+                            <field name="account_id" string="Bank Account"/>
+                            <field name="name" string="Bank"/>
+                            <field name="debit" string="Received"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="view_order_form_payment_term_required" model="ir.ui.view">
+        <field name="name">sale.order.form.payment.term.required</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="payment_term_id" position="attributes">
+                <attribute name="required">1</attribute>
+                <attribute name="placeholder">Immediate Payment / Cash / Credit...</attribute>
+            </field>
+        </field>
+    </record>
+</odoo>
