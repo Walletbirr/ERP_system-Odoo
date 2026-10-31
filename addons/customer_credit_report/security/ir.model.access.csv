@@ -1,0 +1,21 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_credit_line_sales,credit.line sales,model_customer_credit_line,sales_team.group_sale_salesman,1,0,0,0
+access_credit_line_account,credit.line account,model_customer_credit_line,account.group_account_invoice,1,0,0,0
+access_credit_line_readonly,credit.line account readonly,model_customer_credit_line,account.group_account_readonly,1,0,0,0
+access_credit_summary_sales,credit.summary sales,model_customer_credit_summary,sales_team.group_sale_salesman,1,0,0,0
+access_credit_summary_account,credit.summary account,model_customer_credit_summary,account.group_account_invoice,1,0,0,0
+access_credit_summary_readonly,credit.summary account readonly,model_customer_credit_summary,account.group_account_readonly,1,0,0,0
+access_credit_settlement_sales,credit.settlement sales,model_customer_credit_settlement,sales_team.group_sale_salesman,1,0,0,0
+access_credit_settlement_account,credit.settlement account,model_customer_credit_settlement,account.group_account_invoice,1,0,0,0
+access_credit_settlement_readonly,credit.settlement account readonly,model_customer_credit_settlement,account.group_account_readonly,1,0,0,0
+access_credit_request_sales,credit.request sales,model_customer_credit_request,sales_team.group_sale_salesman,1,0,0,0
+access_credit_request_manager,credit.request manager,model_customer_credit_request,sales_team.group_sale_manager,1,1,0,0
+access_credit_request_account,credit.request account,model_customer_credit_request,account.group_account_invoice,1,0,0,0
+access_credit_request_line_sales,credit.request.line sales,model_customer_credit_request_line,sales_team.group_sale_salesman,1,0,0,0
+access_credit_request_line_account,credit.request.line account,model_customer_credit_request_line,account.group_account_invoice,1,0,0,0
+access_credit_statement_wizard_sales,credit.statement.wizard sales,model_customer_credit_statement_wizard,sales_team.group_sale_salesman,1,1,1,0
+access_credit_statement_wizard_account,credit.statement.wizard account,model_customer_credit_statement_wizard,account.group_account_invoice,1,1,1,0
+access_credit_statement_wizard_readonly,credit.statement.wizard readonly,model_customer_credit_statement_wizard,account.group_account_readonly,1,1,1,0
+access_credit_payment_sales,credit.payment sales,model_customer_credit_payment,sales_team.group_sale_salesman,1,1,1,1
+access_credit_payment_account,credit.payment account,model_customer_credit_payment,account.group_account_invoice,1,1,1,0
+access_credit_payment_reject_account,credit.payment.reject account,model_customer_credit_payment_reject,account.group_account_invoice,1,1,1,0

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Sales Approval',
-    'version': '18.0.1.5.0',
+    'version': '18.0.1.6.0',
     'category': 'Sales',
     'summary': 'High-Level Manager approval of Sales Orders (after Accounting approves the payment)',
     'description': """
@@ -13,6 +13,10 @@
         - With accounting_so_invoice_bridge installed the request is sent
           automatically AFTER Accounting approves the payment proof; the
           salesperson can create the invoice only once the manager approves.
+        - Credit sales (customer_credit_report, via the bridge) are sent by
+          the salesperson BEFORE confirmation; approving confirms the order
+          (if confirmation fails, the approval is kept and the salesperson
+          confirms).
         - An "Approvals" tab on the Sales Order shows the full approval
           trail (Sales / Accounting submission + Manager decision).
         - A notification bell in the Executive Dashboard's top navbar shows

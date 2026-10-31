@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_customer_credit_request_list" model="ir.ui.view">
+        <field name="name">customer.credit.request.list</field>
+        <field name="model">customer.credit.request</field>
+        <field name="arch" type="xml">
+            <list string="Credit Sales Reports" create="false" edit="false" delete="false"
+                  decoration-muted="state == 'cancelled'">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="order_currency_id" column_invisible="1"/>
+                <field name="name"/>
+                <field name="request_date"/>
+                <field name="sale_order_id"/>
+                <field name="partner_id"/>
+                <field name="user_id" widget="many2one_avatar_user"/>
+                <field name="order_amount"/>
+                <field name="credit_remaining"/>
+                <field name="credit_overdue" decoration-danger="credit_overdue &gt; 0"/>
+                <field name="credit_after" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-warning="state == 'pending'"
+                       decoration-success="state == 'approved'"
+                       decoration-danger="state == 'rejected'"/>
+                <field name="decided_by_id" optional="hide"/>
+                <field name="decision_date" optional="hide"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_request_form" model="ir.ui.view">
+        <field name="name">customer.credit.request.form</field>
+        <field name="model">customer.credit.request</field>
+        <field name="arch" type="xml">
+            <form string="Credit Sales Report" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_print" type="object" string="Print"
+                            icon="fa-print"/>
+                    <button name="action_open_statement" type="object"
+                            string="Customer Statement" icon="fa-file-text-o"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="pending,approved,rejected"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_order" type="object"
+                                class="oe_stat_button" icon="fa-shopping-cart"
+                                string="Sales Order"/>
+                        <button name="action_view_customer_credit" type="object"
+                                class="oe_stat_button" icon="fa-file-text"
+                                string="Credit Today"/>
+                    </div>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="order_currency_id" invisible="1"/>
+                    <div class="oe_title">
+                        <span class="text-muted">Credit Sales Report</span>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <div class="alert alert-info" role="alert"
+                         invisible="not is_new_customer">
+                        First credit sale for this customer: no credit history yet.
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="credit_overdue &lt;= 0">
+                        The customer has overdue credit: <field name="credit_overdue" nolabel="1" class="fw-bold"/>,
+                        the oldest <field name="max_days_overdue" nolabel="1" class="fw-bold"/> days late.
+                    </div>
+                    <group>
+                        <group string="The Sale">
+                            <field name="partner_id"/>
+                            <field name="sale_order_id"/>
+                            <field name="order_amount" class="fw-bold"/>
+                            <field name="payment_term_id"/>
+                            <field name="branch_name" invisible="not branch_name"/>
+                            <field name="user_id"/>
+                            <field name="requested_by_id" invisible="requested_by_id == user_id"/>
+                            <field name="request_date"/>
+                            <field name="is_new_customer" invisible="1"/>
+                        </group>
+                        <group string="Customer Credit When Sent">
+                            <field name="credit_total"/>
+                            <field name="credit_paid"/>
+                            <field name="paid_ratio" widget="percentage"
+                                   invisible="not credit_total"/>
+                            <field name="credit_remaining" class="fw-bold"/>
+                            <field name="credit_overdue"
+                                   decoration-danger="credit_overdue &gt; 0"/>
+                            <field name="credit_after" class="fw-bold"/>
+                            <field name="amount_unapplied" invisible="not amount_unapplied"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="History">
+                            <field name="invoice_count"/>
+                            <field name="open_invoice_count"/>
+                            <field name="first_invoice_date"/>
+                            <field name="last_payment_date"/>
+                            <field name="oldest_due_date"/>
+                        </group>
+                        <group string="Ageing When Sent">
+                            <field name="amount_not_due"/>
+                            <field name="amount_1_30"/>
+                            <field name="amount_31_60"/>
+                            <field name="amount_61_90"/>
+                            <field name="amount_90_plus"
+                                   decoration-danger="amount_90_plus &gt; 0"/>
+                        </group>
+                    </group>
+                    <group string="Salesperson's Note" invisible="not note">
+                        <field name="note" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Manager's Decision" invisible="state == 'pending'">
+                        <field name="decided_by_id"/>
+                        <field name="decision_date"/>
+                        <field name="decision_note"/>
+                    </group>
+                    <notebook>
+                        <page string="Open Credit Invoices" name="lines">
+                            <field name="line_ids">
+                                <list decoration-danger="days_overdue &gt; 0">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="invoice_name"/>
+                                    <field name="origin"/>
+                                    <field name="invoice_date"/>
+                                    <field name="date_due"/>
+                                    <field name="amount_total" sum="Total"/>
+                                    <field name="amount_residual" sum="Total"/>
+                                    <field name="days_overdue" string="Days Late"/>
+                                    <field name="ageing" widget="badge"
+                                           decoration-success="ageing == 'not_due'"
+                                           decoration-warning="ageing in ('1_30', '31_60')"
+                                           decoration-danger="ageing in ('61_90', '90_plus')"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Products" name="products">
+                            <field name="order_line_ids" readonly="1">
+                                <list>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="display_type" column_invisible="1"/>
+                                    <field name="product_id"/>
+                                    <field name="name" optional="hide"/>
+                                    <field name="product_uom_qty" string="Quantity"/>
+                                    <field name="price_unit"/>
+                                    <field name="price_total" sum="Total"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_request_search" model="ir.ui.view">
+        <field name="name">customer.credit.request.search</field>
+        <field name="model">customer.credit.request</field>
+        <field name="arch" type="xml">
+            <search string="Credit Sales Reports">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="sale_order_id"/>
+                <field name="user_id"/>
+                <filter string="Waiting for Manager" name="pending" domain="[('state', '=', 'pending')]"/>
+                <filter string="Approved" name="approved" domain="[('state', '=', 'approved')]"/>
+                <filter string="Rejected" name="rejected" domain="[('state', '=', 'rejected')]"/>
+                <filter string="Not Replaced" name="active_reports" domain="[('state', '!=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Customer Had Overdue" name="had_overdue" domain="[('credit_overdue', '&gt;', 0)]"/>
+                <filter string="First Credit Sale" name="new_customer" domain="[('is_new_customer', '=', True)]"/>
+                <separator/>
+                <filter string="My Requests" name="my" domain="[('user_id', '=', uid)]"/>
+                <filter string="Sent On" name="request_date" date="request_date"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Salesperson" name="group_user" context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_request" model="ir.actions.act_window">
+        <field name="name">Credit Sales Reports</field>
+        <field name="res_model">customer.credit.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_customer_credit_request_search"/>
+        <field name="context">{'search_default_active_reports': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No Credit Sales Reports yet.</p>
+            <p>When a salesperson sends a Credit quotation to the manager, a
+               Credit Sales Report freezes the customer's credit position for
+               the decision.</p>
+        </field>
+    </record>
+
+</odoo>

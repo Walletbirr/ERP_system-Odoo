@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_credit_statement_wizard_form" model="ir.ui.view">
+        <field name="name">customer.credit.statement.wizard.form</field>
+        <field name="model">customer.credit.statement.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Statement">
+                <p class="text-muted">
+                    Credit invoices and every payment matched to them, with a
+                    running balance. The closing balance is what the customer
+                    owes on credit.
+                </p>
+                <group>
+                    <field name="partner_id" options="{'no_create': True}"/>
+                    <field name="company_id" groups="base.group_multi_company"
+                           options="{'no_create': True}"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="period" widget="radio"/>
+                    <field name="date_from" invisible="period == 'all'"
+                           required="period == 'custom'"
+                           readonly="period == 'this_year'"/>
+                    <field name="date_to" readonly="period != 'custom'"/>
+                </group>
+                <footer>
+                    <button name="action_show" type="object" string="Show"
+                            class="btn-primary" icon="fa-eye"/>
+                    <button name="action_print" type="object" string="Print PDF"
+                            class="btn-secondary" icon="fa-print"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_credit_statement_wizard" model="ir.actions.act_window">
+        <field name="name">Customer Statement</field>
+        <field name="res_model">customer.credit.statement.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

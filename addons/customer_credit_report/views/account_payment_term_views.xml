@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- The payment term is the Sales Type: tick "Credit Sale" on the
+         terms that mean the customer pays later. -->
+    <record id="view_payment_term_tree_customer_credit" model="ir.ui.view">
+        <field name="name">account.payment.term.list.customer.credit</field>
+        <field name="model">account.payment.term</field>
+        <field name="inherit_id" ref="account.view_payment_term_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="x_is_credit" widget="boolean_toggle"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_payment_term_form_customer_credit" model="ir.ui.view">
+        <field name="name">account.payment.term.form.customer.credit</field>
+        <field name="model">account.payment.term</field>
+        <field name="inherit_id" ref="account.view_payment_term_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_title')]" position="after">
+                <group>
+                    <field name="x_is_credit"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_payment_term_search_customer_credit" model="ir.ui.view">
+        <field name="name">account.payment.term.search.customer.credit</field>
+        <field name="model">account.payment.term</field>
+        <field name="inherit_id" ref="account.view_payment_term_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <separator/>
+                <filter string="Credit Sale" name="credit" domain="[('x_is_credit', '=', True)]"/>
+                <filter string="Cash Sale" name="cash" domain="[('x_is_credit', '=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

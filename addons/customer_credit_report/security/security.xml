@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="rule_credit_line_company" model="ir.rule">
+            <field name="name">Credit invoices: my companies</field>
+            <field name="model_id" ref="model_customer_credit_line"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="rule_credit_summary_company" model="ir.rule">
+            <field name="name">Customer credit: my companies</field>
+            <field name="model_id" ref="model_customer_credit_summary"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="rule_credit_settlement_company" model="ir.rule">
+            <field name="name">Credit settlements: my companies</field>
+            <field name="model_id" ref="model_customer_credit_settlement"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="rule_credit_request_company" model="ir.rule">
+            <field name="name">Credit Sales Reports: my companies</field>
+            <field name="model_id" ref="model_customer_credit_request"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="rule_credit_payment_company" model="ir.rule">
+            <field name="name">Credit payments: my companies</field>
+            <field name="model_id" ref="model_customer_credit_payment"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+    </data>
+</odoo>

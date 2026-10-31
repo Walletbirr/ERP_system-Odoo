@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Sales > Reporting -->
+    <menuitem id="menu_customer_credit_root" name="Customer Credit"
+              parent="sale.menu_sale_report" sequence="100"/>
+    <menuitem id="menu_customer_credit_summary" name="Customer Credit"
+              parent="menu_customer_credit_root"
+              action="action_customer_credit_summary" sequence="10"/>
+    <menuitem id="menu_customer_credit_ageing" name="Credit Ageing"
+              parent="menu_customer_credit_root"
+              action="action_customer_credit_summary_ageing" sequence="20"/>
+    <menuitem id="menu_customer_credit_line" name="Credit Invoices"
+              parent="menu_customer_credit_root"
+              action="action_customer_credit_line" sequence="30"/>
+    <menuitem id="menu_customer_credit_settlement" name="Payment Settlements"
+              parent="menu_customer_credit_root"
+              action="action_customer_credit_settlement" sequence="40"/>
+    <menuitem id="menu_customer_credit_statement" name="Customer Statement"
+              parent="menu_customer_credit_root"
+              action="action_credit_statement_wizard" sequence="50"/>
+    <menuitem id="menu_customer_credit_payment" name="Credit Payments"
+              parent="menu_customer_credit_root"
+              action="action_customer_credit_payment" sequence="45"/>
+    <menuitem id="menu_customer_credit_request" name="Credit Sales Reports"
+              parent="menu_customer_credit_root"
+              action="action_customer_credit_request" sequence="60"/>
+
+    <!-- Accounting > Customers -->
+    <menuitem id="menu_customer_credit_account" name="Customer Credit"
+              parent="account.menu_finance_receivables"
+              action="action_customer_credit_summary" sequence="90"/>
+    <menuitem id="menu_customer_credit_payment_to_post" name="Credit Payments to Post"
+              parent="account.menu_finance_receivables"
+              action="action_customer_credit_payment_to_post" sequence="89"/>
+    <menuitem id="menu_customer_credit_account_statement" name="Customer Credit Statement"
+              parent="account.menu_finance_receivables"
+              action="action_credit_statement_wizard" sequence="91"/>
+
+</odoo>

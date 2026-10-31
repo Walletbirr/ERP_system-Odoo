@@ -228,4 +228,37 @@
         </field>
     </record>
 
+    <!--
+        Credit sales: the salesperson's "Request Approval" button sends the
+        Credit Sales Report to the High-Level Manager (customer_credit_report
+        snapshot of the customer's credit), so it is labelled that way.
+    -->
+    <record id="view_order_form_credit_request_button" model="ir.ui.view">
+        <field name="name">sale.order.form.credit.request.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale_credit_approval.view_order_form_credit_approval"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_request_approval']" position="attributes">
+                <attribute name="string">Send Credit Request</attribute>
+                <attribute name="invisible">not requires_credit_approval or state not in ('draft', 'sent') or approval_state not in ('not_required', 'rejected')</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- While the manager looks at the Credit Sales Report, the Sales Type
+         and the note stay as they were sent. -->
+    <record id="view_order_form_credit_type_locked" model="ir.ui.view">
+        <field name="name">sale.order.form.credit.type.locked</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="customer_credit_report.view_order_form_customer_credit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_header']//field[@name='payment_term_id']" position="attributes">
+                <attribute name="readonly">state not in ('draft', 'sent') or approval_state == 'to_approve'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='x_credit_note']" position="attributes">
+                <attribute name="readonly">state not in ('draft', 'sent') or approval_state == 'to_approve'</attribute>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>

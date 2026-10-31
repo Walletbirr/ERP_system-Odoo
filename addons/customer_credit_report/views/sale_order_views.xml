@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_order_form_customer_credit" model="ir.ui.view">
+        <field name="name">sale.order.form.customer.credit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_credit_requests" type="object"
+                        class="oe_stat_button" icon="fa-file-text-o"
+                        invisible="not x_credit_request_count">
+                    <field name="x_credit_request_count" widget="statinfo"
+                           string="Credit Report"/>
+                </button>
+            </xpath>
+
+            <!-- The payment term IS the Sales Type: a term ticked "Credit
+                 Sale" makes a Credit sale (Accounting > Configuration >
+                 Payment Terms). -->
+            <xpath expr="//group[@name='sale_header']//field[@name='payment_term_id']" position="attributes">
+                <attribute name="string">Sales Type</attribute>
+                <attribute name="placeholder">Choose Cash or Credit</attribute>
+                <attribute name="required">state in ('draft', 'sent')</attribute>
+                <attribute name="readonly">state not in ('draft', 'sent')</attribute>
+                <attribute name="help">The customer pays now (Cash) or later (Credit). A Credit sales type needs the High-Level Manager's approval before the order is confirmed; its days give the invoice due date.</attribute>
+            </xpath>
+            <xpath expr="//group[@name='sale_header']//field[@name='payment_term_id']" position="before">
+                <field name="x_sale_type" invisible="1"/>
+            </xpath>
+            <xpath expr="//group[@name='sale_header']//field[@name='payment_term_id']" position="after">
+                <field name="x_credit_note"
+                       invisible="x_sale_type != 'credit'"
+                       readonly="state not in ('draft', 'sent')"
+                       placeholder="Why this customer can pay later (agreed date, guarantee...). The manager reads it with the Credit Sales Report."/>
+            </xpath>
+
+            <!-- The customer's credit position, for the salesperson
+                 preparing a credit sale and the manager deciding on it. -->
+            <xpath expr="//group[@name='sale_header']" position="after">
+                <div class="alert alert-light border mb-3 d-flex flex-wrap align-items-center gap-4"
+                     role="status"
+                     invisible="x_sale_type != 'credit' or not partner_id">
+                    <field name="x_company_currency_id" invisible="1"/>
+                    <span class="fw-bold"><i class="fa fa-credit-card me-1"/>Customer credit today</span>
+                    <span>Owes
+                        <field name="x_customer_credit_remaining" class="fw-bold" nolabel="1"/></span>
+                    <span invisible="not x_customer_credit_overdue" class="text-danger">Overdue
+                        <field name="x_customer_credit_overdue" class="fw-bold" nolabel="1"/></span>
+                    <span>Open invoices
+                        <field name="x_customer_credit_open_count" class="fw-bold" nolabel="1"/></span>
+                    <button name="action_view_customer_credit" type="object"
+                            string="Credit history" class="btn btn-link p-0"
+                            icon="fa-arrow-right"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_tree_customer_credit" model="ir.ui.view">
+        <field name="name">sale.order.list.customer.credit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="x_sale_type" string="Sales Type" optional="show" widget="badge"
+                       decoration-warning="x_sale_type == 'credit'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sales_order_filter_customer_credit" model="ir.ui.view">
+        <field name="name">sale.order.search.customer.credit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <separator/>
+                <filter string="Credit Sales" name="credit_sales"
+                        domain="[('x_sale_type', '=', 'credit')]"/>
+                <filter string="Cash Sales" name="cash_sales"
+                        domain="[('x_sale_type', '=', 'cash')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Sales Type" name="group_sale_type"
+                            context="{'group_by': 'x_sale_type'}"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

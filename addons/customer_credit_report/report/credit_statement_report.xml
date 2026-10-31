@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_credit_statement" model="ir.actions.report">
+        <field name="name">Customer Credit Statement</field>
+        <field name="model">customer.credit.statement.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">customer_credit_report.report_credit_statement</field>
+        <field name="report_file">customer_credit_report.report_credit_statement</field>
+        <field name="print_report_name">'Credit Statement - %s' % (object.partner_id.name)</field>
+    </record>
+
+    <record id="action_report_credit_statement_html" model="ir.actions.report">
+        <field name="name">Customer Credit Statement (screen)</field>
+        <field name="model">customer.credit.statement.wizard</field>
+        <field name="report_type">qweb-html</field>
+        <field name="report_name">customer_credit_report.report_credit_statement</field>
+        <field name="report_file">customer_credit_report.report_credit_statement</field>
+    </record>
+
+    <template id="report_credit_statement_document">
+        <t t-set="cur" t-value="st['currency']"/>
+        <t t-set="money" t-value="{'widget': 'monetary', 'display_currency': cur}"/>
+        <t t-set="pos" t-value="st['position']"/>
+        <div class="page">
+            <div class="row mb-3">
+                <div class="col-7">
+                    <h3 class="mb-1">Customer Credit Statement</h3>
+                    <div class="text-muted">
+                        <t t-out="st['date_from']" t-options="{'widget': 'date'}"/>
+                        to <t t-out="st['date_to']" t-options="{'widget': 'date'}"/>
+                    </div>
+                </div>
+                <div class="col-5 text-end">
+                    <strong t-out="st['partner'].name"/>
+                    <div t-if="st['partner'].vat">TIN: <span t-out="st['partner'].vat"/></div>
+                    <div t-if="st['partner'].phone or st['partner'].mobile"
+                         t-out="st['partner'].phone or st['partner'].mobile"/>
+                </div>
+            </div>
+
+            <table class="table table-sm table-borderless mb-4" style="background:#f6f6f6;">
+                <tr>
+                    <td class="text-center"><div class="text-muted small">Opening balance</div>
+                        <strong t-out="st['opening']" t-options="money"/></td>
+                    <td class="text-center"><div class="text-muted small">Credit sales (debit)</div>
+                        <strong t-out="st['total_debit']" t-options="money"/></td>
+                    <td class="text-center"><div class="text-muted small">Payments and credit notes</div>
+                        <strong t-out="st['total_credit']" t-options="money"/></td>
+                    <td class="text-center"><div class="text-muted small">Closing balance</div>
+                        <strong t-out="st['closing']" t-options="money"/></td>
+                    <td t-if="st['is_current']" class="text-center">
+                        <div class="text-muted small">Overdue today</div>
+                        <strong t-att-class="'text-danger' if pos['overdue'] &gt; 0 else ''"
+                                t-out="pos['overdue']" t-options="money"/></td>
+                </tr>
+            </table>
+
+            <table class="table table-sm o_main_table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Reference</th>
+                        <th>Details</th>
+                        <th>Due</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                        <th class="text-end">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="fst-italic">
+                        <td t-out="st['date_from']" t-options="{'widget': 'date'}"/>
+                        <td colspan="6">Opening balance</td>
+                        <td class="text-end" t-out="st['opening']" t-options="money"/>
+                    </tr>
+                    <tr t-foreach="st['lines']" t-as="line">
+                        <td t-out="line['date']" t-options="{'widget': 'date'}"/>
+                        <td t-out="line['kind_label']"/>
+                        <td t-out="line['reference']"/>
+                        <td t-out="line['description']"/>
+                        <td><t t-if="line['date_due']" t-out="line['date_due']" t-options="{'widget': 'date'}"/></td>
+                        <td class="text-end"><t t-if="line['debit']" t-out="line['debit']" t-options="money"/></td>
+                        <td class="text-end"><t t-if="line['credit']" t-out="line['credit']" t-options="money"/></td>
+                        <td class="text-end" t-out="line['balance']" t-options="money"/>
+                    </tr>
+                    <tr t-if="not st['lines']">
+                        <td colspan="8" class="text-center text-muted">No credit sales or payments in this period.</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold border-top">
+                        <td colspan="5">Closing balance</td>
+                        <td class="text-end" t-out="st['total_debit']" t-options="money"/>
+                        <td class="text-end" t-out="st['total_credit']" t-options="money"/>
+                        <td class="text-end" t-out="st['closing']" t-options="money"/>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <t t-if="st['is_current'] and st['open_lines']">
+                <h5 class="mt-4">Open invoices and ageing (today)</h5>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Invoice</th>
+                            <th>Sales Order</th>
+                            <th>Date</th>
+                            <th>Due</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Unpaid</th>
+                            <th class="text-end">Days late</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="st['open_lines']" t-as="ol">
+                            <td t-out="ol.move_id.name"/>
+                            <td t-out="ol.origin or ''"/>
+                            <td t-out="ol.invoice_date" t-options="{'widget': 'date'}"/>
+                            <td t-out="ol.date_due" t-options="{'widget': 'date'}"/>
+                            <td class="text-end" t-out="ol.amount_total" t-options="money"/>
+                            <td class="text-end" t-out="ol.amount_residual" t-options="money"/>
+                            <td t-att-class="'text-end text-danger' if ol.days_overdue else 'text-end'"
+                                t-out="ol.days_overdue or ''"/>
+                        </tr>
+                    </tbody>
+                </table>
+                <table class="table table-sm table-bordered text-center">
+                    <thead>
+                        <tr>
+                            <th>Not due</th><th>1-30 days</th><th>31-60 days</th>
+                            <th>61-90 days</th><th>Over 90 days</th><th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td t-out="pos['not_due']" t-options="money"/>
+                            <td t-out="pos['d1_30']" t-options="money"/>
+                            <td t-out="pos['d31_60']" t-options="money"/>
+                            <td t-out="pos['d61_90']" t-options="money"/>
+                            <td t-out="pos['d90_plus']" t-options="money"/>
+                            <td class="fw-bold" t-out="pos['remaining']" t-options="money"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </t>
+            <p t-if="st['is_current'] and pos['unapplied'] &gt; 0" class="small text-muted">
+                Note: <t t-out="pos['unapplied']" t-options="money"/> received from this customer
+                is not yet matched to an invoice and is not deducted above.
+            </p>
+        </div>
+    </template>
+
+    <template id="report_credit_statement">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="st" t-value="statements[o_index]"/>
+                <t t-call="web.external_layout">
+                    <t t-call="customer_credit_report.report_credit_statement_document"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

@@ -91,7 +91,13 @@
             <!-- Explanatory banners -->
             <xpath expr="//div[hasclass('oe_title')]" position="before">
                 <div class="alert alert-info" role="alert"
-                     invisible="approval_state != 'to_approve'">
+                     invisible="approval_state != 'to_approve' or state not in ('draft', 'sent')">
+                    Waiting for approval from
+                    <field name="high_level_manager_id" readonly="1" nolabel="1"/>
+                    before the order can be confirmed.
+                </div>
+                <div class="alert alert-info" role="alert"
+                     invisible="approval_state != 'to_approve' or state in ('draft', 'sent')">
                     Waiting for approval from
                     <field name="high_level_manager_id" readonly="1" nolabel="1"/>
                     before the invoice can be created.

@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.29.2.1',
+    'version': '18.0.30.2.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -20,7 +20,10 @@ Sales -> Accounting workflow with Payment Proof approval
    approves is the salesperson notified, and ONLY THEN does the Create
    Invoice button appear (also enforced on the server). If the manager
    rejects, the salesperson fixes the issue and presses Send to Manager.
-   Credit payment terms skip both the proof and this approval.
+   Credit sales (Sales Type ticked Credit Sale) instead go to the manager BEFORE
+   confirmation: the salesperson presses Send Credit Request, which sends
+   a Credit Sales Report (customer's credit position, ageing, open
+   invoices). Once approved the order is confirmed and skips the proof.
 6. The invoice is created as DRAFT; Accounting is notified a second time,
    checks the accounting setup (accounts, taxes, amounts) and confirms it.
    Only Accounting can confirm.
@@ -45,7 +48,8 @@ before ("Can Create Invoice from Sales Order"), now renamed.
     'author': 'Custom Development',
     'license': 'LGPL-3',
     'depends': ['sale', 'sale_stock', 'stock', 'account', 'bus', 'mail', 'sale_credit_approval',
-                'custom_invoice_management', 'multi_line_payment'],
+                'custom_invoice_management', 'multi_line_payment',
+                'customer_credit_report'],
     'data': [
         'data/sale_stock_request_data.xml',
         'security/security.xml',

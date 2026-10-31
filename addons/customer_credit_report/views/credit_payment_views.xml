@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_customer_credit_payment_form" model="ir.ui.view">
+        <field name="name">customer.credit.payment.form</field>
+        <field name="model">customer.credit.payment</field>
+        <field name="arch" type="xml">
+            <form string="Credit Payment">
+                <header>
+                    <button name="action_submit" type="object" string="Send to Accounting"
+                            class="btn-primary" invisible="state not in ('draft', 'rejected')"/>
+                    <button name="action_post_payment" type="object" string="Post Payment"
+                            class="btn-primary" invisible="state != 'submitted'"
+                            groups="account.group_account_invoice"/>
+                    <button name="action_open_reject" type="object" string="Reject"
+                            invisible="state != 'submitted'"
+                            groups="account.group_account_invoice"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state not in ('draft', 'submitted', 'rejected')"
+                            confirm="Cancel this credit payment?"/>
+                    <button name="action_reset_draft" type="object" string="Set to Draft"
+                            invisible="state != 'cancelled'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_payment" type="object"
+                                class="oe_stat_button" icon="fa-money"
+                                string="Payment" invisible="not payment_id"/>
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="state != 'rejected'">
+                        <strong>Rejected by Accounting:</strong>
+                        <field name="reject_reason" nolabel="1"/>
+                    </div>
+                    <div class="alert alert-info" role="status" invisible="state != 'submitted'">
+                        Waiting for Accounting to check the slip and post the payment.
+                    </div>
+                    <div class="oe_title">
+                        <span class="text-muted">Credit Payment</span>
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" options="{'no_create': True}"
+                                   readonly="state not in ('draft', 'rejected')"/>
+                            <field name="amount" class="fw-bold"
+                                   readonly="state not in ('draft', 'rejected')"/>
+                            <field name="payment_date"
+                                   readonly="state not in ('draft', 'rejected')"/>
+                            <field name="journal_id" options="{'no_create': True}"
+                                   readonly="state not in ('draft', 'rejected')"/>
+                            <field name="reference"
+                                   readonly="state not in ('draft', 'rejected')"/>
+                        </group>
+                        <group>
+                            <field name="owed" invisible="state == 'posted'"/>
+                            <field name="user_id" readonly="state not in ('draft', 'rejected')"/>
+                            <field name="company_id" groups="base.group_multi_company"
+                                   readonly="state != 'draft'"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="payment_id" invisible="not payment_id"/>
+                            <field name="posted_amount" invisible="not payment_id"/>
+                            <field name="reviewed_by_id" invisible="not reviewed_by_id"/>
+                            <field name="reviewed_date" invisible="not reviewed_by_id"/>
+                        </group>
+                    </group>
+                    <group string="Payment Slip">
+                        <field name="attachment_ids" widget="many2many_binary" nolabel="1" colspan="2"
+                               readonly="state not in ('draft', 'rejected')"/>
+                    </group>
+                    <field name="note" placeholder="Note for Accounting..."
+                           readonly="state not in ('draft', 'rejected')"/>
+                    <separator string="Pays (oldest credit sale first)" invisible="state == 'posted'"/>
+                    <field name="allocation_html" nolabel="1" invisible="state == 'posted'"/>
+                    <separator string="Applied To" invisible="state != 'posted'"/>
+                    <field name="settlement_ids" invisible="state != 'posted'" readonly="1">
+                        <list>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="invoice_id"/>
+                            <field name="date"/>
+                            <field name="journal_id"/>
+                            <field name="amount" sum="Total"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_payment_list" model="ir.ui.view">
+        <field name="name">customer.credit.payment.list</field>
+        <field name="model">customer.credit.payment</field>
+        <field name="arch" type="xml">
+            <list string="Credit Payments" decoration-muted="state == 'cancelled'"
+                  decoration-danger="state == 'rejected'">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="name"/>
+                <field name="payment_date"/>
+                <field name="partner_id"/>
+                <field name="user_id" widget="many2one_avatar_user"/>
+                <field name="journal_id" optional="show"/>
+                <field name="reference" optional="show"/>
+                <field name="amount" sum="Total"/>
+                <field name="payment_id" optional="hide"/>
+                <field name="activity_ids" widget="list_activity" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-warning="state == 'submitted'"
+                       decoration-success="state == 'posted'"
+                       decoration-danger="state == 'rejected'"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_payment_search" model="ir.ui.view">
+        <field name="name">customer.credit.payment.search</field>
+        <field name="model">customer.credit.payment</field>
+        <field name="arch" type="xml">
+            <search string="Credit Payments">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="reference"/>
+                <field name="user_id"/>
+                <filter string="Waiting for Accounting" name="submitted" domain="[('state', '=', 'submitted')]"/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Rejected" name="rejected" domain="[('state', '=', 'rejected')]"/>
+                <filter string="Posted" name="posted" domain="[('state', '=', 'posted')]"/>
+                <separator/>
+                <filter string="My Payments" name="my" domain="[('user_id', '=', uid)]"/>
+                <filter string="Paid On" name="payment_date" date="payment_date"/>
+                <group expand="0" string="Group By">
+                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+                    <filter string="Salesperson" name="group_user" context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_payment" model="ir.actions.act_window">
+        <field name="name">Credit Payments</field>
+        <field name="res_model">customer.credit.payment</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_customer_credit_payment_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Record a payment from a customer on credit</p>
+            <p>Enter the amount, attach the bank slip and send it to Accounting.
+               The money pays the customer's oldest credit sale first.</p>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_payment_to_post" model="ir.actions.act_window">
+        <field name="name">Credit Payments to Post</field>
+        <field name="res_model">customer.credit.payment</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_customer_credit_payment_search"/>
+        <field name="context">{'search_default_submitted': 1, 'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing to post</p>
+            <p>Credit payments sent by Sales appear here.</p>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_payment_reject_form" model="ir.ui.view">
+        <field name="name">customer.credit.payment.reject.form</field>
+        <field name="model">customer.credit.payment.reject</field>
+        <field name="arch" type="xml">
+            <form string="Reject Credit Payment">
+                <field name="payment_request_id" invisible="1"/>
+                <field name="reason" placeholder="Why? (wrong amount, slip not readable, money not received...)"/>
+                <footer>
+                    <button name="action_confirm" type="object" string="Reject" class="btn-danger"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

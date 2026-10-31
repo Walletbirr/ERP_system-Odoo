@@ -1,34 +1,53 @@
 {
     'name': 'Customer Credit Report',
-    'version': '18.0.1.2.0',
+    'version': '18.0.2.3.0',
     'category': 'Sales/Sales',
-    'summary': 'Track outstanding customer credit (unpaid balances) from confirmed sales',
+    'summary': 'Credit sales: one source of truth for what customers owe, '
+               'ageing, payment settlements, customer statements and the '
+               'Credit Sales Report sent to the manager.',
     'description': """
 Customer Credit Report
-=======================
-Adds a "Customer Credit" report under Sales > Reporting that lists customers
-who still owe money on invoiced sales orders.
+======================
+Everything is read from posted accounting data (credit invoices and the
+payments matched to them with the invoice's Pay button). Nothing is typed in
+by hand and nothing is recomputed overnight.
 
-Nothing is entered manually. The report is built entirely from data Odoo
-already tracks (sale orders, invoices, payments), so it always stays in
-sync automatically:
-
-- Total Confirmed Sales : sum of confirmed sale orders' totals
-- Total Invoiced        : total amount invoiced to the customer (native field)
-- Amount Paid           : Total Invoiced - Outstanding Credit
-- Outstanding Credit    : amount still owed by the customer (native field)
-- Orders                : number of sale orders
-
-Use case: dealers/sellers who issue a single invoice (e.g. a down payment)
-against a sales order and need to see, at a glance, which customers still
-have a balance due.
+* The payment term is the Sales Type: terms ticked "Credit Sale" make a
+  Credit sale (labelled Sales Type on the quotation), carried to invoices.
+* Credit Lines: every credit invoice with total, paid, remaining, due date,
+  days overdue and ageing bucket (Not due, 1-30, 31-60, 61-90, 90+).
+* Customer Credit: one row per customer (company level) with total credit,
+  paid, remaining, overdue and ageing.
+* Settlements: every payment matched to a credit invoice (date, amount,
+  bank / journal, reference).
+* Customer Statement: invoices and settlements with a running balance, on
+  screen and as a PDF, for any period.
+* Credit Payments: the salesperson records a customer payment with the
+  slip; Accounting posts it on the payment page. Money always pays the
+  oldest credit sale first.
+* Credit Sales Report: a frozen copy of the customer's credit position,
+  created when the salesperson sends a credit sale for approval.
 """,
-    'author': 'Your Company',
+    'author': 'BINGET HOLDING PLC',
     'license': 'LGPL-3',
-    'depends': ['sale', 'account'],
+    'depends': ['sale', 'account', 'mail'],
     'data': [
-        'views/res_partner_credit_views.xml',
+        'security/security.xml',
+        'security/ir.model.access.csv',
+        'data/ir_sequence_data.xml',
+        'views/credit_report_views.xml',
+        'views/credit_request_views.xml',
+        'views/credit_payment_views.xml',
+        'views/account_payment_term_views.xml',
+        'views/sale_order_views.xml',
+        'views/account_move_views.xml',
+        'views/res_partner_views.xml',
+        'wizard/credit_statement_wizard_views.xml',
+        'report/credit_statement_report.xml',
+        'report/credit_request_report.xml',
+        'views/menus.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
 }

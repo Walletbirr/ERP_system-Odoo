@@ -71,7 +71,9 @@ class SaleOrder(models.Model):
         for order in self.sudo():
             payloads.append({
                 'uids': [manager.id],
-                'title': 'Approval needed',
+                'title': ('Credit approval needed'
+                          if getattr(order, 'x_sale_type', False) == 'credit'
+                          else 'Approval needed'),
                 'body': '%s - %s - %s %s' % (
                     order.name, order.partner_id.name or '',
                     order.currency_id.symbol or order.currency_id.name or '',

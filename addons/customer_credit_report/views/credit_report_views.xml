@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ==============================================================
+         Credit invoices (customer.credit.line)
+         ============================================================== -->
+    <record id="view_customer_credit_line_list" model="ir.ui.view">
+        <field name="name">customer.credit.line.list</field>
+        <field name="model">customer.credit.line</field>
+        <field name="arch" type="xml">
+            <list string="Credit Invoices" create="false" edit="false"
+                  delete="false" default_order="date_due asc, id asc"
+                  decoration-muted="not is_open"
+                  decoration-danger="days_overdue &gt; 0">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="is_open" column_invisible="1"/>
+                <field name="move_id"/>
+                <field name="partner_id"/>
+                <field name="invoice_partner_id" optional="hide"/>
+                <field name="origin" optional="show"/>
+                <field name="user_id" optional="show" widget="many2one_avatar_user"/>
+                <field name="move_type" optional="hide"/>
+                <field name="invoice_date"/>
+                <field name="date_due"/>
+                <field name="amount_total" sum="Total"/>
+                <field name="amount_paid" sum="Total"/>
+                <field name="amount_residual" sum="Total"/>
+                <field name="days_overdue" string="Days Late"/>
+                <field name="ageing" widget="badge"
+                       decoration-success="ageing in ('paid', 'not_due')"
+                       decoration-warning="ageing in ('1_30', '31_60')"
+                       decoration-danger="ageing in ('61_90', '90_plus')"/>
+                <field name="last_payment_date" optional="show"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+                <button name="action_open_invoice" type="object"
+                        icon="fa-external-link" title="Open invoice"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Ageing: one column per bucket; group by customer for the
+         classic aged receivables layout. -->
+    <record id="view_customer_credit_line_ageing_list" model="ir.ui.view">
+        <field name="name">customer.credit.line.ageing.list</field>
+        <field name="model">customer.credit.line</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <list string="Credit Ageing" create="false" edit="false"
+                  delete="false" default_order="date_due asc, id asc"
+                  decoration-danger="days_overdue &gt; 0">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="move_id"/>
+                <field name="partner_id"/>
+                <field name="user_id" optional="hide"/>
+                <field name="date_due"/>
+                <field name="days_overdue" string="Days Late"/>
+                <field name="amount_not_due" sum="Total"/>
+                <field name="amount_1_30" sum="Total"/>
+                <field name="amount_31_60" sum="Total"/>
+                <field name="amount_61_90" sum="Total"/>
+                <field name="amount_90_plus" sum="Total"/>
+                <field name="amount_residual" string="Total Remaining" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_line_pivot" model="ir.ui.view">
+        <field name="name">customer.credit.line.pivot</field>
+        <field name="model">customer.credit.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Credit Ageing" disable_linking="0">
+                <field name="partner_id" type="row"/>
+                <field name="ageing" type="col"/>
+                <field name="amount_residual" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_line_graph" model="ir.ui.view">
+        <field name="name">customer.credit.line.graph</field>
+        <field name="model">customer.credit.line</field>
+        <field name="arch" type="xml">
+            <graph string="Credit Ageing" type="bar">
+                <field name="ageing"/>
+                <field name="amount_residual" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_line_search" model="ir.ui.view">
+        <field name="name">customer.credit.line.search</field>
+        <field name="model">customer.credit.line</field>
+        <field name="arch" type="xml">
+            <search string="Credit Invoices">
+                <field name="partner_id"/>
+                <field name="move_id"/>
+                <field name="origin"/>
+                <field name="user_id"/>
+                <filter string="Open" name="open" domain="[('is_open', '=', True)]"/>
+                <filter string="Overdue" name="overdue" domain="[('days_overdue', '&gt;', 0)]"/>
+                <filter string="Paid" name="paid" domain="[('is_open', '=', False)]"/>
+                <separator/>
+                <filter string="My Sales" name="my" domain="[('user_id', '=', uid)]"/>
+                <separator/>
+                <filter string="Invoice Date" name="invoice_date" date="invoice_date"/>
+                <filter string="Due Date" name="date_due" date="date_due"/>
+                <group expand="0" string="Group By">
+                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Ageing" name="group_ageing" context="{'group_by': 'ageing'}"/>
+                    <filter string="Salesperson" name="group_user" context="{'group_by': 'user_id'}"/>
+                    <filter string="Due Month" name="group_due" context="{'group_by': 'date_due:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_line" model="ir.actions.act_window">
+        <field name="name">Credit Invoices</field>
+        <field name="res_model">customer.credit.line</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="view_id" ref="view_customer_credit_line_list"/>
+        <field name="search_view_id" ref="view_customer_credit_line_search"/>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No credit invoices.</p>
+            <p>Every confirmed invoice of a Credit sale appears here with what
+               was paid, what remains and how late it is.</p>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_ageing" model="ir.actions.act_window">
+        <field name="name">Credit Ageing</field>
+        <field name="res_model">customer.credit.line</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="search_view_id" ref="view_customer_credit_line_search"/>
+        <field name="domain">[('is_open', '=', True)]</field>
+        <field name="context">{'search_default_group_partner': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_customer_credit_line_ageing_list')}),
+            (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_customer_credit_line_pivot')}),
+            (0, 0, {'view_mode': 'graph', 'view_id': ref('view_customer_credit_line_graph')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nobody owes anything on credit.</p>
+        </field>
+    </record>
+
+    <!-- ==============================================================
+         Payment settlements
+         ============================================================== -->
+    <record id="view_customer_credit_settlement_list" model="ir.ui.view">
+        <field name="name">customer.credit.settlement.list</field>
+        <field name="model">customer.credit.settlement</field>
+        <field name="arch" type="xml">
+            <list string="Payment Settlements" create="false" edit="false" delete="false">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="invoice_id"/>
+                <field name="kind" widget="badge"
+                       decoration-success="kind == 'payment'"
+                       decoration-info="kind == 'credit_note'"/>
+                <field name="payment_move_id" string="Payment / Entry"/>
+                <field name="journal_id"/>
+                <field name="reference" optional="show"/>
+                <field name="user_id" optional="hide"/>
+                <field name="amount" sum="Total"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+                <button name="action_open_entry" type="object"
+                        icon="fa-external-link" title="Open payment"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_settlement_pivot" model="ir.ui.view">
+        <field name="name">customer.credit.settlement.pivot</field>
+        <field name="model">customer.credit.settlement</field>
+        <field name="arch" type="xml">
+            <pivot string="Payment Settlements">
+                <field name="date" interval="month" type="row"/>
+                <field name="kind" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_settlement_search" model="ir.ui.view">
+        <field name="name">customer.credit.settlement.search</field>
+        <field name="model">customer.credit.settlement</field>
+        <field name="arch" type="xml">
+            <search string="Payment Settlements">
+                <field name="partner_id"/>
+                <field name="invoice_id"/>
+                <field name="payment_move_id"/>
+                <field name="journal_id"/>
+                <field name="reference"/>
+                <filter string="Payments" name="payments" domain="[('kind', '=', 'payment')]"/>
+                <filter string="Credit Notes" name="credit_notes" domain="[('kind', '=', 'credit_note')]"/>
+                <separator/>
+                <filter string="Date" name="date" date="date"/>
+                <group expand="0" string="Group By">
+                    <filter string="Customer" name="group_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Invoice" name="group_invoice" context="{'group_by': 'invoice_id'}"/>
+                    <filter string="Journal" name="group_journal" context="{'group_by': 'journal_id'}"/>
+                    <filter string="Month" name="group_month" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_settlement" model="ir.actions.act_window">
+        <field name="name">Payment Settlements</field>
+        <field name="res_model">customer.credit.settlement</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="search_view_id" ref="view_customer_credit_settlement_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No payments on credit invoices yet.</p>
+            <p>Each payment Accounting registers on a credit invoice (Pay
+               button) appears here.</p>
+        </field>
+    </record>
+
+    <!-- ==============================================================
+         Customer Credit (one row per customer)
+         ============================================================== -->
+    <record id="view_customer_credit_summary_list" model="ir.ui.view">
+        <field name="name">customer.credit.summary.list</field>
+        <field name="model">customer.credit.summary</field>
+        <field name="arch" type="xml">
+            <list string="Customer Credit" create="false" edit="false" delete="false"
+                  decoration-danger="amount_overdue &gt; 0">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="partner_id"/>
+                <field name="user_id" optional="show" widget="many2one_avatar_user"/>
+                <field name="invoice_count" optional="show"/>
+                <field name="open_invoice_count" optional="hide"/>
+                <field name="amount_total" sum="Total"/>
+                <field name="amount_paid" sum="Total"/>
+                <field name="amount_residual" sum="Total"/>
+                <field name="amount_overdue" sum="Total"/>
+                <field name="max_days_overdue" optional="show"/>
+                <field name="last_payment_date" optional="show"/>
+                <field name="amount_unapplied" optional="hide" sum="Total"/>
+                <field name="company_id" optional="hide" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_summary_ageing_list" model="ir.ui.view">
+        <field name="name">customer.credit.summary.ageing.list</field>
+        <field name="model">customer.credit.summary</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <list string="Credit Ageing by Customer" create="false" edit="false" delete="false"
+                  decoration-danger="amount_overdue &gt; 0">
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount_overdue" column_invisible="1"/>
+                <field name="partner_id"/>
+                <field name="user_id" optional="hide"/>
+                <field name="amount_not_due" sum="Total"/>
+                <field name="amount_1_30" sum="Total"/>
+                <field name="amount_31_60" sum="Total"/>
+                <field name="amount_61_90" sum="Total"/>
+                <field name="amount_90_plus" sum="Total"/>
+                <field name="amount_residual" string="Total Remaining" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_summary_form" model="ir.ui.view">
+        <field name="name">customer.credit.summary.form</field>
+        <field name="model">customer.credit.summary</field>
+        <field name="arch" type="xml">
+            <form string="Customer Credit" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_new_credit_payment" type="object"
+                            string="Customer Paid" class="btn-primary"
+                            icon="fa-money"
+                            groups="sales_team.group_sale_salesman"/>
+                    <button name="action_open_statement" type="object"
+                            string="Customer Statement"
+                            icon="fa-file-text-o"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_lines" type="object"
+                                class="oe_stat_button" icon="fa-file-text">
+                            <field name="invoice_count" widget="statinfo" string="Credit Invoices"/>
+                        </button>
+                        <button name="action_view_settlements" type="object"
+                                class="oe_stat_button" icon="fa-money"
+                                string="Payments"/>
+                    </div>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="partner_id" string="Customer"/>
+                        <h1><field name="partner_id" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Credit Position">
+                            <field name="amount_total"/>
+                            <field name="amount_paid"/>
+                            <field name="amount_residual" class="fw-bold"/>
+                            <field name="amount_overdue"
+                                   decoration-danger="amount_overdue &gt; 0"/>
+                            <field name="amount_unapplied"
+                                   invisible="not amount_unapplied"/>
+                        </group>
+                        <group string="History">
+                            <field name="user_id"/>
+                            <field name="first_invoice_date"/>
+                            <field name="last_invoice_date"/>
+                            <field name="last_payment_date"/>
+                            <field name="open_invoice_count"/>
+                            <field name="oldest_due_date"/>
+                            <field name="max_days_overdue"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <div class="o_horizontal_separator mt-4 mb-3 text-uppercase fw-bolder small">Ageing of What Remains</div>
+                    <div class="row g-2 mb-4">
+                        <div class="col">
+                            <div class="border rounded p-2 text-center h-100">
+                                <div class="text-muted small">Not due</div>
+                                <field name="amount_not_due" class="fw-bold"/>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="border rounded p-2 text-center h-100">
+                                <div class="text-muted small">1-30 days</div>
+                                <field name="amount_1_30" class="fw-bold"/>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="border rounded p-2 text-center h-100">
+                                <div class="text-muted small">31-60 days</div>
+                                <field name="amount_31_60" class="fw-bold"/>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="border rounded p-2 text-center h-100">
+                                <div class="text-muted small">61-90 days</div>
+                                <field name="amount_61_90" class="fw-bold" decoration-danger="amount_61_90 &gt; 0"/>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="border rounded p-2 text-center h-100">
+                                <div class="text-muted small">Over 90 days</div>
+                                <field name="amount_90_plus" class="fw-bold" decoration-danger="amount_90_plus &gt; 0"/>
+                            </div>
+                        </div>
+                    </div>
+                    <notebook>
+                        <page string="Open Invoices" name="open">
+                            <field name="open_line_ids" readonly="1">
+                                <list decoration-danger="days_overdue &gt; 0" decoration-muted="not is_open">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="is_open" column_invisible="1"/>
+                                    <field name="move_id"/>
+                                    <field name="origin"/>
+                                    <field name="user_id" optional="hide"/>
+                                    <field name="invoice_date"/>
+                                    <field name="date_due"/>
+                                    <field name="amount_total" sum="Total"/>
+                                    <field name="amount_paid" sum="Total"/>
+                                    <field name="amount_residual" sum="Total"/>
+                                    <field name="days_overdue" string="Days Late"/>
+                                    <field name="ageing" widget="badge"
+                                           decoration-success="ageing in ('paid', 'not_due')"
+                                           decoration-warning="ageing in ('1_30', '31_60')"
+                                           decoration-danger="ageing in ('61_90', '90_plus')"/>
+                                    <field name="last_payment_date" optional="show"/>
+                                    <button name="action_open_invoice" type="object"
+                                            icon="fa-external-link" title="Open invoice"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Payment Settlement History" name="settlements">
+                            <field name="settlement_ids" readonly="1">
+                                <list>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="date"/>
+                                    <field name="invoice_id"/>
+                                    <field name="kind" widget="badge"
+                                           decoration-success="kind == 'payment'"
+                                           decoration-info="kind == 'credit_note'"/>
+                                    <field name="payment_move_id" string="Payment / Entry"/>
+                                    <field name="journal_id"/>
+                                    <field name="reference" optional="show"/>
+                                    <field name="amount" sum="Total"/>
+                                    <button name="action_open_entry" type="object"
+                                            icon="fa-external-link" title="Open payment"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="All Credit Invoices" name="all">
+                            <field name="line_ids" readonly="1">
+                                <list decoration-danger="days_overdue &gt; 0" decoration-muted="not is_open">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="is_open" column_invisible="1"/>
+                                    <field name="move_id"/>
+                                    <field name="origin"/>
+                                    <field name="user_id" optional="hide"/>
+                                    <field name="invoice_date"/>
+                                    <field name="date_due"/>
+                                    <field name="amount_total" sum="Total"/>
+                                    <field name="amount_paid" sum="Total"/>
+                                    <field name="amount_residual" sum="Total"/>
+                                    <field name="days_overdue" string="Days Late"/>
+                                    <field name="ageing" widget="badge"
+                                           decoration-success="ageing in ('paid', 'not_due')"
+                                           decoration-warning="ageing in ('1_30', '31_60')"
+                                           decoration-danger="ageing in ('61_90', '90_plus')"/>
+                                    <field name="last_payment_date" optional="show"/>
+                                    <button name="action_open_invoice" type="object"
+                                            icon="fa-external-link" title="Open invoice"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Credit Sales Reports" name="requests">
+                            <field name="request_ids" readonly="1">
+                                <list decoration-muted="state == 'cancelled'">
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="order_currency_id" column_invisible="1"/>
+                                    <field name="name"/>
+                                    <field name="request_date"/>
+                                    <field name="sale_order_id"/>
+                                    <field name="user_id"/>
+                                    <field name="order_amount"/>
+                                    <field name="credit_remaining"/>
+                                    <field name="credit_overdue"/>
+                                    <field name="state" widget="badge"
+                                           decoration-warning="state == 'pending'"
+                                           decoration-success="state == 'approved'"
+                                           decoration-danger="state == 'rejected'"/>
+                                    <field name="decided_by_id" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_summary_pivot" model="ir.ui.view">
+        <field name="name">customer.credit.summary.pivot</field>
+        <field name="model">customer.credit.summary</field>
+        <field name="arch" type="xml">
+            <pivot string="Customer Credit">
+                <field name="user_id" type="row"/>
+                <field name="amount_total" type="measure"/>
+                <field name="amount_paid" type="measure"/>
+                <field name="amount_residual" type="measure"/>
+                <field name="amount_overdue" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_customer_credit_summary_search" model="ir.ui.view">
+        <field name="name">customer.credit.summary.search</field>
+        <field name="model">customer.credit.summary</field>
+        <field name="arch" type="xml">
+            <search string="Customer Credit">
+                <field name="partner_id"/>
+                <field name="user_id"/>
+                <filter string="Owes Money" name="owes" domain="[('amount_residual', '&gt;', 0)]"/>
+                <filter string="Overdue" name="overdue" domain="[('amount_overdue', '&gt;', 0)]"/>
+                <filter string="Over 90 Days" name="over_90" domain="[('amount_90_plus', '&gt;', 0)]"/>
+                <filter string="Fully Paid" name="settled" domain="[('amount_residual', '&lt;=', 0)]"/>
+                <filter string="Unmatched Payments" name="unapplied" domain="[('amount_unapplied', '&gt;', 0)]"/>
+                <separator/>
+                <filter string="My Customers" name="my" domain="[('user_id', '=', uid)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Salesperson" name="group_user" context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_summary" model="ir.actions.act_window">
+        <field name="name">Customer Credit</field>
+        <field name="res_model">customer.credit.summary</field>
+        <field name="view_mode">list,form,pivot</field>
+        <field name="view_id" ref="view_customer_credit_summary_list"/>
+        <field name="search_view_id" ref="view_customer_credit_summary_search"/>
+        <field name="context">{'search_default_owes': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No customer owes anything on credit.</p>
+            <p>Customers appear here once a Credit sale is invoiced. Open a
+               customer for their credit history, payment settlements and
+               statement.</p>
+        </field>
+    </record>
+
+    <record id="action_customer_credit_summary_ageing" model="ir.actions.act_window">
+        <field name="name">Credit Ageing by Customer</field>
+        <field name="res_model">customer.credit.summary</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_customer_credit_summary_search"/>
+        <field name="context">{'search_default_owes': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_customer_credit_summary_ageing_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_customer_credit_summary_form')})]"/>
+    </record>
+
+</odoo>

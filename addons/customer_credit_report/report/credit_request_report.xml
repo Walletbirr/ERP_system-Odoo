@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_credit_request" model="ir.actions.report">
+        <field name="name">Credit Sales Report</field>
+        <field name="model">customer.credit.request</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">customer_credit_report.report_credit_request</field>
+        <field name="report_file">customer_credit_report.report_credit_request</field>
+        <field name="print_report_name">'Credit Sales Report - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="model_customer_credit_request"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_credit_request_document">
+        <t t-set="money" t-value="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+        <t t-set="state_label" t-value="dict(o._fields['state']._description_selection(o.env))[o.state]"/>
+        <div class="page">
+            <div class="row mb-3">
+                <div class="col-8">
+                    <h3 class="mb-1">Credit Sales Report <span t-out="o.name"/></h3>
+                    <div class="text-muted">
+                        Sent <t t-out="o.request_date" t-options="{'widget': 'datetime'}"/>
+                        by <t t-out="o.requested_by_id.name"/>
+                    </div>
+                </div>
+                <div class="col-4 text-end">
+                    <span class="badge text-bg-secondary fs-6" t-out="state_label"/>
+                </div>
+            </div>
+
+            <div t-if="o.is_new_customer" class="alert alert-info p-2">
+                First credit sale for this customer: no credit history yet.
+            </div>
+            <div t-if="o.credit_overdue &gt; 0" class="alert alert-warning p-2">
+                Overdue credit: <strong t-out="o.credit_overdue" t-options="money"/>,
+                the oldest <strong t-out="o.max_days_overdue"/> days late.
+            </div>
+
+            <div class="row">
+                <div class="col-6">
+                    <h5>The sale</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr><td>Customer</td><td class="fw-bold" t-out="o.partner_id.name"/></tr>
+                        <tr><td>Sales Order</td><td t-out="o.sale_order_id.name"/></tr>
+                        <tr><td>Amount</td><td class="fw-bold" t-out="o.order_amount"
+                            t-options="{'widget': 'monetary', 'display_currency': o.order_currency_id}"/></tr>
+                        <tr t-if="o.payment_term_id"><td>Sales type</td><td t-out="o.payment_term_id.name"/></tr>
+                        <tr t-if="o.branch_name"><td>Branch</td><td t-out="o.branch_name"/></tr>
+                        <tr><td>Salesperson</td><td t-out="o.user_id.name"/></tr>
+                    </table>
+                </div>
+                <div class="col-6">
+                    <h5>Customer credit when sent</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr><td>Total credit taken</td><td class="text-end" t-out="o.credit_total" t-options="money"/></tr>
+                        <tr><td>Paid</td><td class="text-end" t-out="o.credit_paid" t-options="money"/></tr>
+                        <tr class="fw-bold"><td>Owes now</td><td class="text-end" t-out="o.credit_remaining" t-options="money"/></tr>
+                        <tr><td>Of which overdue</td>
+                            <td t-att-class="'text-end text-danger' if o.credit_overdue &gt; 0 else 'text-end'"
+                                t-out="o.credit_overdue" t-options="money"/></tr>
+                        <tr class="fw-bold border-top"><td>Will owe after this sale</td>
+                            <td class="text-end" t-out="o.credit_after" t-options="money"/></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-6">
+                    <h5>History</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr><td>Credit invoices so far</td><td t-out="o.invoice_count"/></tr>
+                        <tr><td>Still open</td><td t-out="o.open_invoice_count"/></tr>
+                        <tr t-if="o.first_invoice_date"><td>On credit since</td>
+                            <td t-out="o.first_invoice_date" t-options="{'widget': 'date'}"/></tr>
+                        <tr t-if="o.last_payment_date"><td>Last payment</td>
+                            <td t-out="o.last_payment_date" t-options="{'widget': 'date'}"/></tr>
+                        <tr t-if="o.credit_total"><td>Paid share</td>
+                            <td><t t-out="'%.0f' % (o.paid_ratio * 100)"/> %</td></tr>
+                    </table>
+                </div>
+                <div class="col-6">
+                    <h5>Ageing of what is owed</h5>
+                    <table class="table table-sm table-borderless">
+                        <tr><td>Not due</td><td class="text-end" t-out="o.amount_not_due" t-options="money"/></tr>
+                        <tr><td>1-30 days</td><td class="text-end" t-out="o.amount_1_30" t-options="money"/></tr>
+                        <tr><td>31-60 days</td><td class="text-end" t-out="o.amount_31_60" t-options="money"/></tr>
+                        <tr><td>61-90 days</td><td class="text-end" t-out="o.amount_61_90" t-options="money"/></tr>
+                        <tr><td>Over 90 days</td>
+                            <td t-att-class="'text-end text-danger' if o.amount_90_plus &gt; 0 else 'text-end'"
+                                t-out="o.amount_90_plus" t-options="money"/></tr>
+                    </table>
+                </div>
+            </div>
+
+            <t t-if="o.line_ids">
+                <h5>Open credit invoices</h5>
+                <table class="table table-sm">
+                    <thead><tr>
+                        <th>Invoice</th><th>Sales Order</th><th>Date</th><th>Due</th>
+                        <th class="text-end">Amount</th><th class="text-end">Unpaid</th>
+                        <th class="text-end">Days late</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr t-foreach="o.line_ids" t-as="l">
+                            <td t-out="l.invoice_name"/>
+                            <td t-out="l.origin or ''"/>
+                            <td t-out="l.invoice_date" t-options="{'widget': 'date'}"/>
+                            <td t-out="l.date_due" t-options="{'widget': 'date'}"/>
+                            <td class="text-end" t-out="l.amount_total" t-options="money"/>
+                            <td class="text-end" t-out="l.amount_residual" t-options="money"/>
+                            <td t-att-class="'text-end text-danger' if l.days_overdue else 'text-end'"
+                                t-out="l.days_overdue or ''"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </t>
+
+            <h5>Products</h5>
+            <table class="table table-sm">
+                <thead><tr>
+                    <th>Product</th><th class="text-end">Quantity</th>
+                    <th class="text-end">Unit price</th><th class="text-end">Total</th>
+                </tr></thead>
+                <tbody>
+                    <tr t-foreach="o.order_line_ids.filtered(lambda l: not l.display_type)" t-as="sl">
+                        <td t-out="sl.product_id.display_name or sl.name"/>
+                        <td class="text-end" t-out="sl.product_uom_qty"/>
+                        <td class="text-end" t-out="sl.price_unit"
+                            t-options="{'widget': 'monetary', 'display_currency': o.order_currency_id}"/>
+                        <td class="text-end" t-out="sl.price_total"
+                            t-options="{'widget': 'monetary', 'display_currency': o.order_currency_id}"/>
+                    </tr>
+                </tbody>
+            </table>
+
+            <t t-if="o.note">
+                <h5>Salesperson's note</h5>
+                <p t-out="o.note" style="white-space: pre-line;"/>
+            </t>
+            <t t-if="o.state in ('approved', 'rejected')">
+                <h5>Manager's decision</h5>
+                <p>
+                    <strong t-out="state_label"/> by <t t-out="o.decided_by_id.name"/>,
+                    <t t-out="o.decision_date" t-options="{'widget': 'datetime'}"/>
+                    <t t-if="o.decision_note"><br/><span t-out="o.decision_note"/></t>
+                </p>
+            </t>
+        </div>
+    </template>
+
+    <template id="report_credit_request">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <t t-call="customer_credit_report.report_credit_request_document"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

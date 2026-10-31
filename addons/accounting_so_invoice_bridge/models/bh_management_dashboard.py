@@ -168,6 +168,16 @@ class BhManagementDashboard(models.Model):
             _logger.exception(
                 "accounting_so_invoice_bridge: could not add branch / "
                 "products / payment proofs to the approval rows.")
+        # Customer Credit report (customer_credit_report): live figures,
+        # not filtered by the date range.
+        if isinstance(data, dict):
+            try:
+                data['credit'] = self.env['customer.credit.api'].overview()
+            except Exception:
+                _logger.exception(
+                    "accounting_so_invoice_bridge: could not build the "
+                    "customer credit report for the dashboard.")
+                data['credit'] = None
         return data
 
     def _bridge_enrich_approval_rows(self, approvals):
@@ -212,6 +222,14 @@ class BhManagementDashboard(models.Model):
             row['amount_tax'] = order.amount_tax
             row['order_lines'] = self._bridge_approval_lines(order)
             row['payment_proofs'] = proofs_by_order.get(order.id, [])
+            # Credit sale: the Credit Sales Report the salesperson sent
+            # (latest one; customer_credit_report).
+            row['sale_type'] = order.x_sale_type or 'cash'
+            report = order.x_credit_request_ids.filtered(
+                lambda r: r.state != 'cancelled').sorted(
+                lambda r: (r.request_date or r.create_date, r.id))[-1:]
+            row['credit_report'] = self.env['customer.credit.api']\
+                .request_payload(report, order) if report else None
 
     def _bridge_approval_lines(self, order):
         """Products sold, as the salesperson sees them: no section / note

@@ -1,7 +1,7 @@
 import logging
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from .sale_order_payment_proof import INVOICE_READY_SUMMARY
 
@@ -10,17 +10,25 @@ _logger = logging.getLogger(__name__)
 REVIEWER_GROUP = 'accounting_so_invoice_bridge.group_sale_invoice_creator'
 # To-Do for Sales: the High-Level Manager rejected the order.
 MANAGER_REJECTED_SUMMARY = 'Manager rejected the order'
+# To-Dos for Sales after the manager approved a credit sale.
+CREDIT_READY_SUMMARY = 'Credit approved: create the invoice'
+CREDIT_CONFIRM_SUMMARY = 'Credit approved: confirm the order'
 
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
-    # Orders still confirm directly (no manager approval at confirmation:
-    # requires_credit_approval stays False). The High-Level Manager
-    # (sale_credit_approval) now decides AFTER Accounting approved the
-    # payment proof and BEFORE the salesperson may create the invoice, see
+    # Cash sales confirm directly; the High-Level Manager
+    # (sale_credit_approval) decides AFTER Accounting approved the payment
+    # proof and BEFORE the salesperson may create the invoice, see
     # _request_manager_after_payment() and x_invoice_unlocked.
-    requires_credit_approval = fields.Boolean(default=False)
+    # Credit sales (customer_credit_report) need the manager BEFORE they
+    # can be confirmed: the salesperson sends the Credit Sales Report.
+    # default=None removes sale_credit_approval's default so the compute
+    # decides on new orders too.
+    requires_credit_approval = fields.Boolean(
+        compute='_compute_requires_credit_approval', store=True,
+        readonly=False, precompute=True, default=None)
 
     can_create_invoice = fields.Boolean(
         compute='_compute_can_create_invoice',
@@ -85,11 +93,13 @@ class SaleOrder(models.Model):
 
     x_is_credit_payment_term = fields.Boolean(
         compute='_compute_x_is_credit_payment_term',
-        string='Credit Payment Term (internal)',
-        help='True only when the Payment Terms name contains the word '
-             '"credit" (case-insensitive), e.g. "Credit 30 Days". Credit '
-             'orders skip the payment proof and its approval: they go '
-             'straight to Accounting to confirm the invoice.',
+        string='Credit Sale (internal)',
+        help='True for a Credit sale (the Sales Type / payment term chosen '
+             'on the quotation is ticked Credit Sale). Credit sales need the '
+             'High-Level Manager before confirmation, then skip the '
+             'payment proof: they go straight to Accounting to confirm '
+             'the invoice. (Name kept for compatibility: it used to come '
+             'from the payment term name.)',
     )
 
     # ------------------------------------------------------------------
@@ -123,12 +133,32 @@ class SaleOrder(models.Model):
                 or (order.x_payment_proof_status == 'approved'
                     and order.approval_state == 'approved'))
 
-    @api.depends('payment_term_id', 'payment_term_id.name')
+    @api.depends('x_sale_type')
     def _compute_x_is_credit_payment_term(self):
         for order in self:
-            term = order.payment_term_id
-            order.x_is_credit_payment_term = bool(
-                term and 'credit' in (term.name or '').lower())
+            order.x_is_credit_payment_term = order.x_sale_type == 'credit'
+
+    @api.constrains('payment_term_id', 'x_sale_type')
+    def _check_sale_type_while_with_manager(self):
+        for order in self:
+            if (order.approval_state == 'to_approve'
+                    and order.x_sale_type != 'credit'
+                    and order.sudo().x_credit_request_ids.filtered(
+                        lambda r: r.state == 'pending')):
+                raise ValidationError(_(
+                    "%s is with the High-Level Manager as a credit sale. "
+                    "Wait for the decision before changing the Sales Type.",
+                    order.name))
+
+    @api.depends('x_sale_type')
+    def _compute_requires_credit_approval(self):
+        for order in self:
+            if order.state in ('draft', 'sent') or not order.id:
+                order.requires_credit_approval = order.x_sale_type == 'credit'
+            else:
+                # Confirmed orders keep what they had.
+                order.requires_credit_approval = \
+                    order.requires_credit_approval
 
     @api.depends_context('uid')
     def _compute_payment_proof_editable(self):
@@ -168,6 +198,54 @@ class SaleOrder(models.Model):
                 "Payment Proofs tab and attach the files."))
         proofs.action_submit()
         return True
+
+    def action_request_approval(self):
+        """Credit sale: the salesperson sends it to the High-Level
+        Manager. A Credit Sales Report (the customer's credit position
+        frozen now) goes with it."""
+        credit = self.filtered(
+            lambda o: o.requires_credit_approval
+            and o.state in ('draft', 'sent')
+            and o.approval_state in ('not_required', 'rejected'))
+        res = super().action_request_approval()
+        sent = credit.filtered(lambda o: o.approval_state == 'to_approve')
+        if sent:
+            reports = sent._create_credit_request()
+            for order in sent:
+                report = reports.filtered(
+                    lambda r: r.sale_order_id == order)[:1]
+                order.message_post(body=_(
+                    "Credit Sales Report %(report)s sent to the High-Level "
+                    "Manager. The customer owes %(owes)s, of which "
+                    "%(overdue)s overdue.",
+                    report=report.name,
+                    owes=report.currency_id.format(report.credit_remaining),
+                    overdue=report.currency_id.format(
+                        report.credit_overdue)),
+                    subtype_xmlid='mail.mt_note')
+                old = order.activity_ids.filtered(
+                    lambda a: a.summary == MANAGER_REJECTED_SUMMARY)
+                if old:
+                    old.action_feedback(feedback=_("Sent to the manager again."))
+        return res
+
+    def action_approve_credit_order(self, note=None):
+        """The manager approves what the Credit Sales Report showed: if
+        the order total changed after it was sent, it must be sent
+        again."""
+        for order in self:
+            report = order.sudo().x_credit_request_ids.filtered(
+                lambda r: r.state == 'pending')[:1]
+            if report and order.currency_id.compare_amounts(
+                    order.amount_total, report.order_amount) != 0:
+                raise UserError(_(
+                    "%(order)s changed after the Credit Sales Report "
+                    "%(report)s was sent (%(was)s, now %(now)s). Reject "
+                    "it, or ask the salesperson to send the credit request "
+                    "again.", order=order.name, report=report.name,
+                    was=order.currency_id.format(report.order_amount),
+                    now=order.currency_id.format(order.amount_total)))
+        return super().action_approve_credit_order(note=note)
 
     def action_request_manager_approval(self):
         """Send the order to the High-Level Manager by hand. Normally this
@@ -273,7 +351,12 @@ class SaleOrder(models.Model):
         proof_model = self.env['sale.order.payment.proof']
         todo = self.env.ref('mail.mail_activity_data_todo',
                             raise_if_not_found=False)
-        for order in self.sudo():
+        # The Credit Sales Report records the decision (decided_by = the
+        # real user: sudo() keeps env.user).
+        self.sudo().x_credit_request_ids._set_decision(decision, note=note)
+        credit_orders = self.filtered('x_is_credit_payment_term')
+        credit_orders._notify_credit_decision(decision, note=note)
+        for order in (self - credit_orders).sudo():
             try:
                 if decision == 'approved':
                     order._notify_sales_invoice_ready()
@@ -308,6 +391,60 @@ class SaleOrder(models.Model):
                     "notification for %s failed - the decision itself is "
                     "unaffected.", order.name)
         return res
+
+    def _notify_credit_decision(self, decision, note=None):
+        """Tell the salesperson what the manager decided on a credit
+        sale (best effort: never undoes the decision)."""
+        proof_model = self.env['sale.order.payment.proof']
+        todo = self.env.ref('mail.mail_activity_data_todo',
+                            raise_if_not_found=False)
+        for order in self.sudo():
+            try:
+                users = order.user_id.filtered('active')
+                if decision == 'approved':
+                    if order.state == 'sale':
+                        title = _('Credit Sale Approved')
+                        text = _('%(order)s: the manager approved the credit '
+                                 'sale and the order is confirmed. You can '
+                                 'create the invoice.', order=order.name)
+                    else:
+                        title = _('Credit Sale Approved - Confirm It')
+                        text = _('%(order)s: the manager approved the credit '
+                                 'sale, but it could not be confirmed '
+                                 'automatically. Open it and press '
+                                 'Confirm.', order=order.name)
+                    for user in users:
+                        if todo:
+                            order.activity_schedule(
+                                'mail.mail_activity_data_todo',
+                                user_id=user.id,
+                                summary=CREDIT_READY_SUMMARY
+                                if order.state == 'sale'
+                                else CREDIT_CONFIRM_SUMMARY,
+                                note=text)
+                        proof_model._toast(user, title, text)
+                elif decision == 'rejected':
+                    text = _('The High-Level Manager rejected the credit '
+                             'sale %(order)s%(reason)s. Change it to Cash, '
+                             'or sort it out and press Send Credit Request '
+                             'again.', order=order.name,
+                             reason=(": %s" % note) if note else "")
+                    for user in users:
+                        if todo:
+                            order.activity_schedule(
+                                'mail.mail_activity_data_todo',
+                                user_id=user.id,
+                                summary=MANAGER_REJECTED_SUMMARY,
+                                note=text)
+                        proof_model._toast(
+                            user, _('Credit Sale Rejected'),
+                            _('%(order)s: the manager rejected the credit '
+                              'sale.', order=order.name))
+            except Exception:
+                _logger.exception(
+                    "accounting_so_invoice_bridge: credit decision "
+                    "notification for %s failed - the decision itself is "
+                    "unaffected.", order.name)
 
     def action_view_payment_proofs(self):
         """Read-only popup of every proof on this order. Accountants open a
@@ -363,7 +500,18 @@ class SaleOrder(models.Model):
         # through. Checked BEFORE super() writes anything.
         if hasattr(self, '_cim_check_balanced'):
             self._cim_check_balanced()
-        return super().action_confirm()
+        res = super().action_confirm()
+        # Approved credit sale confirmed by hand: close its To-Do.
+        try:
+            acts = self.filtered(lambda o: o.state == 'sale').sudo()\
+                .activity_ids.filtered(
+                    lambda a: a.summary == CREDIT_CONFIRM_SUMMARY)
+            if acts:
+                acts.action_feedback(feedback=_("Order confirmed."))
+        except Exception:
+            _logger.exception("accounting_so_invoice_bridge: could not close "
+                              "the 'confirm the order' activity.")
+        return res
 
     # ------------------------------------------------------------------
     # Invoicing
@@ -386,8 +534,7 @@ class SaleOrder(models.Model):
                         "%(order)s cannot be invoiced yet: Accounting has "
                         "not approved its payment proof (current status: "
                         "%(status)s). Submit the proof and wait for the "
-                        "approval. Orders on a Credit payment term don't "
-                        "need one.",
+                        "approval. Credit sales don't need one.",
                         order=order.name,
                         status=dict(self._fields['x_payment_proof_status']
                                     ._description_selection(self.env))
@@ -396,7 +543,8 @@ class SaleOrder(models.Model):
         # The salesperson acted on the "approved" To-Do: close it.
         try:
             acts = self.sudo().activity_ids.filtered(
-                lambda a: a.summary == INVOICE_READY_SUMMARY)
+                lambda a: a.summary in (INVOICE_READY_SUMMARY,
+                                        CREDIT_READY_SUMMARY))
             if acts:
                 acts.action_feedback(feedback=_("Invoice created."))
         except Exception:

@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
+import logging
+
 from odoo import models, fields, _
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class SaleOrder(models.Model):
@@ -164,8 +168,32 @@ class SaleOrder(models.Model):
             # Sales Order and must NOT be confirmed a second time (that
             # would re-run delivery procurement).
             if order.state in ('draft', 'sent'):
-                order.action_confirm()
+                order._confirm_after_approval()
             order._after_manager_decision('approved', note=note)
+
+    def _confirm_after_approval(self):
+        """Confirm an order the manager just approved. The approval
+        itself must never be lost: if the order cannot be confirmed (stock
+        check, price check...), it stays approved and the salesperson
+        presses Confirm once the issue is sorted out."""
+        self.ensure_one()
+        try:
+            with self.env.cr.savepoint():
+                try:
+                    self.action_confirm()
+                except AccessError:
+                    # The manager may not hold Sales rights: the approval
+                    # is the authorisation, confirm on their behalf.
+                    self.sudo().action_confirm()
+        except (UserError, AccessError) as err:
+            _logger.info("sale_credit_approval: %s approved but not "
+                         "confirmed: %s", self.name, err)
+            self.message_post(body=_(
+                "Approved, but the order could not be confirmed "
+                "automatically: %s The salesperson can confirm it now.",
+                err.args[0] if err.args else err))
+            return False
+        return True
 
     def action_reject_credit_order(self, reason=None):
         for order in self:
