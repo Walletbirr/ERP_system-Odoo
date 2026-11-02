@@ -129,6 +129,12 @@ class AccountMove(models.Model):
     # ------------------------------------------------------------------
     # Hooks
     # ------------------------------------------------------------------
+    @staticmethod
+    def _cash_sale_is_manual(move):
+        """True when the accountant ticked "Manual Journal Items"
+        (invoice_lines_editable). Works without that module installed."""
+        return bool(getattr(move, 'manual_journal_items', False))
+
     @api.model_create_multi
     def create(self, vals_list):
         moves = super().create(vals_list)
@@ -144,7 +150,32 @@ class AccountMove(models.Model):
         if cash:
             if not self.env.su:
                 cash._cim_check_sale_invoice_postable()
-            cash._cash_sale_apply_banks(strict=True)
+            manual = cash.filtered(self._cash_sale_is_manual)
+            for move in manual:
+                # The accountant owns this entry (Manual Journal Items):
+                # no reset of banks, no match against the proof. Only the
+                # basic safety net stays.
+                liquidity = move.line_ids.filtered(
+                    lambda l: l.display_type == 'payment_term'
+                    and l.account_id.account_type in (
+                        'asset_cash', 'liability_credit_card'))
+                if not liquidity:
+                    raise UserError(_(
+                        "%s: a cash sale needs at least one bank or cash "
+                        "line (the lines that replace the receivable).",
+                        move.name or move.display_name))
+            (cash - manual)._cash_sale_apply_banks(strict=True)
+            # deposit lines on a receivable account need a due date to stay
+            # open for reconciliation against the customer's next invoice
+            for move in cash:
+                dep = move.line_ids.filtered(
+                    lambda l: l.display_type != 'payment_term'
+                    and l.account_id.account_type == 'asset_receivable'
+                    and not l.date_maturity)
+                if dep:
+                    dep.with_context(skip_invoice_sync=True).write({
+                        'date_maturity': move.invoice_date_due
+                        or move.invoice_date or fields.Date.context_today(move)})
         return super()._post(soft=soft)
 
     def _compute_amount(self):

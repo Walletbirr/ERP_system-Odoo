@@ -50,6 +50,16 @@ class AccountMoveLine(models.Model):
                     "operation.", line.account_id.code))
             if line.display_type != 'payment_term' \
                     and account_type == 'asset_receivable':
-                raise UserError(_(
-                    "A cash sale invoice cannot use the receivable account "
-                    "%s: the bank replaces it.", line.account_id.code))
+                # Customer deposit: the customer paid more than the invoice
+                # and the rest stays on his account as a credit. Allowed on
+                # a line that names the customer and only credits.
+                if not line.partner_id:
+                    raise UserError(_(
+                        "The line on receivable account %s is a customer "
+                        "deposit: choose the customer on that line.",
+                        line.account_id.code))
+                if line.debit:
+                    raise UserError(_(
+                        "A cash sale invoice can only CREDIT the receivable "
+                        "account %s (customer deposit), not debit it.",
+                        line.account_id.code))
