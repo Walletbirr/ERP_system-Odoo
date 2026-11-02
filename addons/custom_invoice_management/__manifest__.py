@@ -1,6 +1,6 @@
 {
     'name': 'Custom Invoice Management',
-    'version': '18.0.4.0.1',
+    'version': '18.0.4.0.2',
     'summary': 'Selling Price with automatic balancing (auto Service Charge line) on Customer Invoices (for Excise-taxed vehicle sales).',
     'description': """
 Custom Invoice Management

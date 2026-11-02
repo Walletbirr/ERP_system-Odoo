@@ -64,23 +64,23 @@
             </xpath>
             <xpath expr="//page[@id='invoice_tab']//group[hasclass('oe_subtotal_footer')]/field[@name='tax_totals']"
                    position="after">
-                <field name="cim_product_untaxed_amount"
+                <field name="cim_product_untaxed_amount" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund')"/>
-                <field name="cim_excise_tax_amount"
+                <field name="cim_excise_tax_amount" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund') or not cim_excise_tax_amount"/>
-                <field name="cim_subtotal_before_vat"
+                <field name="cim_subtotal_before_vat" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund')"/>
-                <field name="cim_service_charge_amount"
+                <field name="cim_service_charge_amount" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund') or not cim_service_charge_amount"/>
-                <field name="cim_before_vat_amount"
+                <field name="cim_before_vat_amount" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund') or not cim_service_charge_amount"/>
-                <field name="cim_vat_amount"
+                <field name="cim_vat_amount" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund')"/>
-                <field name="cim_total_before_wht"
+                <field name="cim_total_before_wht" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund') or not cim_wht_amount"/>
-                <field name="cim_wht_amount"
+                <field name="cim_wht_amount" readonly="1"
                        invisible="move_type not in ('out_invoice', 'out_refund') or not cim_wht_amount"/>
-                <field name="amount_total"
+                <field name="amount_total" readonly="1"
                        string="Total"
                        class="fw-bold"
                        invisible="move_type not in ('out_invoice', 'out_refund')"/>

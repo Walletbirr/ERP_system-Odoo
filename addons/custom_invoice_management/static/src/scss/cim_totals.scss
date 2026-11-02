@@ -31,3 +31,21 @@
         padding-bottom: 1px !important;
     }
 }
+
+// Amounts in the totals box: keep the currency symbol next to its number.
+// If a totals field is ever rendered editable (another module or a
+// readonly="0"), Odoo's monetary widget draws the symbol in a left-aligned
+// overlay while the number in the input is right-aligned, so "Br" lands
+// far away from or on top of the digits ("3,Br092.52"). Right-align the
+// overlay so the symbol sits just before the number again.
+.oe_subtotal_footer .o_field_monetary {
+    white-space: nowrap;
+
+    > div > .o_input.position-absolute {
+        justify-content: flex-end;
+    }
+
+    input.o_input {
+        text-align: right;
+    }
+}
