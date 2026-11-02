@@ -73,15 +73,17 @@ class AccountMove(models.Model):
             if not term_lines:
                 continue
             ctx = dict(skip_invoice_sync=True, dynamic_unlink=True)
-            if not strict:
-                term_lines.with_context(**ctx).write(
-                    {'account_id': rows[0][0].default_account_id.id})
-                continue
-
             rows = move._cash_sale_bank_rows()
             currency = move.currency_id
             total = sum(a for _j, a in rows)
             if currency.compare_amounts(total, move.amount_total):
+                if not strict:
+                    # Draft: amounts do not match yet (partial invoice or
+                    # not final). Only the first bank account is set; the
+                    # split and the check happen when it is posted.
+                    term_lines.with_context(**ctx).write(
+                        {'account_id': rows[0][0].default_account_id.id})
+                    continue
                 raise UserError(_(
                     "The approved banks (%(banks)s) do not add up to the "
                     "invoice total (%(total)s). Ask Accounting to approve the "
@@ -119,8 +121,9 @@ class AccountMove(models.Model):
                     })
                     commands.append(Command.create(vals))
             extra = term_lines - first
-            if extra:
-                extra.with_context(**ctx).unlink()
+            # delete the old extra lines and write the new split in ONE
+            # step, so the entry is never seen unbalanced half-way
+            commands += [Command.delete(l.id) for l in extra]
             move.with_context(**ctx).write({'line_ids': commands})
 
     # ------------------------------------------------------------------

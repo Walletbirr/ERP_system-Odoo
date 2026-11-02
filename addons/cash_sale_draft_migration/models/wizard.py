@@ -43,10 +43,20 @@ class CashSaleDraftMigration(models.TransientModel):
         """Every old draft customer invoice whose order is a cash sale."""
         self.ensure_one()
         drafts = self.env['account.move'].search([
-            ('move_type', '=', 'out_invoice'), ('state', '=', 'draft'),
-            ('x_is_cash_sale', '=', False)])
-        found = drafts.filtered(lambda m: len(self._orders(m)) == 1
-                                and self._orders(m).x_is_cash_sale)
+            ('move_type', '=', 'out_invoice'), ('state', '=', 'draft')])
+        def wanted(m):
+            orders = self._orders(m)
+            if len(orders) != 1 or not orders.x_is_cash_sale:
+                return False
+            if not m.x_is_cash_sale:
+                return True
+            # already converted: only those still showing fewer banks
+            m.x_cash_order_id = m.x_cash_order_id or orders
+            banks = len(m._cash_sale_approved_banks())
+            lines = len(m.line_ids.filtered(
+                lambda l: l.display_type == 'payment_term'))
+            return banks > lines
+        found = drafts.filtered(wanted)
         self.invoice_ids = [(6, 0, found.ids)]
         return self._reopen()
 
@@ -63,8 +73,6 @@ class CashSaleDraftMigration(models.TransientModel):
         """Convert one invoice. Returns a message; raises UserError to skip."""
         if inv.move_type != 'out_invoice' or inv.state != 'draft':
             raise UserError(_("not a draft customer invoice"))
-        if inv.x_is_cash_sale:
-            raise UserError(_("already a cash sale invoice"))
         orders = self._orders(inv)
         if len(orders) != 1:
             raise UserError(_(
@@ -80,6 +88,7 @@ class CashSaleDraftMigration(models.TransientModel):
             term_note = _(", term set to %s", self.payment_term_id.name)
         if self.payment_term_id and not inv.invoice_payment_term_id:
             inv.invoice_payment_term_id = self.payment_term_id
+        already = inv.x_is_cash_sale
         inv.write({'x_is_cash_sale': True, 'x_cash_order_id': order.id})
         rows = inv._cash_sale_approved_banks()
         if not rows:
@@ -87,7 +96,8 @@ class CashSaleDraftMigration(models.TransientModel):
                 "order %s has no approved payment proof with a bank",
                 order.name))
         currency = inv.currency_id
-        total = sum(a for _j, a in inv._cash_sale_bank_rows())
+        rows = inv._cash_sale_bank_rows()
+        total = sum(a for _j, a in rows)
         if currency.compare_amounts(total, inv.amount_total):
             raise UserError(_(
                 "approved banks (%(banks)s) do not match the invoice total "
@@ -96,7 +106,9 @@ class CashSaleDraftMigration(models.TransientModel):
                 total=formatLang(self.env, inv.amount_total,
                                  currency_obj=currency)))
         inv._cash_sale_apply_banks(strict=False)
-        banks = ', '.join(j.name for j, _a in rows)
+        banks = ', '.join(
+            '%s %s' % (j.name, formatLang(self.env, a, currency_obj=currency))
+            for j, a in inv._cash_sale_bank_rows())
         if post:
             inv.action_post()
             return _("converted and POSTED (%(bank)s)", bank=banks) + term_note
