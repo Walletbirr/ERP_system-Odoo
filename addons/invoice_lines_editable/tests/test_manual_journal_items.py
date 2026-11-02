@@ -119,3 +119,24 @@ class TestManualJournalItems(AccountTestInvoicingCommon):
         self.assertEqual(extra.credit, 10.0)
         move.action_post()
         self.assertEqual(move.state, 'posted')
+
+    def test_manual_line_is_flagged_and_hidden_from_invoice_lines_tab(self):
+        move = self._invoice()
+        move.manual_journal_items = True
+        term = self._term(move)
+        move.write({'line_ids': [
+            (1, term.id, {'debit': 1160.0, 'balance': 1160.0}),
+            (0, 0, {'account_id': self.income.id, 'name': 'Bank charge',
+                    'credit': 10, 'debit': 0, 'balance': -10,
+                    'amount_currency': 0, 'tax_ids': [],
+                    'display_type': 'product'}),
+        ]})
+        extra = move.line_ids.filtered(lambda l: l.name == 'Bank charge')
+        self.assertTrue(extra.ile_manual_line)
+        self.assertFalse(move.invoice_line_ids.filtered('ile_manual_line') - extra)
+        self.assertIn(extra, move.line_ids)
+        if 'cim_invoice_line_ids_display' in move._fields:
+            self.assertNotIn(extra, move.cim_invoice_line_ids_display)
+            self.assertTrue(move.cim_invoice_line_ids_display)  # real lines stay
+        # the normal invoice line is not flagged
+        self.assertFalse(move.invoice_line_ids.filtered(lambda l: l.name == 'Widget').ile_manual_line)

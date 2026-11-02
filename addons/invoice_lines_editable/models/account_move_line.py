@@ -1,4 +1,4 @@
-from odoo import api, models
+from odoo import api, fields, models
 
 from . import trace
 from .account_move import MANUAL_CONTEXT
@@ -17,8 +17,26 @@ def _drop_stale_amount_currency(vals):
     return vals
 
 
+def _flag_manual_line(vals):
+    """A line typed in the Journal Items tab: amounts but no price/product."""
+    if 'ile_manual_line' in vals:
+        return vals
+    typed = any(vals.get(key) for key in ('debit', 'credit', 'balance'))
+    if typed and not vals.get('price_unit') and not vals.get('product_id'):
+        vals = dict(vals, ile_manual_line=True)
+    return vals
+
+
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
+
+    ile_manual_line = fields.Boolean(
+        string='Manual Journal Line',
+        copy=False,
+        help="Typed directly in the Journal Items tab of an invoice in manual "
+             "mode. Such a line has no price or quantity, so it is not shown "
+             "in the Invoice Lines tab.",
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -29,7 +47,8 @@ class AccountMoveLine(models.Model):
         if not manual:
             return super().create(vals_list)
         vals_list = [
-            _drop_stale_amount_currency(vals) if vals.get('move_id') in manual.ids else vals
+            _flag_manual_line(_drop_stale_amount_currency(vals))
+            if vals.get('move_id') in manual.ids else vals
             for vals in vals_list
         ]
         for vals in vals_list:

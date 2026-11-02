@@ -29,6 +29,21 @@ class AccountMove(models.Model):
     )
 
     # ------------------------------------------------------------------
+    # Keep manual journal lines out of the Invoice Lines tab
+    # ------------------------------------------------------------------
+    @api.model
+    def _setup_complete(self):
+        super()._setup_complete()
+        # custom_invoice_management shows the Invoice Lines tab through its
+        # own display-only field. When it is installed, also exclude the
+        # lines typed in the Journal Items tab (they have no price/quantity).
+        # Nothing happens when that module is not installed.
+        field = self.env.registry[self._name]._fields.get('cim_invoice_line_ids_display')
+        marker = ('ile_manual_line', '=', False)
+        if field is not None and marker not in list(field.domain or []):
+            field.domain = list(field.domain or []) + [marker]
+
+    # ------------------------------------------------------------------
     # View: unlock Debit/Credit, show the switch
     # ------------------------------------------------------------------
     @api.model
