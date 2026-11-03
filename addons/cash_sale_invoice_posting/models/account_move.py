@@ -135,6 +135,19 @@ class AccountMove(models.Model):
         (invoice_lines_editable). Works without that module installed."""
         return bool(getattr(move, 'manual_journal_items', False))
 
+    def _cash_sale_has_custom_account(self):
+        """True when the accountant already moved a receivable/bank line to
+        an account that is not one of the approved banks (for example the
+        customer's own account). That is a deliberate choice: it must never
+        be put back to the bank."""
+        self.ensure_one()
+        rows = self._cash_sale_approved_banks()
+        bank_accounts = {j.default_account_id for j, _a in rows if j.default_account_id}
+        if not bank_accounts:
+            return False
+        term_lines = self.line_ids.filtered(lambda l: l.display_type == 'payment_term')
+        return any(l.account_id not in bank_accounts for l in term_lines)
+
     @api.model_create_multi
     def create(self, vals_list):
         moves = super().create(vals_list)
@@ -150,32 +163,30 @@ class AccountMove(models.Model):
         if cash:
             if not self.env.su:
                 cash._cim_check_sale_invoice_postable()
+            # The accountant owns the entry when the box is ticked, or when
+            # he already put a line on an account that is not an approved
+            # bank: in both cases nothing is reset and nothing is matched
+            # against the payment proof. Only "debits = credits" stays.
+            if 'manual_journal_items' in self._fields:
+                for move in cash.filtered(
+                        lambda m: not self._cash_sale_is_manual(m)
+                        and m._cash_sale_has_custom_account()):
+                    move.manual_journal_items = True
             manual = cash.filtered(self._cash_sale_is_manual)
-            for move in manual:
-                # The accountant owns this entry (Manual Journal Items):
-                # no reset of banks, no match against the proof. Only the
-                # basic safety net stays.
-                liquidity = move.line_ids.filtered(
-                    lambda l: l.display_type == 'payment_term'
-                    and l.account_id.account_type in (
-                        'asset_cash', 'liability_credit_card'))
-                if not liquidity:
-                    raise UserError(_(
-                        "%s: a cash sale needs at least one bank or cash "
-                        "line (the lines that replace the receivable).",
-                        move.name or move.display_name))
             (cash - manual)._cash_sale_apply_banks(strict=True)
-            # deposit lines on a receivable account need a due date to stay
-            # open for reconciliation against the customer's next invoice
+            # receivable lines need a due date and a customer to stay open
+            # for reconciliation against the customer's other invoices
             for move in cash:
                 dep = move.line_ids.filtered(
                     lambda l: l.display_type != 'payment_term'
-                    and l.account_id.account_type == 'asset_receivable'
-                    and not l.date_maturity)
-                if dep:
-                    dep.with_context(skip_invoice_sync=True).write({
+                    and l.account_id.account_type == 'asset_receivable')
+                for line in dep.filtered(lambda l: not l.date_maturity):
+                    line.with_context(skip_invoice_sync=True).write({
                         'date_maturity': move.invoice_date_due
                         or move.invoice_date or fields.Date.context_today(move)})
+                for line in dep.filtered(lambda l: not l.partner_id):
+                    line.with_context(skip_invoice_sync=True).write(
+                        {'partner_id': move.partner_id.id})
         return super()._post(soft=soft)
 
     def _compute_amount(self):
@@ -183,7 +194,13 @@ class AccountMove(models.Model):
         # The bank line is not a receivable: nothing is left to collect.
         for move in self:
             if (move.x_is_cash_sale and move.state == 'posted'
-                    and move.move_type == 'out_invoice'):
+                    and move.move_type == 'out_invoice'
+                    and not move.line_ids.filtered(
+                        lambda l: l.display_type == 'payment_term'
+                        and l.account_id.account_type in (
+                            'asset_receivable', 'liability_payable'))):
+                # (an accountant who put the receivable line on the
+                # customer's account keeps a real, open balance)
                 move.amount_residual = 0.0
                 move.amount_residual_signed = 0.0
 

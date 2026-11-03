@@ -12,6 +12,8 @@ from .arch_patch import patch_move_form_arch
 MANUAL_CONTEXT = {
     'skip_invoice_sync': True,
     'cim_skip_auto_balance': True,
+    # let the accountant delete or replace the receivable / bank line
+    'dynamic_unlink': True,
 }
 
 

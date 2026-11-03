@@ -13,7 +13,8 @@ class AccountMoveLine(models.Model):
             if (line.display_type == 'payment_term'
                     and move.x_is_cash_sale
                     and move.move_type == 'out_invoice'
-                    and move.state == 'draft'):
+                    and move.state == 'draft'
+                    and not getattr(move, 'manual_journal_items', False)):
                 banks = move._cash_sale_approved_banks()
                 if banks and banks[0][0].default_account_id:
                     line.account_id = banks[0][0].default_account_id
@@ -27,7 +28,9 @@ class AccountMoveLine(models.Model):
         for line in self:
             if (line.display_type == 'payment_term'
                     and line.move_id.x_is_cash_sale
-                    and line.move_id.move_type == 'out_invoice'):
+                    and line.move_id.move_type == 'out_invoice'
+                    and line.account_id.account_type not in (
+                        'asset_receivable', 'liability_payable')):
                 line.amount_residual = 0.0
                 line.amount_residual_currency = 0.0
 
@@ -48,18 +51,7 @@ class AccountMoveLine(models.Model):
                 raise UserError(_(
                     "Account %s is of payable type, but is used in a sale "
                     "operation.", line.account_id.code))
-            if line.display_type != 'payment_term' \
-                    and account_type == 'asset_receivable':
-                # Customer deposit: the customer paid more than the invoice
-                # and the rest stays on his account as a credit. Allowed on
-                # a line that names the customer and only credits.
-                if not line.partner_id:
-                    raise UserError(_(
-                        "The line on receivable account %s is a customer "
-                        "deposit: choose the customer on that line.",
-                        line.account_id.code))
-                if line.debit:
-                    raise UserError(_(
-                        "A cash sale invoice can only CREDIT the receivable "
-                        "account %s (customer deposit), not debit it.",
-                        line.account_id.code))
+            # Any other account (the bank, the customer's own receivable
+            # account as a credit OR a debit, income, expense...) is the
+            # accountant's decision. The customer is filled in when the
+            # invoice is posted, and 'debits = credits' is always checked.

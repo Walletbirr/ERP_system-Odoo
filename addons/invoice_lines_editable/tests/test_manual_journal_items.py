@@ -140,3 +140,17 @@ class TestManualJournalItems(AccountTestInvoicingCommon):
             self.assertTrue(move.cim_invoice_line_ids_display)  # real lines stay
         # the normal invoice line is not flagged
         self.assertFalse(move.invoice_line_ids.filtered(lambda l: l.name == 'Widget').ile_manual_line)
+
+    def test_receivable_line_can_be_deleted_and_replaced(self):
+        move = self._invoice()
+        move.manual_journal_items = True
+        term = self._term(move)
+        move.write({'line_ids': [
+            (2, term.id),
+            (0, 0, {'account_id': self.income.id, 'name': 'Replacement',
+                    'debit': 1150.0, 'credit': 0, 'balance': 1150.0,
+                    'display_type': 'product'}),
+        ]})
+        self.assertFalse(self._term(move))
+        move.action_post()
+        self.assertEqual(move.state, 'posted')
