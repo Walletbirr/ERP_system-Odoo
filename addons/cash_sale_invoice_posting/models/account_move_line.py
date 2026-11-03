@@ -1,5 +1,4 @@
-from odoo import _, api, models
-from odoo.exceptions import UserError
+from odoo import api, models
 
 
 class AccountMoveLine(models.Model):
@@ -45,13 +44,9 @@ class AccountMoveLine(models.Model):
             lambda l: l.move_id.x_is_cash_sale
             and l.move_id.move_type == 'out_invoice')
         super(AccountMoveLine, self - cash)._check_payable_receivable()
-        for line in cash:
-            account_type = line.account_id.account_type
-            if account_type == 'liability_payable':
-                raise UserError(_(
-                    "Account %s is of payable type, but is used in a sale "
-                    "operation.", line.account_id.code))
-            # Any other account (the bank, the customer's own receivable
-            # account as a credit OR a debit, income, expense...) is the
-            # accountant's decision. The customer is filled in when the
-            # invoice is posted, and 'debits = credits' is always checked.
+        # Nothing is checked on the account TYPE of a cash sale line: the
+        # payment term already decided that this is a cash sale, so the
+        # bank, the customer's own account (credit or debit), income,
+        # expense, payable... all post as the accountant typed them. The
+        # customer is filled in when the invoice is posted, and
+        # 'debits = credits' is always checked by Odoo.

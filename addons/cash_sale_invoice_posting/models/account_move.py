@@ -191,16 +191,15 @@ class AccountMove(models.Model):
 
     def _compute_amount(self):
         super()._compute_amount()
-        # The bank line is not a receivable: nothing is left to collect.
+        # The payment term is the only thing that decides: a posted cash
+        # sale is PAID, whatever accounts the accountant used on the
+        # journal items (bank, the customer's own account, anything else).
+        # The receivable-type lines themselves stay open for the
+        # reconciliation tools, so a debit on the customer's account can
+        # still be matched against an earlier overpayment credit.
         for move in self:
             if (move.x_is_cash_sale and move.state == 'posted'
-                    and move.move_type == 'out_invoice'
-                    and not move.line_ids.filtered(
-                        lambda l: l.display_type == 'payment_term'
-                        and l.account_id.account_type in (
-                            'asset_receivable', 'liability_payable'))):
-                # (an accountant who put the receivable line on the
-                # customer's account keeps a real, open balance)
+                    and move.move_type == 'out_invoice'):
                 move.amount_residual = 0.0
                 move.amount_residual_signed = 0.0
 

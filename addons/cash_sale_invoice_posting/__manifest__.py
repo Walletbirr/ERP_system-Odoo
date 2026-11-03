@@ -1,6 +1,6 @@
 {
     'name': 'Cash Sale Invoice Posting',
-    'version': '18.0.1.5.0',
+    'version': '18.0.1.6.0',
     'category': 'Accounting/Accounting',
     'summary': 'Cash sales post ONE journal entry: the approved bank(s) take '
                'the place of Accounts Receivable on the invoice.',
@@ -17,6 +17,9 @@ Sits on top of accounting_so_invoice_bridge (which stays untouched).
   banks = one line per bank. Nothing is left to reconcile.
 * The invoice is paid as soon as it is posted (Register Payment disappears),
   so no second journal entry is ever created.
+* The payment term is the only identifier: a posted cash sale is always PAID,
+  whatever accounts are used on its journal items (bank, the customer's own
+  account, any other). No account type is checked.
 * Posting is blocked unless the approved bank amounts equal the invoice total.
 * Credit notes on a cash invoice are blocked until Accounting decides how
   refunds must be booked (reset to draft still works).
