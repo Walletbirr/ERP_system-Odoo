@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_void" model="ir.ui.view">
+        <field name="name">account.move.form.void</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="after">
+                <field name="x_is_voided" invisible="1"/>
+                <widget name="web_ribbon" title="VOID" bg_color="text-bg-danger"
+                        invisible="not x_is_voided"/>
+            </xpath>
+            <!-- Void is shown in the status bar instead of Cancelled -->
+            <xpath expr="//field[@name='state'][@widget='statusbar']" position="attributes">
+                <attribute name="invisible">x_is_voided</attribute>
+            </xpath>
+            <xpath expr="//field[@name='state'][@widget='statusbar']" position="before">
+                <field name="x_void_status" widget="statusbar"
+                       statusbar_visible="draft,posted,void"
+                       invisible="not x_is_voided"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Void Info" name="void_info" invisible="not x_is_voided">
+                    <group>
+                        <field name="x_void_order_id"/>
+                        <field name="x_void_reason"/>
+                        <field name="x_void_date"/>
+                        <field name="x_void_user_id"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_invoice_filter_void" model="ir.ui.view">
+        <field name="name">account.move.search.void</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter name="voided" string="Voided" domain="[('x_is_voided', '=', True)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

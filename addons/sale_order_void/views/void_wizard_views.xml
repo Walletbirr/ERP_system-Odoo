@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_void_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.void.wizard.form</field>
+        <field name="model">sale.order.void.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Void Sale">
+                <div class="alert alert-danger" role="alert">
+                    <strong>This cannot be undone.</strong>
+                    Everything below is reversed in one step and marked VOID.
+                    If anything fails, nothing is changed.
+                </div>
+                <group>
+                    <field name="order_id"/>
+                    <field name="summary" string="What will happen"/>
+                    <field name="reason" placeholder="Why is this sale voided? (e.g. customer wants another product)"/>
+                </group>
+                <footer>
+                    <button string="Void Everything" name="action_confirm" type="object"
+                            class="btn-danger" data-hotkey="q"/>
+                    <button string="Cancel" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

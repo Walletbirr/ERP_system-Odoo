@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_void" model="ir.ui.view">
+        <field name="name">sale.order.form.void</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_open_void_wizard" type="object" string="Void Sale"
+                        class="btn-secondary" groups="sale_order_void.group_sale_void"
+                        invisible="state != 'sale' or x_is_voided"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="after">
+                <field name="x_is_voided" invisible="1"/>
+                <widget name="web_ribbon" title="VOID" bg_color="text-bg-danger"
+                        invisible="not x_is_voided"/>
+            </xpath>
+            <!-- Void is shown in the status bar instead of Cancelled -->
+            <xpath expr="//field[@name='state'][@widget='statusbar']" position="attributes">
+                <attribute name="invisible">x_is_voided</attribute>
+            </xpath>
+            <xpath expr="//field[@name='state'][@widget='statusbar']" position="before">
+                <field name="x_void_status" widget="statusbar"
+                       statusbar_visible="draft,sent,sale,void"
+                       invisible="not x_is_voided"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Void Info" name="void_info" invisible="not x_is_voided">
+                    <group>
+                        <field name="x_void_reason"/>
+                        <field name="x_void_date"/>
+                        <field name="x_void_user_id"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sales_order_filter_void" model="ir.ui.view">
+        <field name="name">sale.order.search.void</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter name="voided" string="Voided" domain="[('x_is_voided', '=', True)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

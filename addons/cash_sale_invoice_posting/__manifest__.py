@@ -1,6 +1,6 @@
 {
     'name': 'Cash Sale Invoice Posting',
-    'version': '18.0.1.6.0',
+    'version': '18.0.1.6.1',
     'category': 'Accounting/Accounting',
     'summary': 'Cash sales post ONE journal entry: the approved bank(s) take '
                'the place of Accounts Receivable on the invoice.',

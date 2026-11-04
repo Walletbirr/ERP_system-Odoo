@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_sale_void" model="res.groups">
+        <field name="name">Void Sales Orders</field>
+        <field name="comment">Can void a complete confirmed sales order with its deliveries, invoices and payments.</field>
+    </record>
+    <!-- Accounting Advisers get it automatically; give it to others by hand -->
+    <record id="account.group_account_manager" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('sale_order_void.group_sale_void'))]"/>
+    </record>
+</odoo>

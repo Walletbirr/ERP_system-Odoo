@@ -204,7 +204,8 @@ class AccountMove(models.Model):
                 move.amount_residual_signed = 0.0
 
     def _reverse_moves(self, default_values_list=None, cancel=False):
-        if any(m.x_is_cash_sale and m.state == 'posted' for m in self):
+        if (not self.env.context.get('sale_order_void')
+                and any(m.x_is_cash_sale and m.state == 'posted' for m in self)):
             raise UserError(_(
                 "Credit notes on a cash sale invoice are not available yet: "
                 "Accounting must first decide how the refund is booked "
