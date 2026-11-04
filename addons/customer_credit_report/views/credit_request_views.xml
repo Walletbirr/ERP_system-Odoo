@@ -84,6 +84,8 @@
                             <field name="paid_ratio" widget="percentage"
                                    invisible="not credit_total"/>
                             <field name="credit_remaining" class="fw-bold"/>
+                            <field name="previous_balance"
+                                   invisible="not previous_balance"/>
                             <field name="credit_overdue"
                                    decoration-danger="credit_overdue &gt; 0"/>
                             <field name="credit_after" class="fw-bold"/>

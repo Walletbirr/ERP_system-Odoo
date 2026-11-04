@@ -1,51 +1,13 @@
-from odoo import Command, _, api, models
-from odoo.exceptions import UserError
+from odoo import Command, api, models
 
 
 class AccountPaymentRegister(models.TransientModel):
-    """Credit invoices are paid oldest credit sale first.
-
-    However the payment is registered (a Credit Payment from Sales, or the
-    Pay button on invoices), money received from a customer on credit pays
-    their first credit sale, then the next one.
+    """Pay button on several credit invoices at once: they are matched
+    oldest credit sale first (Odoo would go by due date). Which sales a
+    customer pays is otherwise free: Credit Payments from Sales say it
+    line by line (customer.credit.payment.allocation).
     """
     _inherit = 'account.payment.register'
-
-    def _credit_moves(self):
-        return self.line_ids.move_id.filtered(
-            lambda m: m.move_type == 'out_invoice'
-            and m.x_sale_type == 'credit')
-
-    def _check_credit_oldest_first(self):
-        for wizard in self:
-            moves = wizard._credit_moves()
-            if not moves:
-                continue
-            Move = self.env['account.move'].sudo()
-            for partner in moves.commercial_partner_id:
-                mine = moves.filtered(
-                    lambda m: m.commercial_partner_id == partner)
-                newest = max(mine, key=lambda m: (m.invoice_date, m.id))
-                older = Move.search([
-                    ('commercial_partner_id', '=', partner.id),
-                    ('company_id', '=', newest.company_id.id),
-                    ('move_type', '=', 'out_invoice'),
-                    ('x_sale_type', '=', 'credit'),
-                    ('state', '=', 'posted'),
-                    ('payment_state', 'in', ('not_paid', 'partial')),
-                    ('id', 'not in', mine.ids),
-                    '|', ('invoice_date', '<', newest.invoice_date),
-                    '&', ('invoice_date', '=', newest.invoice_date),
-                    ('id', '<', newest.id),
-                ], order='invoice_date asc, id asc')
-                if older:
-                    raise UserError(_(
-                        "%(customer)s still owes on older credit sales: "
-                        "%(older)s.\nPayments pay the oldest credit sale "
-                        "first. Select those invoices too (or use a Credit "
-                        "Payment from Sales).",
-                        customer=partner.display_name,
-                        older=', '.join(older.mapped('name'))))
 
     @api.depends('can_edit_wizard', 'amount')
     def _compute_communication(self):
@@ -56,10 +18,6 @@ class AccountPaymentRegister(models.TransientModel):
             # Credit Payment from Sales: keep its slip number / reference.
             for wizard in self:
                 wizard.communication = memo
-
-    def action_create_payments(self):
-        self._check_credit_oldest_first()
-        return super().action_create_payments()
 
     def _create_payments(self):
         payments = super()._create_payments()

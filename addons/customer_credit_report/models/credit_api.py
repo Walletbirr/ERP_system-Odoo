@@ -43,7 +43,7 @@ class CustomerCreditApi(models.AbstractModel):
             ('remaining', 'amount_residual'), ('overdue', 'amount_overdue'),
             ('not_due', 'amount_not_due'), ('d1_30', 'amount_1_30'),
             ('d31_60', 'amount_31_60'), ('d61_90', 'amount_61_90'),
-            ('d90_plus', 'amount_90_plus'))}
+            ('d90_plus', 'amount_90_plus'), ('previous', 'amount_previous'))}
         pending_payments = self.env['customer.credit.payment'].sudo()\
             .search_count([('company_id', '=', company.id),
                            ('state', '=', 'submitted')])
@@ -66,6 +66,7 @@ class CustomerCreditApi(models.AbstractModel):
                 'paid': r.amount_paid,
                 'remaining': r.amount_residual,
                 'overdue': r.amount_overdue,
+                'previous': r.amount_previous,
                 'invoice_count': r.open_invoice_count,
                 'max_days_overdue': r.max_days_overdue,
                 'oldest_due': _d(r.oldest_due_date),
@@ -117,9 +118,31 @@ class CustomerCreditApi(models.AbstractModel):
                 'last_payment': _d(l.last_payment_date),
             }
 
+        previous = lines.filtered(lambda l: l.move_type == 'previous')[:1]
+        lines -= previous
         open_lines = lines.filtered(lambda l: l.is_open and
                                     l.move_type == 'out_invoice')\
             .sorted(lambda l: (l.invoice_date, l.id))
+        # Payments of the previous balance (not matched to a credit sale).
+        prev_payments = []
+        if previous:
+            Statement = self.env['customer.credit.statement'].sudo()
+            entries = [e for e in Statement._previous_entries(partner, company)
+                       if e['kind'] == 'previous_payment']
+            moves = {m.id: m for m in self.env['account.move'].sudo().browse(
+                [e['move_id'] for e in entries])}
+            for e in entries:
+                move = moves[e['move_id']]
+                prev_payments.append({
+                    'id': 'p%s' % move.id,
+                    'date': _d(e['date']),
+                    'invoice': None,
+                    'kind': 'previous',
+                    'entry': move.name,
+                    'journal': move.journal_id.name or '',
+                    'reference': move.ref or '',
+                    'amount': -e['amount'],
+                })
         stmt_lines = statement['lines'][-HISTORY_LIMIT:]
         return {
             'customer': {
@@ -142,13 +165,19 @@ class CustomerCreditApi(models.AbstractModel):
                 'last_invoice': _d(summary.last_invoice_date),
                 'last_payment': _d(summary.last_payment_date),
                 'unapplied': summary.amount_unapplied,
+                # Owed from before the first credit sale in Odoo (own
+                # Credit Account); part of remaining, never overdue.
+                'previous': summary.amount_previous,
+                'previous_start': previous.amount_total if previous else 0.0,
+                'previous_date': _d(previous.invoice_date)
+                if previous else None,
             },
             'ageing': _ageing(summary) if summary else {
                 'not_due': 0.0, 'd1_30': 0.0, 'd31_60': 0.0, 'd61_90': 0.0,
                 'd90_plus': 0.0},
             'open_invoices': [line_row(l) for l in open_lines],
             'invoices': [line_row(l) for l in lines[:HISTORY_LIMIT]],
-            'payments': [{
+            'payments': sorted([{
                 'id': s.id,
                 'date': _d(s.date),
                 'invoice': s.invoice_id.name,
@@ -157,7 +186,8 @@ class CustomerCreditApi(models.AbstractModel):
                 'journal': s.journal_id.name or '',
                 'reference': s.reference or '',
                 'amount': s.amount,
-            } for s in settlements],
+            } for s in settlements] + prev_payments,
+                key=lambda p: p['date'] or '', reverse=True)[:HISTORY_LIMIT],
             'statement': {
                 'date_from': _d(statement['date_from']),
                 'date_to': _d(statement['date_to']),
@@ -227,6 +257,7 @@ class CustomerCreditApi(models.AbstractModel):
             'last_payment': _d(report.last_payment_date),
             'is_new_customer': report.is_new_customer,
             'unapplied': report.amount_unapplied,
+            'previous_balance': report.previous_balance,
             'ageing': _ageing(report),
             'open_invoices': [{
                 'invoice': l.invoice_name,
@@ -236,7 +267,7 @@ class CustomerCreditApi(models.AbstractModel):
                 'amount': l.amount_total,
                 'remaining': l.amount_residual,
                 'days_overdue': l.days_overdue,
-            } for l in report.line_ids],
+            } for l in report.line_ids if l.move_type != 'previous'],
             'changed_since_sent': changed,
             'decided_by': report.decided_by_id.name or '',
             'decision_note': report.decision_note or '',

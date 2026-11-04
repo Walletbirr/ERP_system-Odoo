@@ -19,3 +19,5 @@ access_credit_statement_wizard_readonly,credit.statement.wizard readonly,model_c
 access_credit_payment_sales,credit.payment sales,model_customer_credit_payment,sales_team.group_sale_salesman,1,1,1,1
 access_credit_payment_account,credit.payment account,model_customer_credit_payment,account.group_account_invoice,1,1,1,0
 access_credit_payment_reject_account,credit.payment.reject account,model_customer_credit_payment_reject,account.group_account_invoice,1,1,1,0
+access_credit_payment_alloc_sales,credit.payment.allocation sales,model_customer_credit_payment_allocation,sales_team.group_sale_salesman,1,1,1,1
+access_credit_payment_alloc_account,credit.payment.allocation account,model_customer_credit_payment_allocation,account.group_account_invoice,1,1,1,0

@@ -28,6 +28,7 @@
                         <button name="action_open_payment" type="object"
                                 class="oe_stat_button" icon="fa-money"
                                 string="Payment" invisible="not payment_id"/>
+                        <field name="payment_ids" invisible="1"/>
                     </div>
                     <div class="alert alert-danger" role="alert" invisible="state != 'rejected'">
                         <strong>Rejected by Accounting:</strong>
@@ -49,12 +50,15 @@
                             <field name="payment_date"
                                    readonly="state not in ('draft', 'rejected')"/>
                             <field name="journal_id" options="{'no_create': True}"
-                                   readonly="state not in ('draft', 'rejected')"/>
+                                   required="state == 'submitted'"
+                                   readonly="state not in ('draft', 'rejected', 'submitted')"/>
                             <field name="reference"
                                    readonly="state not in ('draft', 'rejected')"/>
                         </group>
                         <group>
                             <field name="owed" invisible="state == 'posted'"/>
+                            <field name="previous_balance"
+                                   invisible="state == 'posted' or not previous_balance"/>
                             <field name="user_id" readonly="state not in ('draft', 'rejected')"/>
                             <field name="company_id" groups="base.group_multi_company"
                                    readonly="state != 'draft'"/>
@@ -72,8 +76,35 @@
                     </group>
                     <field name="note" placeholder="Note for Accounting..."
                            readonly="state not in ('draft', 'rejected')"/>
-                    <separator string="Pays (oldest credit sale first)" invisible="state == 'posted'"/>
-                    <field name="allocation_html" nolabel="1" invisible="state == 'posted'"/>
+                    <separator string="What This Payment Pays"/>
+                    <div class="text-muted small mb-2" invisible="state not in ('draft', 'rejected')">
+                        Filled in oldest first. Change the amounts if the customer
+                        wants to pay something else; they must add up to the amount paid.
+                        <button name="action_fill_oldest_first" type="object"
+                                string="Fill oldest first" class="btn-link p-0 ms-2"
+                                icon="fa-refresh"/>
+                    </div>
+                    <field name="allocation_ids" nolabel="1"
+                           readonly="state not in ('draft', 'rejected')">
+                        <list editable="bottom" create="false" delete="false">
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="sequence" column_invisible="1" force_save="1"/>
+                            <field name="kind" column_invisible="1" force_save="1"/>
+                            <field name="move_id" column_invisible="1" force_save="1"/>
+                            <field name="item_date" column_invisible="1" force_save="1"/>
+                            <field name="label"/>
+                            <field name="unpaid" force_save="1" sum="Total" width="170px"/>
+                            <field name="amount" sum="Total" class="fw-bold" width="170px"/>
+                        </list>
+                    </field>
+                    <field name="not_oldest_first" invisible="1"/>
+                    <div class="alert alert-warning mt-2" role="alert"
+                         invisible="not not_oldest_first">
+                        A newer item is paid while an older one stays unpaid. Say why:
+                        <field name="order_note" nolabel="1"
+                               placeholder="e.g. The customer asked to pay the October sale first."
+                               readonly="state not in ('draft', 'rejected')"/>
+                    </div>
                     <separator string="Applied To" invisible="state != 'posted'"/>
                     <field name="settlement_ids" invisible="state != 'posted'" readonly="1">
                         <list>
@@ -148,8 +179,8 @@
         <field name="search_view_id" ref="view_customer_credit_payment_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Record a payment from a customer on credit</p>
-            <p>Enter the amount, attach the bank slip and send it to Accounting.
-               The money pays the customer's oldest credit sale first.</p>
+            <p>Enter the amount, attach the bank slip, choose what it pays
+               (filled in oldest first) and send it to Accounting.</p>
         </field>
     </record>
 

@@ -11,7 +11,7 @@
                 <button name="action_view_credit_summary" type="object"
                         class="oe_stat_button" icon="fa-credit-card"
                         groups="sales_team.group_sale_salesman,account.group_account_invoice"
-                        invisible="not x_credit_invoice_count">
+                        invisible="not x_credit_invoice_count and not x_credit_remaining">
                     <div class="o_field_widget o_stat_info">
                         <span class="o_stat_value">
                             <field name="x_credit_currency_id" invisible="1"/>
@@ -23,6 +23,21 @@
                     <field name="x_credit_invoice_count" invisible="1"/>
                 </button>
             </xpath>
+        </field>
+    </record>
+
+    <!-- Accounting tab: the customer's own Credit Account (previous
+         balance). Setting it also sets Account Receivable. -->
+    <record id="view_partner_property_form_credit_account" model="ir.ui.view">
+        <field name="name">res.partner.property.form.credit.account</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form"/>
+        <field name="arch" type="xml">
+            <field name="property_account_receivable_id" position="before">
+                <field name="x_credit_account_id"
+                       invisible="parent_id"
+                       options="{'no_create': True}"/>
+            </field>
         </field>
     </record>
 

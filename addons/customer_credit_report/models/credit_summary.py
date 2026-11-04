@@ -1,6 +1,7 @@
 from odoo import _, fields, models, tools
 
-from .credit_line import CREDIT_LINE_SELECT
+from .credit_line import (CREDIT_ACCOUNTS_SQL, CREDIT_LINE_SELECT,
+                          ensure_credit_account_column)
 
 
 class CustomerCreditSummary(models.Model):
@@ -32,6 +33,11 @@ class CustomerCreditSummary(models.Model):
     amount_31_60 = fields.Monetary(string='31-60', readonly=True)
     amount_61_90 = fields.Monetary(string='61-90', readonly=True)
     amount_90_plus = fields.Monetary(string='90+', readonly=True)
+    amount_previous = fields.Monetary(
+        string='Previous Balance', readonly=True,
+        help="What the customer still owes from before their first credit "
+             "sale in Odoo (their own Credit Account). Included in "
+             "Remaining; never overdue.")
     max_days_overdue = fields.Integer(string='Oldest Overdue (days)',
                                       readonly=True)
     oldest_due_date = fields.Date(string='Oldest Due Date', readonly=True,
@@ -80,6 +86,7 @@ class CustomerCreditSummary(models.Model):
             rec.request_ids = Request.search(dom)
 
     def init(self):
+        ensure_credit_account_column(self.env.cr)
         tools.drop_view_if_exists(self.env.cr, self._table)
         # id: partner * 100 + company keeps one stable row per customer
         # and company (fewer than 100 companies).
@@ -105,11 +112,14 @@ class CustomerCreditSummary(models.Model):
                     SUM(l.amount_31_60)                    AS amount_31_60,
                     SUM(l.amount_61_90)                    AS amount_61_90,
                     SUM(l.amount_90_plus)                  AS amount_90_plus,
+                    SUM(l.amount_previous)                 AS amount_previous,
                     MAX(l.days_overdue)                    AS max_days_overdue,
                     MIN(l.date_due) FILTER (
                         WHERE l.amount_residual > 0.005)   AS oldest_due_date,
-                    MIN(l.invoice_date)                    AS first_invoice_date,
-                    MAX(l.invoice_date)                    AS last_invoice_date,
+                    MIN(l.invoice_date) FILTER (
+                        WHERE l.move_type <> 'previous')   AS first_invoice_date,
+                    MAX(l.invoice_date) FILTER (
+                        WHERE l.move_type <> 'previous')   AS last_invoice_date,
                     MAX(l.last_payment_date)               AS last_payment_date,
                     COALESCE(MAX(un.amount), 0)            AS amount_unapplied
                 FROM ({CREDIT_LINE_SELECT}) l
@@ -126,6 +136,13 @@ class CustomerCreditSummary(models.Model):
                        AND aml.company_id = l.company_id
                        AND COALESCE(p.commercial_partner_id, p.id)
                            = l.partner_id
+                       -- on the customer's own Credit Account they are
+                       -- already in the Previous Balance
+                       AND aml.account_id NOT IN (
+                           SELECT ca.account_id
+                             FROM ({CREDIT_ACCOUNTS_SQL}) ca
+                            WHERE ca.partner_id = l.partner_id
+                              AND ca.company_id = l.company_id)
                 ) un ON TRUE
                 GROUP BY l.partner_id, l.company_id
             )
@@ -140,7 +157,8 @@ class CustomerCreditSummary(models.Model):
             'amount_total': 0.0, 'amount_paid': 0.0, 'remaining': 0.0,
             'overdue': 0.0, 'invoice_count': 0, 'open_invoice_count': 0,
             'not_due': 0.0, 'd1_30': 0.0, 'd31_60': 0.0, 'd61_90': 0.0,
-            'd90_plus': 0.0, 'max_days_overdue': 0, 'oldest_due_date': False,
+            'd90_plus': 0.0, 'previous': 0.0, 'max_days_overdue': 0,
+            'oldest_due_date': False,
             'first_invoice_date': False, 'last_payment_date': False,
             'unapplied': 0.0,
         }
@@ -169,6 +187,7 @@ class CustomerCreditSummary(models.Model):
             'd31_60': row.amount_31_60,
             'd61_90': row.amount_61_90,
             'd90_plus': row.amount_90_plus,
+            'previous': row.amount_previous,
             'max_days_overdue': row.max_days_overdue,
             'oldest_due_date': row.oldest_due_date,
             'first_invoice_date': row.first_invoice_date,

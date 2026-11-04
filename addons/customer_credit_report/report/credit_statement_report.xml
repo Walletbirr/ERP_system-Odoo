@@ -115,7 +115,7 @@
                     </thead>
                     <tbody>
                         <tr t-foreach="st['open_lines']" t-as="ol">
-                            <td t-out="ol.move_id.name"/>
+                            <td t-out="ol.name"/>
                             <td t-out="ol.origin or ''"/>
                             <td t-out="ol.invoice_date" t-options="{'widget': 'date'}"/>
                             <td t-out="ol.date_due" t-options="{'widget': 'date'}"/>

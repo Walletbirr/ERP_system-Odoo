@@ -56,6 +56,8 @@
                         <tr><td>Total credit taken</td><td class="text-end" t-out="o.credit_total" t-options="money"/></tr>
                         <tr><td>Paid</td><td class="text-end" t-out="o.credit_paid" t-options="money"/></tr>
                         <tr class="fw-bold"><td>Owes now</td><td class="text-end" t-out="o.credit_remaining" t-options="money"/></tr>
+                        <tr t-if="o.previous_balance"><td>Of which previous balance</td>
+                            <td class="text-end" t-out="o.previous_balance" t-options="money"/></tr>
                         <tr><td>Of which overdue</td>
                             <td t-att-class="'text-end text-danger' if o.credit_overdue &gt; 0 else 'text-end'"
                                 t-out="o.credit_overdue" t-options="money"/></tr>

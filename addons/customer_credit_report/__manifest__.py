@@ -1,6 +1,6 @@
 {
     'name': 'Customer Credit Report',
-    'version': '18.0.2.3.0',
+    'version': '18.0.2.4.1',
     'category': 'Sales/Sales',
     'summary': 'Credit sales: one source of truth for what customers owe, '
                'ageing, payment settlements, customer statements and the '
@@ -22,9 +22,15 @@ by hand and nothing is recomputed overnight.
   bank / journal, reference).
 * Customer Statement: invoices and settlements with a running balance, on
   screen and as a PDF, for any period.
+* Previous Balance: a customer's own account (contact > Accounting >
+  Credit Account) carries what they owed before Odoo. Its balance before
+  their first credit sale in Odoo is their Previous Balance; new credit
+  sales add to the account, payments deduct from it. Nothing is posted
+  for it: previous balance = account balance - unpaid credit invoices.
 * Credit Payments: the salesperson records a customer payment with the
-  slip; Accounting posts it on the payment page. Money always pays the
-  oldest credit sale first.
+  slip and chooses what it pays (previous balance and/or credit sales,
+  pre-filled oldest first; a note is required to pay a newer item before
+  an older one). Accounting posts it exactly as split.
 * Credit Sales Report: a frozen copy of the customer's credit position,
   created when the salesperson sends a credit sale for approval.
 """,

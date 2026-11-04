@@ -66,6 +66,9 @@ class CustomerCreditRequest(models.Model):
     credit_remaining = fields.Monetary(string='Owes Now', readonly=True)
     credit_overdue = fields.Monetary(string='Of Which Overdue',
                                      readonly=True)
+    previous_balance = fields.Monetary(
+        string='Previous Balance', readonly=True,
+        help='Part of Owes Now from before the first credit sale in Odoo.')
     credit_after = fields.Monetary(
         string='Will Owe After This Sale', readonly=True,
         help='Owes Now + This Sale.')
@@ -146,6 +149,7 @@ class CustomerCreditRequest(models.Model):
             'credit_paid': pos['amount_paid'],
             'credit_remaining': pos['remaining'],
             'credit_overdue': pos['overdue'],
+            'previous_balance': pos['previous'],
             'credit_after': pos['remaining'] + amount_company,
             'invoice_count': pos['invoice_count'],
             'open_invoice_count': pos['open_invoice_count'],
@@ -161,10 +165,11 @@ class CustomerCreditRequest(models.Model):
             'amount_unapplied': pos['unapplied'],
             'paid_ratio': (pos['amount_paid'] / pos['amount_total']
                            if pos['amount_total'] > 0 else 0.0),
-            'is_new_customer': not pos['invoice_count'],
+            'is_new_customer': not pos['invoice_count']
+            and not pos['previous'],
             'line_ids': [(0, 0, {
                 'move_id': line.move_id.id,
-                'invoice_name': line.move_id.name,
+                'invoice_name': line.name,
                 'move_type': line.move_type,
                 'invoice_date': line.invoice_date,
                 'date_due': line.date_due,
@@ -224,7 +229,8 @@ class CustomerCreditRequestLine(models.Model):
     move_id = fields.Many2one('account.move', string='Invoice')
     invoice_name = fields.Char(string='Invoice')
     move_type = fields.Selection([('out_invoice', 'Invoice'),
-                                  ('out_refund', 'Credit Note')],
+                                  ('out_refund', 'Credit Note'),
+                                  ('previous', 'Previous Balance')],
                                  string='Type')
     invoice_date = fields.Date()
     date_due = fields.Date(string='Due Date')

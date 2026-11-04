@@ -14,7 +14,8 @@
                   decoration-danger="days_overdue &gt; 0">
                 <field name="currency_id" column_invisible="1"/>
                 <field name="is_open" column_invisible="1"/>
-                <field name="move_id"/>
+                <field name="move_id" column_invisible="1"/>
+                <field name="name"/>
                 <field name="partner_id"/>
                 <field name="invoice_partner_id" optional="hide"/>
                 <field name="origin" optional="show"/>
@@ -49,7 +50,8 @@
                   delete="false" default_order="date_due asc, id asc"
                   decoration-danger="days_overdue &gt; 0">
                 <field name="currency_id" column_invisible="1"/>
-                <field name="move_id"/>
+                <field name="move_id" column_invisible="1"/>
+                <field name="name"/>
                 <field name="partner_id"/>
                 <field name="user_id" optional="hide"/>
                 <field name="date_due"/>
@@ -59,6 +61,7 @@
                 <field name="amount_31_60" sum="Total"/>
                 <field name="amount_61_90" sum="Total"/>
                 <field name="amount_90_plus" sum="Total"/>
+                <field name="amount_previous" sum="Total" optional="show"/>
                 <field name="amount_residual" string="Total Remaining" sum="Total"/>
             </list>
         </field>
@@ -99,6 +102,9 @@
                 <filter string="Open" name="open" domain="[('is_open', '=', True)]"/>
                 <filter string="Overdue" name="overdue" domain="[('days_overdue', '&gt;', 0)]"/>
                 <filter string="Paid" name="paid" domain="[('is_open', '=', False)]"/>
+                <separator/>
+                <filter string="Previous Balance" name="previous" domain="[('move_type', '=', 'previous')]"/>
+                <filter string="Credit Sales" name="sales" domain="[('move_type', '!=', 'previous')]"/>
                 <separator/>
                 <filter string="My Sales" name="my" domain="[('user_id', '=', uid)]"/>
                 <separator/>
@@ -261,6 +267,7 @@
                 <field name="amount_31_60" sum="Total"/>
                 <field name="amount_61_90" sum="Total"/>
                 <field name="amount_90_plus" sum="Total"/>
+                <field name="amount_previous" sum="Total" optional="show"/>
                 <field name="amount_residual" string="Total Remaining" sum="Total"/>
             </list>
         </field>
@@ -300,6 +307,8 @@
                             <field name="amount_total"/>
                             <field name="amount_paid"/>
                             <field name="amount_residual" class="fw-bold"/>
+                            <field name="amount_previous"
+                                   invisible="not amount_previous"/>
                             <field name="amount_overdue"
                                    decoration-danger="amount_overdue &gt; 0"/>
                             <field name="amount_unapplied"
@@ -355,7 +364,8 @@
                                 <list decoration-danger="days_overdue &gt; 0" decoration-muted="not is_open">
                                     <field name="currency_id" column_invisible="1"/>
                                     <field name="is_open" column_invisible="1"/>
-                                    <field name="move_id"/>
+                                    <field name="move_id" column_invisible="1"/>
+                <field name="name"/>
                                     <field name="origin"/>
                                     <field name="user_id" optional="hide"/>
                                     <field name="invoice_date"/>
@@ -397,7 +407,8 @@
                                 <list decoration-danger="days_overdue &gt; 0" decoration-muted="not is_open">
                                     <field name="currency_id" column_invisible="1"/>
                                     <field name="is_open" column_invisible="1"/>
-                                    <field name="move_id"/>
+                                    <field name="move_id" column_invisible="1"/>
+                <field name="name"/>
                                     <field name="origin"/>
                                     <field name="user_id" optional="hide"/>
                                     <field name="invoice_date"/>

@@ -3,6 +3,9 @@ from datetime import date as Date
 from odoo import _, fields, models
 from odoo.tools import float_is_zero
 
+from .credit_line import (ACCOUNT_LINE_FREE_SQL, ACCOUNT_LINE_NOT_DOC_SQL,
+                          PREVIOUS_BALANCE_SQL)
+
 # How a statement entry is shown.
 ENTRY_LABELS = {
     'invoice': 'Credit Invoice',
@@ -10,6 +13,8 @@ ENTRY_LABELS = {
     'payment': 'Payment',
     'refund_payment': 'Refund Paid Out',
     'other': 'Adjustment',
+    'previous': 'Previous Balance',
+    'previous_payment': 'Payment',
 }
 
 
@@ -27,9 +32,69 @@ class CustomerCreditStatement(models.AbstractModel):
     _name = 'customer.credit.statement'
     _description = 'Customer Credit Statement'
 
+    def _previous_entries(self, partner, company):
+        """Customers with their own Credit Account: one Previous Balance
+        entry (everything on the account up to the day of their first
+        credit sale in Odoo, dated by its last entry), then every later
+        movement on the account that is not about a credit sale (payments
+        of the previous balance, adjustments)."""
+        cr = self.env.cr
+        cr.execute(f"""
+            SELECT boundary, prev_start, account_id, prev_date
+              FROM ({PREVIOUS_BALANCE_SQL}) pb
+             WHERE pb.partner_id = %s AND pb.company_id = %s
+        """, (partner.id, company.id))
+        row = cr.fetchone()
+        if not row:
+            return []
+        boundary, prev_start, account_id, prev_date = row
+        rounding = company.currency_id.rounding
+        entries = []
+        if not float_is_zero(prev_start, precision_rounding=rounding):
+            entries.append({
+                'kind': 'previous',
+                'date': prev_date or fields.Date.context_today(self),
+                'move_id': False,
+                'doc_id': False,
+                'amount': prev_start,
+                'seq': -1,
+            })
+        if not boundary:
+            return entries
+        cr.execute(f"""
+            SELECT aml.date, aml.move_id, aml.name, {ACCOUNT_LINE_FREE_SQL}
+              FROM account_move_line aml
+             WHERE aml.account_id = %s
+               AND aml.company_id = %s
+               AND aml.parent_state = 'posted'
+               AND aml.date > %s
+               AND {ACCOUNT_LINE_NOT_DOC_SQL}
+        """, (account_id, company.id, boundary))
+        rows = [r for r in cr.fetchall()
+                if not float_is_zero(r[3], precision_rounding=rounding)]
+        moves = self.env['account.move'].sudo().browse({r[1] for r in rows})
+        payment_moves = set(self.env['account.payment'].sudo().search(
+            [('move_id', 'in', moves.ids)]).mapped('move_id').ids)
+        for line_date, move_id, label, amount in rows:
+            if move_id in payment_moves:
+                kind = 'previous_payment' if amount < 0 else 'refund_payment'
+            else:
+                kind = 'other'
+            entries.append({
+                'kind': kind,
+                'date': line_date,
+                'move_id': move_id,
+                'doc_id': False,
+                'amount': amount,
+                'seq': 1,
+                'label': label,
+            })
+        return entries
+
     def _statement_entries(self, partner, company):
         self.env.flush_all()
         cr = self.env.cr
+        entries = self._previous_entries(partner, company)
         params = {'partner': partner.id, 'company': company.id}
         cr.execute("""
             SELECT am.id, am.move_type, am.invoice_date,
@@ -42,7 +107,6 @@ class CustomerCreditStatement(models.AbstractModel):
                AND am.company_id = %(company)s
         """, params)
         docs = cr.fetchall()
-        entries = []
         for move_id, move_type, inv_date, amount in docs:
             entries.append({
                 'kind': 'invoice' if move_type == 'out_invoice'
@@ -111,14 +175,14 @@ class CustomerCreditStatement(models.AbstractModel):
         date_to = date_to or fields.Date.context_today(self)
         entries = self._statement_entries(partner, company)
         entries.sort(key=lambda e: (e['date'] or Date.min, e['seq'],
-                                    e['move_id']))
+                                    e['move_id'] or 0))
         if not date_from:
             dates = [e['date'] for e in entries if e['date']]
             date_from = min(dates) if dates else date_to
 
         Move = self.env['account.move'].sudo()
-        moves = Move.browse({e['move_id'] for e in entries}
-                            | {e['doc_id'] for e in entries})
+        moves = Move.browse(({e['move_id'] for e in entries}
+                             | {e['doc_id'] for e in entries}) - {False})
         by_id = {m.id: m for m in moves}
 
         opening = 0.0
@@ -133,14 +197,28 @@ class CustomerCreditStatement(models.AbstractModel):
                 continue
             if not lines:
                 balance = opening
-            move = by_id[e['move_id']]
-            doc = by_id[e['doc_id']]
+            move = by_id.get(e['move_id'], Move)
+            doc = by_id.get(e['doc_id'], Move)
             debit = e['amount'] if e['amount'] > 0 else 0.0
             credit = -e['amount'] if e['amount'] < 0 else 0.0
             balance += e['amount']
             total_debit += debit
             total_credit += credit
-            if e['kind'] in ('invoice', 'credit_note'):
+            if e['kind'] == 'previous':
+                description = _('Owed before the first credit sale in Odoo')
+                due = False
+            elif e['kind'] == 'previous_payment' or (
+                    e['kind'] in ('other', 'refund_payment') and not doc):
+                description = (
+                    _('%s — for the previous balance', move.journal_id.name)
+                    if e['kind'] == 'previous_payment'
+                    else (move.ref or e.get('label') or move.journal_id.name
+                          or ''))
+                memo = move.ref or ''
+                if e['kind'] == 'previous_payment' and memo:
+                    description = '%s (%s)' % (description, memo)
+                due = False
+            elif e['kind'] in ('invoice', 'credit_note'):
                 description = move.invoice_origin or move.ref or ''
                 if e['kind'] == 'credit_note' and move.reversed_entry_id:
                     description = _('Reverses %s',
@@ -159,7 +237,7 @@ class CustomerCreditStatement(models.AbstractModel):
                 'date': e['date'],
                 'kind': e['kind'],
                 'kind_label': _(ENTRY_LABELS[e['kind']]),
-                'reference': move.name,
+                'reference': move.name or _('Previous balance'),
                 'description': description,
                 'date_due': due,
                 'debit': debit,
