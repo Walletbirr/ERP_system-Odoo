@@ -26,7 +26,10 @@ PREVIOUS_ID_BASE = 10_000_000_000
 #                invoices / credit notes posted on that account
 #
 # So the customer's total (previous balance + open credit invoices) is
-# always the balance of their account. Nothing is posted for it.
+# the balance of their account. Nothing is posted for it. When prev_now is
+# negative (deposits / advances on the account, e.g. a deposit customer),
+# the previous balance is 0 and that money is "in the customer's favour"
+# (summary amount_unapplied), not deducted from what they owe on credit.
 CREDIT_ACCOUNTS_SQL = """
     SELECT rp.id                                         AS partner_id,
            c.id                                          AS company_id,
@@ -206,18 +209,85 @@ _CREDIT_LINE_BASE = f"""
         NULL::date                              AS date_due,
         NULL::varchar                           AS origin,
         NULL::varchar                           AS payment_state,
-        pb.prev_start                           AS amount_total,
-        pb.prev_start - pb.prev_now             AS amount_paid,
-        pb.prev_now                             AS amount_residual,
-        ABS(pb.prev_now) > 0.005                AS is_open,
+        -- Only what the customer OWES is a previous balance. When the
+        -- account is in the customer's favour (deposits / advances bigger
+        -- than what they owe) the previous balance is 0 and the money in
+        -- their favour is shown apart (summary amount_unapplied).
+        GREATEST(pb.prev_start, pb.prev_now, 0) AS amount_total,
+        GREATEST(pb.prev_start, pb.prev_now, 0)
+            - GREATEST(pb.prev_now, 0)          AS amount_paid,
+        GREATEST(pb.prev_now, 0)                AS amount_residual,
+        pb.prev_now > 0.005                     AS is_open,
         0                                       AS days_overdue,
-        CASE WHEN ABS(pb.prev_now) <= 0.005 THEN 'paid'
+        CASE WHEN pb.prev_now <= 0.005 THEN 'paid'
              ELSE 'previous' END                AS ageing,
         pb.last_payment_date                    AS last_payment_date
     FROM ({PREVIOUS_BALANCE_SQL}) pb
     JOIN res_company rc ON rc.id = pb.company_id
     JOIN res_partner rp ON rp.id = pb.partner_id
-    WHERE ABS(pb.prev_start) > 0.005 OR ABS(pb.prev_now) > 0.005
+    WHERE GREATEST(pb.prev_start, pb.prev_now) > 0.005
+"""
+
+_BUCKETS_SQL = """
+    CASE WHEN ABS(w.amount_residual - w.covered) <= 0.005 THEN 'paid'
+         WHEN w.move_type = 'previous' THEN 'previous'
+         WHEN w.date_due IS NULL OR w.date_due >= CURRENT_DATE THEN 'not_due'
+         WHEN CURRENT_DATE - w.date_due <= 30 THEN '1_30'
+         WHEN CURRENT_DATE - w.date_due <= 60 THEN '31_60'
+         WHEN CURRENT_DATE - w.date_due <= 90 THEN '61_90'
+         ELSE '90_plus' END
+"""
+
+# Money in the customer's favour on their own Credit Account (deposits /
+# advances) pays their credit sales, OLDEST credit sale first, partly when
+# it is not enough. Nothing is posted: it is shown per sale as "Paid From
+# Money in Favour" (amount_covered), counted as paid, and what is left in
+# their favour goes down by the same amount. When Accounting really
+# matches the deposit to an invoice (Outstanding credits), the figures stay
+# the same: the invoice is then paid and there is less left in favour.
+_CREDIT_LINE_COVERED = f"""
+    SELECT
+        w.id, w.move_id, w.name, w.partner_id, w.invoice_partner_id,
+        w.company_id, w.currency_id, w.user_id, w.move_type,
+        w.invoice_date, w.date_due, w.origin, w.payment_state,
+        w.amount_total,
+        w.amount_paid + w.covered               AS amount_paid,
+        w.amount_residual - w.covered           AS amount_residual,
+        w.covered                               AS amount_covered,
+        ABS(w.amount_residual - w.covered) > 0.005
+                                                AS is_open,
+        CASE WHEN w.amount_residual - w.covered > 0.005
+                  AND w.date_due < CURRENT_DATE
+             THEN CURRENT_DATE - w.date_due
+             ELSE 0 END                         AS days_overdue,
+        {_BUCKETS_SQL}                          AS ageing,
+        w.last_payment_date
+    FROM (
+        SELECT r.*,
+            CASE WHEN r.eligible
+                 THEN LEAST(r.amount_residual,
+                            GREATEST(COALESCE(fv.favour, 0)
+                                     - (r.cum - r.amount_residual), 0))
+                 ELSE 0 END                     AS covered
+        FROM (
+            SELECT b.*,
+                (b.move_type = 'out_invoice'
+                 AND b.amount_residual > 0.005) AS eligible,
+                SUM(CASE WHEN b.move_type = 'out_invoice'
+                              AND b.amount_residual > 0.005
+                         THEN b.amount_residual ELSE 0 END)
+                    OVER (PARTITION BY b.partner_id, b.company_id
+                          ORDER BY b.invoice_date, b.id
+                          ROWS UNBOUNDED PRECEDING) AS cum
+            FROM ({_CREDIT_LINE_BASE}) b
+        ) r
+        LEFT JOIN (
+            SELECT p.partner_id, p.company_id,
+                   GREATEST(-p.prev_now, 0) AS favour
+              FROM ({PREVIOUS_BALANCE_SQL}) p
+        ) fv ON fv.partner_id = r.partner_id
+            AND fv.company_id = r.company_id
+    ) w
 """
 
 # Remaining amount per ageing bucket as real columns, so a list or pivot
@@ -238,7 +308,7 @@ CREDIT_LINE_SELECT = f"""
                                                 AS amount_overdue,
         CASE WHEN b.move_type = 'previous' THEN b.amount_residual ELSE 0 END
                                                 AS amount_previous
-    FROM ({_CREDIT_LINE_BASE}) b
+    FROM ({_CREDIT_LINE_COVERED}) b
 """
 
 
@@ -291,6 +361,11 @@ class CustomerCreditLine(models.Model):
     amount_overdue = fields.Monetary(string='Overdue', readonly=True)
     amount_previous = fields.Monetary(string='Previous Balance',
                                       readonly=True)
+    amount_covered = fields.Monetary(
+        string='Paid From Money in Favour', readonly=True,
+        help="Part of this credit sale paid by money the customer has in "
+             "their favour on their Credit Account (deposit / advance), "
+             "oldest credit sale first. Counted in Paid.")
 
     def init(self):
         ensure_credit_account_column(self.env.cr)

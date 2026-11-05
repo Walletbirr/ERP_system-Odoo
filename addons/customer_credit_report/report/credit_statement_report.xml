@@ -146,8 +146,9 @@
                 </table>
             </t>
             <p t-if="st['is_current'] and pos['unapplied'] &gt; 0" class="small text-muted">
-                Note: <t t-out="pos['unapplied']" t-options="money"/> received from this customer
-                is not yet matched to an invoice and is not deducted above.
+                Note: <t t-out="pos['unapplied']" t-options="money"/> of this customer's money
+                (deposits / payments not used yet) is held by the company and is not
+                deducted above.
             </p>
         </div>
     </template>

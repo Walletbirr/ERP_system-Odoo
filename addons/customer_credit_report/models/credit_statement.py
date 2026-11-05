@@ -205,7 +205,11 @@ class CustomerCreditStatement(models.AbstractModel):
             total_debit += debit
             total_credit += credit
             if e['kind'] == 'previous':
-                description = _('Owed before the first credit sale in Odoo')
+                description = (
+                    _('Owed before the first credit sale in Odoo')
+                    if e['amount'] > 0 else
+                    _("In the customer's favour before the first credit sale "
+                      "in Odoo (deposits / advances)"))
                 due = False
             elif e['kind'] == 'previous_payment' or (
                     e['kind'] in ('other', 'refund_payment') and not doc):

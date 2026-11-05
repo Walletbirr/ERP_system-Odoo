@@ -87,7 +87,7 @@ class CustomerCreditRequest(models.Model):
     first_invoice_date = fields.Date(string='On Credit Since',
                                      readonly=True)
     last_payment_date = fields.Date(string='Last Payment', readonly=True)
-    amount_unapplied = fields.Monetary(string='Unmatched Payments',
+    amount_unapplied = fields.Monetary(string="In Customer's Favour",
                                        readonly=True)
     paid_ratio = fields.Float(
         string='Paid %', readonly=True, aggregator='avg',

@@ -1,6 +1,7 @@
 from odoo import _, fields, models, tools
 
 from .credit_line import (CREDIT_ACCOUNTS_SQL, CREDIT_LINE_SELECT,
+                          PREVIOUS_BALANCE_SQL,
                           ensure_credit_account_column)
 
 
@@ -47,12 +48,17 @@ class CustomerCreditSummary(models.Model):
     last_invoice_date = fields.Date(string='Last Credit Invoice',
                                     readonly=True)
     last_payment_date = fields.Date(string='Last Payment', readonly=True)
+    amount_covered = fields.Monetary(
+        string='Paid From Money in Favour', readonly=True,
+        help="Credit sales paid by money the customer had in their favour "
+             "on their Credit Account (deposit / advance), oldest sale "
+             "first. Included in Paid.")
     amount_unapplied = fields.Monetary(
-        string='Unmatched Payments', readonly=True,
-        help="Money received from this customer that is not matched to "
-             "any invoice yet (Accounting should match it with the "
-             "invoice's Pay / Outstanding credits). Not deducted from "
-             "Remaining.")
+        string="In Customer's Favour", readonly=True,
+        help="Money of this customer the company holds and has not used "
+             "yet: payments not matched to any invoice, and what is left "
+             "on their Credit Account in their favour (deposits / "
+             "advances) after paying their credit sales, oldest first.")
 
     # Customer history (form view tabs)
     open_line_ids = fields.Many2many(
@@ -92,6 +98,11 @@ class CustomerCreditSummary(models.Model):
         # and company (fewer than 100 companies).
         self.env.cr.execute(f"""
             CREATE OR REPLACE VIEW {self._table} AS (
+              SELECT g.*,
+                     g.amount_unmatched
+                     + COALESCE(GREATEST(-pb.prev_now, 0), 0)
+                     - g.amount_covered                    AS amount_unapplied
+                FROM (
                 SELECT
                     l.partner_id * 100 + l.company_id      AS id,
                     l.partner_id                           AS partner_id,
@@ -113,6 +124,7 @@ class CustomerCreditSummary(models.Model):
                     SUM(l.amount_61_90)                    AS amount_61_90,
                     SUM(l.amount_90_plus)                  AS amount_90_plus,
                     SUM(l.amount_previous)                 AS amount_previous,
+                    SUM(l.amount_covered)                  AS amount_covered,
                     MAX(l.days_overdue)                    AS max_days_overdue,
                     MIN(l.date_due) FILTER (
                         WHERE l.amount_residual > 0.005)   AS oldest_due_date,
@@ -121,7 +133,7 @@ class CustomerCreditSummary(models.Model):
                     MAX(l.invoice_date) FILTER (
                         WHERE l.move_type <> 'previous')   AS last_invoice_date,
                     MAX(l.last_payment_date)               AS last_payment_date,
-                    COALESCE(MAX(un.amount), 0)            AS amount_unapplied
+                    COALESCE(MAX(un.amount), 0)            AS amount_unmatched
                 FROM ({CREDIT_LINE_SELECT}) l
                 JOIN res_partner rp ON rp.id = l.partner_id
                 LEFT JOIN LATERAL (
@@ -145,6 +157,12 @@ class CustomerCreditSummary(models.Model):
                               AND ca.company_id = l.company_id)
                 ) un ON TRUE
                 GROUP BY l.partner_id, l.company_id
+                ) g
+                -- Own Credit Account in the customer's favour (deposits /
+                -- advances not used yet)
+                LEFT JOIN ({PREVIOUS_BALANCE_SQL}) pb
+                       ON pb.partner_id = g.partner_id
+                      AND pb.company_id = g.company_id
             )
         """)
 
@@ -160,7 +178,7 @@ class CustomerCreditSummary(models.Model):
             'd90_plus': 0.0, 'previous': 0.0, 'max_days_overdue': 0,
             'oldest_due_date': False,
             'first_invoice_date': False, 'last_payment_date': False,
-            'unapplied': 0.0,
+            'unapplied': 0.0, 'covered': 0.0,
         }
 
     def _position(self, partner, company):
@@ -193,6 +211,7 @@ class CustomerCreditSummary(models.Model):
             'first_invoice_date': row.first_invoice_date,
             'last_payment_date': row.last_payment_date,
             'unapplied': row.amount_unapplied,
+            'covered': row.amount_covered,
         }
 
     def action_view_lines(self):

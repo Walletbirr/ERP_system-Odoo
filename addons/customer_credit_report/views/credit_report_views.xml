@@ -25,6 +25,7 @@
                 <field name="date_due"/>
                 <field name="amount_total" sum="Total"/>
                 <field name="amount_paid" sum="Total"/>
+                <field name="amount_covered" sum="Total" optional="show"/>
                 <field name="amount_residual" sum="Total"/>
                 <field name="days_overdue" string="Days Late"/>
                 <field name="ageing" widget="badge"
@@ -241,6 +242,7 @@
                 <field name="open_invoice_count" optional="hide"/>
                 <field name="amount_total" sum="Total"/>
                 <field name="amount_paid" sum="Total"/>
+                <field name="amount_covered" sum="Total" optional="show"/>
                 <field name="amount_residual" sum="Total"/>
                 <field name="amount_overdue" sum="Total"/>
                 <field name="max_days_overdue" optional="show"/>
@@ -306,6 +308,8 @@
                         <group string="Credit Position">
                             <field name="amount_total"/>
                             <field name="amount_paid"/>
+                            <field name="amount_covered"
+                                   invisible="not amount_covered"/>
                             <field name="amount_residual" class="fw-bold"/>
                             <field name="amount_previous"
                                    invisible="not amount_previous"/>
@@ -372,6 +376,7 @@
                                     <field name="date_due"/>
                                     <field name="amount_total" sum="Total"/>
                                     <field name="amount_paid" sum="Total"/>
+                                    <field name="amount_covered" sum="Total" optional="show"/>
                                     <field name="amount_residual" sum="Total"/>
                                     <field name="days_overdue" string="Days Late"/>
                                     <field name="ageing" widget="badge"
@@ -415,6 +420,7 @@
                                     <field name="date_due"/>
                                     <field name="amount_total" sum="Total"/>
                                     <field name="amount_paid" sum="Total"/>
+                                    <field name="amount_covered" sum="Total" optional="show"/>
                                     <field name="amount_residual" sum="Total"/>
                                     <field name="days_overdue" string="Days Late"/>
                                     <field name="ageing" widget="badge"
@@ -478,7 +484,7 @@
                 <filter string="Overdue" name="overdue" domain="[('amount_overdue', '&gt;', 0)]"/>
                 <filter string="Over 90 Days" name="over_90" domain="[('amount_90_plus', '&gt;', 0)]"/>
                 <filter string="Fully Paid" name="settled" domain="[('amount_residual', '&lt;=', 0)]"/>
-                <filter string="Unmatched Payments" name="unapplied" domain="[('amount_unapplied', '&gt;', 0)]"/>
+                <filter string="Money in Their Favour" name="unapplied" domain="[('amount_unapplied', '&gt;', 0)]"/>
                 <separator/>
                 <filter string="My Customers" name="my" domain="[('user_id', '=', uid)]"/>
                 <group expand="0" string="Group By">

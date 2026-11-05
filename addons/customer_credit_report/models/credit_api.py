@@ -112,6 +112,8 @@ class CustomerCreditApi(models.AbstractModel):
                 'date_due': _d(l.date_due),
                 'amount': l.amount_total,
                 'paid': l.amount_paid,
+                # paid by money in the customer's favour (part of paid)
+                'covered': l.amount_covered,
                 'remaining': l.amount_residual,
                 'days_overdue': l.days_overdue,
                 'ageing': l.ageing,
@@ -168,6 +170,8 @@ class CustomerCreditApi(models.AbstractModel):
                 # Owed from before the first credit sale in Odoo (own
                 # Credit Account); part of remaining, never overdue.
                 'previous': summary.amount_previous,
+                'covered': summary.amount_covered,
+                'in_favour': summary.amount_unapplied,
                 'previous_start': previous.amount_total if previous else 0.0,
                 'previous_date': _d(previous.invoice_date)
                 if previous else None,

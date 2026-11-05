@@ -1,6 +1,6 @@
 {
     'name': 'Customer Credit Report',
-    'version': '18.0.2.4.1',
+    'version': '18.0.2.5.0',
     'category': 'Sales/Sales',
     'summary': 'Credit sales: one source of truth for what customers owe, '
                'ageing, payment settlements, customer statements and the '
