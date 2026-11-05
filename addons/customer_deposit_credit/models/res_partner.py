@@ -65,9 +65,9 @@ class ResPartner(models.Model):
     )
 
     def _compute_deposit_amounts(self):
-        Payment = self.env['account.payment']
-        Move = self.env['account.move']
-        for partner in self:
+        Payment = self.env['account.payment'].sudo()
+        Move = self.env['account.move'].sudo()
+        for partner in self.sudo():
             if not partner.id:
                 partner.deposit_total_paid = 0.0
                 partner.deposit_total_invoiced = 0.0
