@@ -8,7 +8,9 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-# This is Full Controller for Dashboard
+# Mobile app keys kept per user (one per phone signed in).
+MOBILE_KEYS_KEPT = 10
+
 
 class BhDashboardController(http.Controller):
 
@@ -99,14 +101,25 @@ class BhDashboardController(http.Controller):
         api_key = None
         last_error = None
         try:
-            # Replace any previous mobile key for this user so old ones don't
-            # pile up in Settings > Users > Account Security every login.
-            request.env['res.users.apikeys'].sudo().search([
+            # Each phone keeps its own key: signing in on one phone must NOT
+            # cancel the key of another phone signed in with the same user
+            # (e.g. the owner on 2 iPhones + 1 Android). Only tidy up: drop
+            # expired mobile keys, and keep at most the newest
+            # MOBILE_KEYS_KEPT - 1 so old ones don't pile up in
+            # Settings > Users > Account Security (the new key makes it
+            # MOBILE_KEYS_KEPT). To cut off a lost phone, delete its
+            # "Mobile Dashboard App" key there (or all of them).
+            Keys = request.env['res.users.apikeys'].sudo()
+            mine = Keys.search([
                 ('user_id', '=', uid),
                 ('name', '=', 'Mobile Dashboard App'),
-            ]).unlink()
+            ], order='create_date desc, id desc')
+            now = datetime.now()
+            expired = mine.filtered(
+                lambda k: k.expiration_date and k.expiration_date < now)
+            (expired | (mine - expired)[MOBILE_KEYS_KEPT - 1:]).unlink()
         except Exception:
-            _logger.exception('BH Dashboard: could not clear old mobile keys for uid %s', uid)
+            _logger.exception('BH Dashboard: could not tidy old mobile keys for uid %s', uid)
 
         # Odoo checks a normal (non-admin) user's key expiry against the
         # longest "API Keys Maximum Duration" of their groups, and that check
@@ -155,5 +168,4 @@ class BhDashboardController(http.Controller):
         dashboard = request.env['bh.management.dashboard'].with_user(uid)
         data = dashboard.get_dashboard_data(date_from=date_from, date_to=date_to)
         return data
-
     
