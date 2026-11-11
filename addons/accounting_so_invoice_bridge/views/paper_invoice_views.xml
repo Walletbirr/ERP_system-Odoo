@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         Create invoice(s) popup: the salesperson enters the Invoice Date
+         written on the paper invoice.
+         ============================================================ -->
+    <record id="view_sale_advance_payment_inv_invoice_date" model="ir.ui.view">
+        <field name="name">sale.advance.payment.inv.invoice.date</field>
+        <field name="model">sale.advance.payment.inv</field>
+        <field name="inherit_id" ref="sale.view_sale_advance_payment_inv"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='advance_payment_method']" position="before">
+                <field name="x_invoice_date" required="1"
+                       options="{'max_date': 'today'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Salesperson: Void Paper Invoice (popup). One step, final.
+         ============================================================ -->
+    <record id="view_paper_invoice_void_wizard_form" model="ir.ui.view">
+        <field name="name">paper.invoice.void.wizard.form</field>
+        <field name="model">paper.invoice.void.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Void Paper Invoice">
+                <field name="company_id" invisible="1"/>
+                <p class="text-muted">
+                    Void a spoiled paper invoice. It is final and shows as
+                    Void in Accounting's Invoices list.
+                </p>
+                <group>
+                    <field name="paper_number" placeholder="e.g. CSI-1560"/>
+                    <field name="void_date" options="{'max_date': 'today'}"/>
+                    <field name="branch_id" options="{'no_create': True, 'no_open': True}"/>
+                    <field name="reason" placeholder="Why was this paper invoice spoiled?"/>
+                </group>
+                <footer>
+                    <button name="action_void" type="object" string="Void"
+                            class="btn-primary" data-hotkey="q"
+                            confirm="Void this paper invoice? It cannot be undone."/>
+                    <button special="cancel" string="Cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Salesperson: Sales > Orders > Void Paper Invoices
+         Read-only list/form; everything goes through the buttons.
+         ============================================================ -->
+    <record id="view_move_void_sales_list" model="ir.ui.view">
+        <field name="name">account.move.void.sales.list</field>
+        <field name="model">account.move</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <list string="Void Paper Invoices" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_bridge_report_void" type="object"
+                            string="Void Paper Invoice" class="btn-primary"
+                            display="always"/>
+                </header>
+                <field name="cim_reference" string="Paper Invoice No."/>
+                <field name="invoice_date" string="Date"/>
+                <field name="x_void_branch_id" string="Branch"/>
+                <field name="invoice_user_id" string="Salesperson"/>
+                <field name="x_void_reason" string="Reason"/>
+                <field name="x_void_state" string="Status" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_move_void_sales_form" model="ir.ui.view">
+        <field name="name">account.move.void.sales.form</field>
+        <field name="model">account.move</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form string="Void Paper Invoice" create="false" edit="false" delete="false"
+                  duplicate="false">
+                <sheet>
+                    <div class="oe_title">
+                        <span class="text-muted">Void Paper Invoice</span>
+                        <h1><field name="cim_reference"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="invoice_date" string="Date"/>
+                            <field name="x_void_branch_id" string="Branch"/>
+                        </group>
+                        <group>
+                            <field name="invoice_user_id" string="Salesperson"/>
+                            <field name="x_void_state" string="Status"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="x_void_reason" string="Reason"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_move_void_sales" model="ir.actions.act_window">
+        <field name="name">Void Paper Invoices</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('view_move_void_sales_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_move_void_sales_form')})]"/>
+        <field name="domain">[('x_is_void', '=', True)]</field>
+        <field name="context">{'create': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No void paper invoices</p>
+            <p>When a paper invoice is spoiled, press
+               <b>Void Paper Invoice</b>.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_sale_void_paper_invoices"
+              name="Void Paper Invoices"
+              parent="sale.sale_order_menu"
+              action="action_move_void_sales"
+              groups="sales_team.group_sale_salesman"
+              sequence="40"/>
+
+    <!-- ============================================================
+         Accountant: the void in Odoo's normal invoice form
+         (opened from Sales Invoices to Confirm / Invoices).
+         ============================================================ -->
+    <record id="view_move_form_paper_void" model="ir.ui.view">
+        <field name="name">account.move.form.paper.void</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="x_is_void" invisible="1"/>
+            </xpath>
+            <!-- Nothing of a normal invoice applies to a void. -->
+            <xpath expr="//header/button[@name='action_post'][1]" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_post'][2]" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='preview_invoice']" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='button_cancel'][1]" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='button_cancel'][2]" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='button_draft']" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='button_set_checked']" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <!-- Status bar: a void shows "Void", not the standard Cancelled step. -->
+            <xpath expr="//header/field[@name='state'][1]" position="attributes">
+                <attribute name="invisible">x_is_void</attribute>
+            </xpath>
+            <xpath expr="//header/field[@name='state'][2]" position="attributes">
+                <attribute name="invisible">x_is_void</attribute>
+            </xpath>
+            <xpath expr="//header/field[@name='state'][2]" position="after">
+                <field name="x_void_state" widget="statusbar" statusbar_visible="void"
+                       invisible="not x_is_void"/>
+            </xpath>
+            <xpath expr="//sheet" position="before">
+                <div class="alert alert-secondary mb-0" role="alert" invisible="not x_is_void">
+                    <strong>Void paper invoice <field name="cim_reference" readonly="1" class="d-inline"/>.</strong>
+                    Voided by the salesperson: final, no accounting effect.
+                </div>
+            </xpath>
+            <xpath expr="//sheet/notebook" position="before">
+                <group string="Void Paper Invoice" invisible="not x_is_void">
+                    <group>
+                        <field name="x_void_branch_id" string="Branch" readonly="1"/>
+                        <field name="invoice_user_id" string="Salesperson" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="x_void_reason" string="Reason" readonly="1"/>
+                    </group>
+                </group>
+            </xpath>
+            <xpath expr="//sheet/notebook" position="attributes">
+                <attribute name="invisible">x_is_void</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Invoices list: grey "Void" status, no Sales Type on voids. -->
+    <record id="view_invoice_tree_paper_void" model="ir.ui.view">
+        <field name="name">account.move.list.paper.void</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_invoice_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='status_in_payment']" position="before">
+                <field name="x_is_void" column_invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='invoice_date_due']" position="attributes">
+                <attribute name="invisible" add="x_is_void" separator=" or "/>
+            </xpath>
+            <!-- Every void is red, whatever its due date. Added to Odoo's own
+                 red rule (overdue unpaid), which must stay. -->
+            <xpath expr="//field[@name='status_in_payment']" position="attributes">
+                <attribute name="decoration-danger" add="x_is_void" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_out_invoice_tree_paper_void" model="ir.ui.view">
+        <field name="name">account.move.out.list.paper.void</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="customer_credit_report.view_out_invoice_tree_customer_credit"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='x_sale_type']" position="attributes">
+                <attribute name="invisible">x_is_void</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Search: Void filter on the invoice lists. -->
+    <record id="view_account_invoice_filter_paper_void" model="ir.ui.view">
+        <field name="name">account.move.search.paper.void</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='cancel']" position="after">
+                <filter name="paper_void" string="Void Paper Invoices"
+                        domain="[('x_is_void', '=', True)]"/>
+            </xpath>
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="cim_reference" string="Paper Invoice No."/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

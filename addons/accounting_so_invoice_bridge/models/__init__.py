@@ -10,3 +10,4 @@ from . import stock_picking
 from . import account_payment_register
 from . import bh_management_dashboard
 from . import bh_dashboard_sold_products
+from . import paper_invoice

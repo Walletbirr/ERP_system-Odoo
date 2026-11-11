@@ -1,6 +1,6 @@
 {
     'name': 'Void Sales Order',
-    'version': '18.0.1.0.4',
+    'version': '18.0.1.0.5',
     'category': 'Sales',
     'summary': 'Void a complete sales order: deliveries, invoices and '
                'payments go back to where they were and every document is '
@@ -43,6 +43,7 @@ voided it. A voided document cannot be set back to draft.
         'security/ir.model.access.csv',
         'views/void_wizard_views.xml',
         'views/sale_order_views.xml',
+        'views/voided_sales_views.xml',
         'views/account_move_views.xml',
         'views/account_payment_views.xml',
     ],

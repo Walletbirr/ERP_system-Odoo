@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.30.2.0',
+    'version': '18.0.31.0.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',
@@ -36,6 +36,14 @@ Sales -> Accounting workflow with Payment Proof approval
    (customer, dates, products sold, the same price breakdown as the order, proof status) without any accounting
    detail (no accounts, journal items, balance, chatter).
 
+9. PAPER INVOICES: the paper invoice number is the order's Reference (one
+   number = one order or one void, never two; required before Create
+   Invoice). A spoiled paper invoice is voided by the salesperson in one
+   step (Sales > Orders > Void Paper Invoices): it is final and shows as
+   "Void" in Accounting's Invoices list (own journal, no accounting
+   effect). The salesperson enters the Invoice Date in the Create
+   invoice(s) popup.
+
 Also: Accounting has read-only access to confirmed Sales Orders and a
 "Sales Invoices to Review" worklist (Accounting > Customers).
 
@@ -48,12 +56,16 @@ before ("Can Create Invoice from Sales Order"), now renamed.
     'author': 'Custom Development',
     'license': 'LGPL-3',
     'depends': ['sale', 'sale_stock', 'stock', 'account', 'bus', 'mail', 'sale_credit_approval',
-                'custom_invoice_management', 'multi_line_payment',
+                'custom_invoice_management', 'custom_invoice_management_sale',
+                'multi_line_payment',
                 'customer_credit_report'],
     'data': [
         'data/sale_stock_request_data.xml',
         'security/security.xml',
         'security/ir.model.access.csv',
+        # Before account_move_views.xml: on upgrade it replaces its own
+        # invoice-form extension first (18.0.31.0.0 had other buttons).
+        'views/paper_invoice_views.xml',
         'views/sale_order_payment_proof_popup_views.xml',
         'views/sale_order_form_views.xml',
         'views/sale_order_branch_views.xml',
