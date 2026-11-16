@@ -20,8 +20,29 @@
                     </group>
                 </group>
                 <footer>
-                    <button string="Print" name="view_report_pdf" type="object"
-                            class="btn-primary"/>
+                    <div class="btn-group" role="group">
+                        <button name="print_menu_toggle"
+                                type="button"
+                                class="btn btn-primary dropdown-toggle"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            Print
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <button name="view_report_pdf"
+                                        type="object"
+                                        string="PDF"
+                                        class="dropdown-item"/>
+                            </li>
+                            <li>
+                                <button name="print_xlsx"
+                                        type="object"
+                                        string="Excel"
+                                        class="dropdown-item"/>
+                            </li>
+                        </ul>
+                    </div>
                     <button string="Discard" class="btn-secondary"
                             special="cancel"/>
                 </footer>

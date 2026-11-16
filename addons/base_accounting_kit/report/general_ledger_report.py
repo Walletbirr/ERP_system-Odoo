@@ -334,22 +334,35 @@ class ReportGeneralLedgerXlsx(models.AbstractModel):
         show_move = form.get('show_move', True)
         show_entry_label = form.get('show_entry_label', True)
 
+        company_name = self.env.company.name
+        currency_symbol = self.env.company.currency_id.symbol
+        date_from = form.get('date_from') or ''
+        date_to = form.get('date_to') or ''
+
         sheet = workbook.add_worksheet('General Ledger')
         sheet.set_landscape()
+        sheet.set_paper(9)
+        sheet.fit_to_pages(1, 0)
 
-        title_fmt = workbook.add_format({'bold': True, 'font_size': 14})
+        title_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'align': 'center'})
+        subtitle_fmt = workbook.add_format({'bold': True, 'font_size': 11, 'align': 'center'})
+        period_fmt = workbook.add_format({'italic': True, 'font_size': 10, 'align': 'center'})
         account_fmt = workbook.add_format({
             'bold': True, 'bg_color': '#EEEEEE', 'border': 1,
         })
         header_fmt = workbook.add_format({
             'bold': True, 'bg_color': '#D9D9D9', 'border': 1,
         })
-        money_fmt = workbook.add_format({'num_format': '#,##0.00'})
+        header_right_fmt = workbook.add_format({
+            'bold': True, 'bg_color': '#D9D9D9', 'border': 1, 'align': 'right',
+        })
+        money_fmt = workbook.add_format({'num_format': '#,##0.00', 'align': 'right'})
         money_bold_fmt = workbook.add_format({
-            'num_format': '#,##0.00', 'bold': True,
+            'num_format': '#,##0.00', 'bold': True, 'align': 'right',
         })
         normal_fmt = workbook.add_format({})
         total_fmt = workbook.add_format({'bold': True})
+        note_fmt = workbook.add_format({'italic': True, 'font_color': '#666666', 'font_size': 9})
 
         columns = ['Date']
         if show_journal:
@@ -366,10 +379,29 @@ class ReportGeneralLedgerXlsx(models.AbstractModel):
 
         last_col = len(columns) - 1
 
-        sheet.write(0, 0, 'General Ledger', title_fmt)
-        sheet.set_column(0, last_col, 16)
+        # right-align numeric column headers
+        col_fmts = [header_fmt] * (last_col - 2) + [header_right_fmt] * 3
 
-        row = 2
+        # set column widths
+        sheet.set_column(0, last_col - 3, 16)   # text columns
+        sheet.set_column(last_col - 2, last_col, 14)  # Debit / Credit / Balance
+
+        # --- header rows ---
+        sheet.merge_range(0, 0, 0, last_col, company_name, title_fmt)
+        sheet.merge_range(1, 0, 1, last_col, 'General Ledger', subtitle_fmt)
+        if date_from and date_to:
+            period_str = 'From {} to {}'.format(date_from, date_to)
+        elif date_to:
+            period_str = 'As of {}'.format(date_to)
+        elif date_from:
+            period_str = 'From {}'.format(date_from)
+        else:
+            period_str = ''
+        header_end_row = 2
+        if period_str:
+            sheet.merge_range(2, 0, 2, last_col, period_str, period_fmt)
+            header_end_row = 3
+        row = header_end_row + 1  # blank spacer after header
 
         for account in accounts_res:
             sheet.merge_range(
@@ -380,7 +412,7 @@ class ReportGeneralLedgerXlsx(models.AbstractModel):
             row += 1
 
             for c, header in enumerate(columns):
-                sheet.write(row, c, header, header_fmt)
+                sheet.write(row, c, header, col_fmts[c] if c < len(col_fmts) else header_fmt)
             row += 1
 
             sheet.write(row, 0, 'Initial Balance', normal_fmt)
@@ -419,3 +451,7 @@ class ReportGeneralLedgerXlsx(models.AbstractModel):
             sheet.write(row, last_col - 1, account['credit'], money_bold_fmt)
             sheet.write(row, last_col, account['ending_balance'], money_bold_fmt)
             row += 2
+
+        row += 1
+        sheet.merge_range(row, 0, row, last_col,
+                          'All amounts in {}'.format(currency_symbol), note_fmt)

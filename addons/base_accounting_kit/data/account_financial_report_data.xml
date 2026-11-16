@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <data noupdate="1">
+    <data noupdate="0">
         <!-- Financial Reports data records in the model account.financial.report-->
         <record id="account_financial_report_profitandloss0"
                 model="account.financial.report">
@@ -34,6 +34,7 @@
         <record id="financial_report_gross_profit"
                 model="account.financial.report">
             <field name="name">Gross Profit</field>
+            <field name="sign" eval="'-1'"/>
             <field name="parent_id"
                    ref="account_financial_report_income0"/>
             <field name="display_detail">detail_with_hierarchy</field>
@@ -66,7 +67,6 @@
         <record id="account_financial_report_expense0"
                 model="account.financial.report">
             <field name="name">Expense</field>
-            <field name="sign" eval="'-1'"/>
             <field name="sequence">2</field>
             <field name="parent_id"
                    ref="account_financial_report_profitandloss0"/>

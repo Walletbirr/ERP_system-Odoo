@@ -213,3 +213,136 @@ class ReportFinancial(models.AbstractModel):
             'time': time,
             'get_account_lines': report_lines,
         }
+
+
+class CashFlowReportXlsx(models.AbstractModel):
+    """Excel export for the Cash Flow Statement.
+
+    Reuses the same get_account_lines() logic from the PDF report model so
+    the numbers are always identical between PDF and Excel.
+    """
+
+    _name = 'report.base_accounting_kit.report_cash_flow_xlsx'
+    _inherit = 'report.report_xlsx.abstract'
+    _description = 'Cash Flow Statement Excel Report'
+
+    def generate_xlsx_report(self, workbook, data, objects):
+        form = data.get('form', {})
+
+        report_model = self.env['report.base_accounting_kit.report_cash_flow']
+        report_lines = report_model.with_context(
+            form.get('used_context', {})
+        ).get_account_lines(form)
+
+        company_name = self.env.company.name
+        currency_symbol = self.env.company.currency_id.symbol
+        report_name = form.get('account_report_id')
+        if isinstance(report_name, (list, tuple)):
+            report_name = report_name[1]
+        else:
+            report_name = 'Cash Flow Statement'
+
+        date_from = form.get('date_from') or ''
+        date_to = form.get('date_to') or ''
+        show_debit_credit = form.get('debit_credit', False)
+
+        # ---- worksheet ------------------------------------------------ #
+        sheet = workbook.add_worksheet('Cash Flow')
+        sheet.set_landscape()
+        sheet.set_paper(9)
+        sheet.fit_to_pages(1, 0)
+        sheet.set_column(0, 0, 50)
+        if show_debit_credit:
+            sheet.set_column(1, 1, 18)
+            sheet.set_column(2, 2, 18)
+            sheet.set_column(3, 3, 18)
+            last_col = 3
+        else:
+            sheet.set_column(1, 1, 22)
+            last_col = 1
+
+        # ---- formats -------------------------------------------------- #
+        def _fmt(**kw):
+            return workbook.add_format(kw)
+
+        title_fmt     = _fmt(bold=True, font_size=14, align='center')
+        subtitle_fmt  = _fmt(bold=True, font_size=11, align='center')
+        period_fmt    = _fmt(italic=True, font_size=10, align='center')
+        hdr_fmt       = _fmt(bold=True, bg_color='#D9D9D9', border=1, align='center', valign='vcenter')
+        hdr_right_fmt = _fmt(bold=True, bg_color='#D9D9D9', border=1, align='right', valign='vcenter')
+        section_fmt   = _fmt(bold=True, font_size=11)
+        section_num   = _fmt(bold=True, font_size=11, num_format='#,##0.00', align='right')
+        subtotal_fmt  = _fmt(bold=True, top=1)
+        subtotal_num  = _fmt(bold=True, top=1, num_format='#,##0.00', align='right')
+        total_fmt     = _fmt(bold=True, top=6, font_size=11)
+        total_num     = _fmt(bold=True, top=6, font_size=11, num_format='#,##0.00', align='right')
+        account_fmt   = _fmt(indent=1)
+        account_num   = _fmt(num_format='#,##0.00', align='right')
+        note_fmt      = _fmt(italic=True, font_color='#666666', font_size=9)
+
+        # ---- header --------------------------------------------------- #
+        row = 0
+        sheet.merge_range(row, 0, row, last_col, company_name, title_fmt)
+        row += 1
+        sheet.merge_range(row, 0, row, last_col, report_name, subtitle_fmt)
+        row += 1
+        if date_from and date_to:
+            period_str = 'From {} to {}'.format(date_from, date_to)
+        elif date_to:
+            period_str = 'As of {}'.format(date_to)
+        elif date_from:
+            period_str = 'From {}'.format(date_from)
+        else:
+            period_str = ''
+        if period_str:
+            sheet.merge_range(row, 0, row, last_col, period_str, period_fmt)
+            row += 1
+        row += 1  # blank spacer
+
+        # ---- column headers ------------------------------------------- #
+        sheet.write(row, 0, 'Name', hdr_fmt)
+        if show_debit_credit:
+            sheet.write(row, 1, 'Debit',   hdr_right_fmt)
+            sheet.write(row, 2, 'Credit',  hdr_right_fmt)
+            sheet.write(row, 3, 'Balance', hdr_right_fmt)
+        else:
+            sheet.write(row, 1, 'Balance', hdr_right_fmt)
+        row += 1
+
+        # ---- data rows ------------------------------------------------ #
+        for line in report_lines:
+            level     = line.get('level', 1)
+            line_type = line.get('type', 'report')
+            balance   = line.get('balance', 0.0)
+            name      = line.get('name', '')
+
+            if line_type == 'account':
+                name_fmt = account_fmt
+                num_fmt  = account_num
+                display_name = '    ' + name
+            elif level <= 2 and line_type == 'report':
+                name_fmt = section_fmt
+                num_fmt  = section_num
+                display_name = name
+            elif line_type == 'report' and level <= 3:
+                name_fmt = subtotal_fmt
+                num_fmt  = subtotal_num
+                display_name = name
+            else:
+                name_fmt = total_fmt
+                num_fmt  = total_num
+                display_name = name
+
+            sheet.write(row, 0, display_name, name_fmt)
+            if show_debit_credit:
+                sheet.write(row, 1, line.get('debit', 0.0),  account_num)
+                sheet.write(row, 2, line.get('credit', 0.0), account_num)
+                sheet.write(row, 3, balance, num_fmt)
+            else:
+                sheet.write(row, 1, balance, num_fmt)
+            row += 1
+
+        # ---- footer --------------------------------------------------- #
+        row += 1
+        sheet.merge_range(row, 0, row, last_col,
+                          'All amounts in {}'.format(currency_symbol), note_fmt)

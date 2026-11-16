@@ -126,3 +126,22 @@ class AccountingReport(models.TransientModel):
             'base_accounting_kit.action_report_cash_flow').report_action(self,
                                                                          data=data,
                                                                          config=False)
+
+    def print_xlsx(self):
+        """Export the Cash Flow Statement as Excel."""
+        self.ensure_one()
+        data = {}
+        data['ids'] = self.env.context.get('active_ids', [])
+        data['model'] = self.env.context.get('active_model', 'ir.ui.menu')
+        data['form'] = self.read(
+            ['date_from', 'date_to', 'target_move', 'company_id',
+             'account_report_id', 'enable_filter', 'label_filter',
+             'filter_cmp', 'date_from_cmp', 'date_to_cmp',
+             'debit_credit', 'journal_ids'])[0]
+        used_context = self._build_contexts(data)
+        data['form']['used_context'] = dict(
+            used_context,
+            lang=self.env.context.get('lang') or 'en_US')
+        return self.env.ref(
+            'base_accounting_kit.action_report_cash_flow_xlsx').report_action(
+            self, data=data)
