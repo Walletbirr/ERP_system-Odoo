@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- 1. Search view: Reference in the main search box + dedicated filter -->
+    <record id="view_sales_order_filter_reference" model="ir.ui.view">
+        <field name="name">sale.order.search.reference</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="cim_reference" string="Reference"
+                       filter_domain="[('cim_reference', 'ilike', self)]"/>
+            </xpath>
+            <xpath expr="//filter[@name='my_sale_orders_filter']" position="after">
+                <filter string="Has Reference" name="has_reference"
+                        domain="[('cim_reference', '!=', False)]"/>
+                <filter string="No Reference" name="no_reference"
+                        domain="[('cim_reference', '=', False)]"/>
+            </xpath>
+            <xpath expr="//group" position="inside">
+                <filter string="Reference" name="group_by_reference"
+                        context="{'group_by': 'cim_reference'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- 2. Dedicated list: all quotations + orders with the Reference column -->
+    <record id="view_order_tree_reference_search" model="ir.ui.view">
+        <field name="name">sale.order.list.reference.search</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <list string="Search by Reference" create="0" sample="0">
+                <field name="cim_reference"/>
+                <field name="name" string="Number"/>
+                <field name="date_order" widget="date"/>
+                <field name="partner_id"/>
+                <field name="user_id" widget="many2one_avatar_user" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="amount_total" sum="Total" widget="monetary" optional="show"/>
+                <field name="invoice_status" optional="show"/>
+                <field name="state" widget="badge" optional="show"
+                       decoration-success="state == 'sale'"
+                       decoration-info="state == 'draft'"
+                       decoration-danger="state == 'cancel'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- 3. Reference column in the standard Quotations and Orders lists -->
+    <record id="view_quotation_tree_reference" model="ir.ui.view">
+        <field name="name">sale.order.quotation.list.reference</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_quotation_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="cim_reference" string="Reference" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_tree_reference" model="ir.ui.view">
+        <field name="name">sale.order.list.reference</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="cim_reference" string="Reference" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_sale_order_search_by_reference" model="ir.actions.act_window">
+        <field name="name">Search by Reference</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="sale.view_sales_order_filter"/>
+        <field name="context">{'search_default_has_reference': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No sales found</p>
+            <p>Type a reference in the search box and pick
+               "Search Reference for: ..." to find the matching sales.</p>
+        </field>
+    </record>
+    <record id="action_sale_order_search_by_reference_list" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_order_tree_reference_search"/>
+        <field name="act_window_id" ref="action_sale_order_search_by_reference"/>
+    </record>
+    <record id="action_sale_order_search_by_reference_form" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="sale.view_order_form"/>
+        <field name="act_window_id" ref="action_sale_order_search_by_reference"/>
+    </record>
+
+    <menuitem id="menu_sale_order_search_by_reference"
+              name="Search by Reference"
+              parent="sale.sale_order_menu"
+              action="action_sale_order_search_by_reference"
+              sequence="99"/>
+</odoo>
