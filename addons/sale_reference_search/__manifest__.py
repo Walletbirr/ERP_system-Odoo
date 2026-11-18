@@ -13,7 +13,7 @@ Small add-on for ``custom_invoice_management_sale``:
 * The reference is also found when searching an order by name anywhere
   (Many2one dropdowns, global search).
 * New menu Sales > Orders > "Search by Reference" with a list showing the
-  Reference first..
+  Reference first.
 """,
     'category': 'Sales/Sales',
     'depends': ['sale', 'custom_invoice_management_sale'],
