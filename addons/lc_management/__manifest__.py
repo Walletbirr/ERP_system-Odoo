@@ -1,17 +1,13 @@
 {
     'name': 'LC Management',
-    'version': '1.2',
+    'version': '1.0',
     'summary': 'Letter of Credit Management',
-    'depends': ['purchase', 'stock', 'account', 'mail', 'shipment_tracking'],
+    'depends': ['purchase', 'stock', 'account', 'base_setup', 'shipment_tracking'],
     'data': [
-        'security/lc_security.xml',
         'security/ir.model.access.csv',
-        'data/ir_cron.xml',
         'views/lc_views.xml',
-        'views/lc_account_setup_request_views.xml',
-        'views/lc_company_settings_views.xml',
         'wizard/lc_cancel_wizard_view.xml',
-        'views/shipment_cost_lc_views.xml',
+        'data/ir_cron.xml',
     ],
     'installable': True,
 }
