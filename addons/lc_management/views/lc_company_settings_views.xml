@@ -1,0 +1,59 @@
+<odoo>
+
+    <!-- ===================================================== -->
+    <!-- LC MANAGEMENT SETTINGS -->
+    <!-- A small, scoped form on res.company showing only the LC fields.
+         Reached only via LC Management > Configuration > Settings -
+         does not touch or extend the main Settings app in any way. -->
+    <!-- ===================================================== -->
+    <record id="view_lc_company_settings_form" model="ir.ui.view">
+        <field name="name">lc.management.company.settings.form</field>
+        <field name="model">res.company</field>
+        <!-- High priority number (= low priority) so this is NEVER picked up
+             as the generic/default form view for res.company (e.g. by the
+             core "Update Info" link on Settings > General Settings, or by
+             Settings > Users & Companies > Companies). Those must keep
+             showing the real, full company form. Our own actions below
+             always pass view_id explicitly, so they are unaffected by this
+             and keep opening this scoped view correctly. -->
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="LC Management Settings">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+
+                    <group string="Default Accounts">
+                        <field name="lc_default_vat_account_id"/>
+                    </group>
+
+                    <group string="Defaults">
+                        <field name="lc_default_margin_account_id"/>
+                    </group>
+
+                    <group string="Notifications">
+                        <field name="lc_default_accountant_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_lc_company_settings" model="ir.actions.server">
+        <field name="name">LC Management Settings</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_lc_settings()</field>
+    </record>
+
+    <!-- Single-level menu item: "Configuration" is directly clickable and
+         opens the settings form itself - no more nested "Settings" submenu
+         underneath it (there was nothing else under Configuration anyway). -->
+    <menuitem id="menu_lc_config_settings"
+              name="Configuration"
+              parent="menu_lc_root"
+              action="action_lc_company_settings"
+              sequence="100"/>
+
+</odoo>

@@ -1,0 +1,13 @@
+<odoo>
+
+    <record id="group_lc_purchase_officer" model="res.groups">
+        <field name="name">LC Purchase Officer</field>
+        <field name="comment">Can create Letters of Credit and submit settlement payments for accountant approval.</field>
+    </record>
+
+    <record id="group_lc_accountant" model="res.groups">
+        <field name="name">LC Accountant</field>
+        <field name="comment">Can create GL accounts requested by Purchase Officers and approve/post LC settlement payments.</field>
+    </record>
+
+</odoo>

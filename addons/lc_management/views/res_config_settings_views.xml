@@ -1,0 +1,71 @@
+<odoo>
+
+    <record id="view_lc_config_settings_form" model="ir.ui.view">
+        <field name="name">lc.management.config.settings.form</field>
+        <field name="model">res.config.settings</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="app_settings_block" data-string="LC Management" string="LC Management">
+                        <h2>Default Accounts</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="lc_default_fee_account_id" string="Default Fee Account"/>
+                                    <div class="text-muted">
+                                        Suggested automatically as the Opening/Settlement Fee account on new LCs.
+                                    </div>
+                                    <field name="lc_default_fee_account_id"/>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="lc_default_vat_account_id" string="Default VAT Account"/>
+                                    <div class="text-muted">
+                                        Suggested automatically as the Opening/Settlement VAT account on new LCs -
+                                        replaces the old hardcoded "VAT REC/PAY" name search.
+                                    </div>
+                                    <field name="lc_default_vat_account_id"/>
+                                </div>
+                            </div>
+                        </div>
+                        <h2>Notifications</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <label for="lc_default_accountant_id" string="Default Accountant"/>
+                                    <div class="text-muted">
+                                        Notified by default for new-account requests and payment approvals.
+                                    </div>
+                                    <field name="lc_default_accountant_id"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </sheet>
+                <footer>
+                    <button string="Save" type="object" name="execute" class="btn-primary"/>
+                    <button string="Discard" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_lc_config_settings" model="ir.actions.act_window">
+        <field name="name">LC Management Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_lc_config_settings_form"/>
+    </record>
+
+    <menuitem id="menu_lc_config_settings"
+              name="Configuration"
+              parent="menu_lc_root"
+              sequence="100"/>
+
+    <menuitem id="menu_lc_config_settings_action"
+              name="Settings"
+              parent="menu_lc_config_settings"
+              action="action_lc_config_settings"/>
+
+</odoo>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Restrict / auto-fill Shipment Cost's Fee Account to the Fee Account
+         defined on the Letter of Credit linked via Shipment -> PO -> LC. -->
+    <record id="view_shipment_cost_form_lc_inherit" model="ir.ui.view">
+        <field name="name">shipment.cost.form.lc.inherit</field>
+        <field name="model">shipment.cost</field>
+        <field name="inherit_id" ref="shipment_tracking.view_shipment_cost_form"/>
+        <field name="arch" type="xml">
+
+            <field name="fee_account_id" position="before">
+                <field name="lc_fee_account_id" invisible="1"/>
+            </field>
+
+            <field name="fee_account_id" position="attributes">
+                <attribute name="domain">[('id', '=', lc_fee_account_id)]</attribute>
+                <attribute name="help">Fee Account is taken from the Letter of Credit linked to this shipment's Purchase Order. If nothing appears, the linked Purchase Order has no LC (or the LC has no Fee Account set).</attribute>
+            </field>
+
+        </field>
+    </record>
+
+</odoo>
