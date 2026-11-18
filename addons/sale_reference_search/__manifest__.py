@@ -5,7 +5,7 @@
                '(cim_reference).',
     'description': """
 Sales - Search by Reference
-===========================+
+===========================
 Small add-on for ``custom_invoice_management_sale``:
 
 * "Reference" field in the search box of Quotations / Sales Orders.
