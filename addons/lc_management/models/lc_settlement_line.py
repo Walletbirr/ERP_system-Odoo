@@ -6,6 +6,7 @@ from odoo.tools.float_utils import float_is_zero, float_compare
 class LCSettlementLine(models.Model):
     _name = 'lc.settlement.line'
     _description = 'LC Settlement Line'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'create_date asc'
 
     # =========================================================
@@ -120,9 +121,26 @@ class LCSettlementLine(models.Model):
 
     state = fields.Selection([
         ('draft', 'Draft'),
+        ('submitted', 'Submitted for Payment'),
         ('confirmed', 'Confirmed'),
         ('cancelled', 'Cancelled'),
-    ], default='draft', required=True, readonly=True)
+    ], default='draft', required=True, readonly=True, tracking=True)
+
+    # =========================================================
+    # PURCHASE OFFICER -> ACCOUNTANT PAYMENT APPROVAL WORKFLOW
+    # =========================================================
+    requested_by_id = fields.Many2one(
+        'res.users', string="Payment Requested By", readonly=True
+    )
+    request_date = fields.Datetime(string="Requested On", readonly=True)
+    assigned_accountant_id = fields.Many2one(
+        'res.users', string="Sent To", readonly=True,
+        help="The accountant asked to review and approve this payment."
+    )
+    approved_by_id = fields.Many2one(
+        'res.users', string="Approved By", readonly=True
+    )
+    approved_date = fields.Datetime(string="Approved On", readonly=True)
 
     # =========================================================
     # AMOUNT BEING SETTLED (THIS TRANCHE)
@@ -391,6 +409,109 @@ class LCSettlementLine(models.Model):
                 line.po_settlement_status = 'pending'
             else:
                 line.po_settlement_status = 'draft'
+    def _check_ready_for_settlement(self):
+        """Shared readiness checks used by both the purchase officer's
+        submit-for-approval step and the accountant's post step, so the two
+        can never disagree about what counts as 'ready'."""
+        self.ensure_one()
+        line = self
+        if not line.purchase_order_id:
+            raise ValidationError("This settlement line has no linked Purchase Order.")
+        if line.purchase_order_id.state not in ('purchase', 'done'):
+            raise ValidationError(f"Purchase Order {line.purchase_order_id.name} is not confirmed.")
+        if line.shipment_id and line.shipment_id.state != 'arrived':
+            raise ValidationError(
+                f"Shipment {line.shipment_id.reference} is no longer marked as Arrived."
+            )
+        if float_is_zero(line.settlement_fee, precision_digits=2):
+            raise ValidationError("Settlement Fee must be greater than zero.")
+        if not line.settlement_fee_account_id:
+            raise ValidationError(
+                "Please select a settlement fee account. If it doesn't exist yet in the "
+                "Chart of Accounts, use 'Request Account Setup' on the LC to notify the accountant."
+            )
+        if not line.settlement_vat_account_id and not float_is_zero(
+            line.settlement_vat_amount, precision_digits=2
+        ):
+            raise ValidationError("Please select a settlement VAT account.")
+        if not line.settlement_date:
+            raise ValidationError("Please enter a settlement date.")
+        if float_is_zero(line.settlement_vat_amount, precision_digits=2):
+            raise ValidationError("Settlement VAT Amount must be greater than zero.")
+
+    def _is_lc_accountant(self):
+        return (
+            self.env.user.has_group('lc_management.group_lc_accountant')
+            or self.env.user.has_group('account.group_account_manager')
+        )
+
+    def action_request_payment(self):
+        """Purchase Officer step: validates the tranche is ready, then lets
+        them pick which accountant should review and approve the payment."""
+        self.ensure_one()
+        if self.state != 'draft':
+            raise ValidationError("Only draft settlement lines can be submitted for payment.")
+        self._check_ready_for_settlement()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Send Payment Request',
+            'res_model': 'lc.settlement.payment.request.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_settlement_line_id': self.id},
+        }
+
+    def _send_payment_request(self, accountant, note=None):
+        self.ensure_one()
+        self.write({
+            'state': 'submitted',
+            'requested_by_id': self.env.user.id,
+            'request_date': fields.Datetime.now(),
+            'assigned_accountant_id': accountant.id if accountant else False,
+        })
+        self._notify_accountant_for_payment(accountant, note)
+
+    def _notify_accountant_for_payment(self, accountant, note=None):
+        for line in self:
+            partner_ids = accountant.partner_id.ids if accountant else []
+            line.message_subscribe(partner_ids=partner_ids)
+            body = (
+                f"Payment requested by {line.requested_by_id.name} for "
+                f"<b>{line.purchase_order_id.name or line.lc_id.name}</b>: "
+                f"{line.amount_to_settle:,.2f} {line.lc_currency_id.name}. "
+                f"Awaiting accountant approval."
+            )
+            if note:
+                body += f"<br/>Note: {note}"
+            line.message_post(body=body, partner_ids=partner_ids)
+            if accountant:
+                line.activity_schedule(
+                    'mail.mail_activity_data_todo',
+                    summary=f"Approve LC payment - {line.lc_id.name}",
+                    note=note or "A purchase officer submitted a settlement payment for your approval.",
+                    user_id=accountant.id,
+                )
+                self.env['bus.bus']._sendone(accountant.partner_id, 'simple_notification', {
+                    'type': 'info',
+                    'title': 'LC Payment Request',
+                    'message': (
+                        f"{line.requested_by_id.name} needs approval on a payment for "
+                        f"{line.purchase_order_id.name or line.lc_id.name}: "
+                        f"{line.amount_to_settle:,.2f} {line.lc_currency_id.name}."
+                    ),
+                    'sticky': True,
+                    'className': 'o_lc_request_notification',
+                })
+            self.env.user._bus_send('simple_notification', {
+                'type': 'success',
+                'title': 'Request Sent',
+                'message': (
+                    f"Payment request for {line.purchase_order_id.name or line.lc_id.name} "
+                    f"sent to {accountant.name}." if accountant else
+                    f"Payment request sent, but no accountant was selected."
+                ),
+            })
+
     def action_confirm_with_preview(self):
         """Validates this line exactly as action_confirm would, builds a
         plain-text preview of the moves about to post (settlement fee/VAT
@@ -402,8 +523,13 @@ class LCSettlementLine(models.Model):
 
         # Run the same checks action_confirm runs, so the preview can never
         # show a wizard for something that would then fail to post.
-        if line.state != 'draft':
-            raise ValidationError("Only draft settlement lines can be confirmed.")
+        if not line._is_lc_accountant():
+            raise ValidationError("Only an Accountant can approve and post this payment.")
+        if line.state != 'submitted':
+            raise ValidationError(
+                "This settlement line must be submitted for payment approval first "
+                "(use 'Send Payment Request')."
+            )
         if not line.purchase_order_id:
             raise ValidationError("This settlement line has no linked Purchase Order.")
         if line.purchase_order_id.state not in ('purchase', 'done'):
@@ -501,8 +627,13 @@ class LCSettlementLine(models.Model):
         for line in self:
             lc = line.lc_id
 
-            if line.state != 'draft':
-                raise ValidationError("Only draft settlement lines can be confirmed.")
+            if not line._is_lc_accountant():
+                raise ValidationError("Only an Accountant can approve and post this payment.")
+            if line.state != 'submitted':
+                raise ValidationError(
+                    "This settlement line must be submitted for payment approval first "
+                    "(use 'Send Payment Request')."
+                )
 
             # ===================== PURCHASE ORDER VALIDATION =====================
             # Restored from the original action_settle: the PO behind this
@@ -630,7 +761,11 @@ class LCSettlementLine(models.Model):
                 release_move.action_post()
                 line.release_move_id = release_move.id
 
-            line.state = 'confirmed'
+            line.write({
+                'state': 'confirmed',
+                'approved_by_id': self.env.user.id,
+                'approved_date': fields.Datetime.now(),
+            })
 
             # margin_released_amount on the LC recomputes automatically from
             # confirmed settlement lines (see lc._compute_margin_released_amount) -
