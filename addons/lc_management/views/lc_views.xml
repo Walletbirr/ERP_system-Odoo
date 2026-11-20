@@ -19,6 +19,7 @@
                 <field name="state"
                        widget="badge"
                        decoration-muted="state == 'draft'"
+                       decoration-primary="state == 'on_hold'"
                        decoration-info="state == 'open'"
                        decoration-warning="state == 'utilized'"
                        decoration-success="state == 'settled'"/>
@@ -36,6 +37,7 @@
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column">
                 <field name="name"/>
+                <field name="display_name"/>
                 <field name="bank_journal_id"/>
                 <field name="partner_id"/>
                 <field name="amount"/>
@@ -46,7 +48,7 @@
                 <templates>
                     <t t-name="card">
                         <div class="oe_kanban_global_click">
-                            <div class="fw-bold text-primary"><field name="name"/></div>
+                            <div class="fw-bold text-primary"><field name="display_name"/></div>
                             <div class="text-muted small"><field name="bank_journal_id"/></div>
                             <div class="small mt-1"><field name="partner_id"/></div>
                             <div class="small">Amount: <field name="amount"/> <field name="currency_id"/></div>
@@ -55,6 +57,7 @@
                                 <field name="state"
                                        widget="badge"
                                        decoration-muted="state == 'draft'"
+                       decoration-primary="state == 'on_hold'"
                                        decoration-info="state == 'open'"
                                        decoration-warning="state == 'utilized'"
                                        decoration-success="state == 'settled'"/>
@@ -86,6 +89,18 @@
                             type="object"
                             class="btn-primary"
                             invisible="state != 'draft'"/>
+
+                    <button name="action_put_on_hold"
+                            string="Put On Hold"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'draft'"/>
+
+                    <button name="action_resume_from_hold"
+                            string="Resume"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'on_hold'"/>
 
                     <button name="action_open_with_confirmation"
                             string="Approve &amp; Open LC"
@@ -147,11 +162,13 @@
                                 type="object"
                                 class="oe_stat_button"
                                 icon="fa-money"
-                                invisible="state == 'draft'">
+                                invisible="state in ('draft','on_hold')">
                             <field name="settlement_line_count" widget="statinfo" string="Settlements"/>
                         </button>
                     </div>
 
+                    <widget name="web_ribbon" title="On Hold" bg_color="text-bg-warning"
+                            invisible="state != 'on_hold'"/>
                     <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
                             invisible="state != 'cancelled'"/>
                     <widget name="web_ribbon" title="Settled" bg_color="text-bg-success"
@@ -238,7 +255,7 @@
                                         type="object"
                                         class="btn-link"
                                         icon="fa-bell-o"
-                                        invisible="opening_fee_account_id or state in ('open','utilized','settled','cancelled')"/>
+                                        invisible="opening_fee_account_id or state in ('on_hold','open','utilized','settled','cancelled')"/>
                             </div>
                             <field name="opening_vat_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
@@ -255,7 +272,7 @@
                                         type="object"
                                         class="btn-link"
                                         icon="fa-bell-o"
-                                        invisible="opening_vat_account_id or state in ('open','utilized','settled','cancelled')"/>
+                                        invisible="opening_vat_account_id or state in ('on_hold','open','utilized','settled','cancelled')"/>
                             </div>
                             <field name="opening_date"
                                    readonly="not can_edit_lc_details"
@@ -270,7 +287,7 @@
                         </group>
                     </group>
 
-                    <group invisible="state == 'draft'">
+                    <group invisible="state in ('draft','on_hold')">
                         <group string="Opening Approval Trail">
                             <field name="opening_requested_by_id" readonly="1"/>
                             <field name="opening_request_date" readonly="1"/>
@@ -788,7 +805,6 @@
                 <field name="lc_id"
                        options="{'no_create': True, 'no_create_edit': True}"
                        invisible="not is_import"
-                       required="is_import"
                        readonly="state in ('purchase','done')"/>
             </xpath>
         </field>

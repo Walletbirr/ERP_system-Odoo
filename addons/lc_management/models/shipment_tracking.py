@@ -13,7 +13,7 @@ class ShipmentTracking(models.Model):
                 continue
 
             lc = po.lc_id
-            if lc.state in ('closed', 'cancelled'):
+            if lc.state in ('settled', 'cancelled'):
                 continue
 
             line = lc._create_draft_settlement_line_for_shipment(po, rec)

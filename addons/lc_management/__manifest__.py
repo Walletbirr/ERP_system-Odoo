@@ -1,8 +1,12 @@
 {
     'name': 'LC Management',
-    'version': '1.2',
+    'version': '1.5',
     'summary': 'Letter of Credit Management',
-    'depends': ['purchase', 'stock', 'account', 'mail', 'shipment_tracking'],
+    'category': 'Inventory/Purchase',
+    'license': 'LGPL-3',
+    'application': True,
+    'depends': ['purchase', 'stock', 'account', 'mail', 'shipment_tracking',
+                'custom_contacts_manager'],
     'data': [
         'security/lc_security.xml',
         'security/ir.model.access.csv',

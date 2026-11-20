@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from datetime import date
 from odoo.exceptions import ValidationError
 from odoo.tools.float_utils import float_is_zero
@@ -9,7 +9,16 @@ class LCManagement(models.Model):
     _description = 'Letter of Credit'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    name = fields.Char(string="LC Reference", required=True)
+    # The LC Reference is issued by the bank, so it does not exist yet when
+    # the Purchase Officer first drafts the LC. It is optional while in Draft
+    # and enforced later (see _check_ready_to_request_opening and
+    # _validate_before_open). Postgres allows many NULLs under unique(name).
+    name = fields.Char(
+        string="LC Reference",
+        required=False,
+        copy=False,
+        tracking=True,
+    )
 
     bank_journal_id = fields.Many2one(
         'account.journal',
@@ -170,7 +179,12 @@ class LCManagement(models.Model):
         'account.account', string="Margin Account", required=False,
         default=lambda self: self.env.company.lc_default_margin_account_id
     )
-    partner_id = fields.Many2one('res.partner', string="Supplier", required=False)
+    partner_id = fields.Many2one(
+        'res.partner',
+        string="Supplier",
+        required=False,
+        domain="[('contact_type_code', '=', 'vendor')]",
+    )
     release_move_id = fields.Many2one(
         'account.move',
         string='Release Journal Entry',
@@ -304,6 +318,7 @@ class LCManagement(models.Model):
 
     state = fields.Selection([
         ('draft', 'Draft'),
+        ('on_hold', 'On Hold'),
         ('pending_approval', 'Pending Approval'),
         ('open', 'Open'),
         ('utilized', 'Utilized'),
@@ -356,11 +371,38 @@ class LCManagement(models.Model):
             or self.env.user.has_group('account.group_account_manager')
         )
 
+    def _opening_charges_problems(self):
+        """Bank Fee and Opening VAT may be 0 while the LC is only a draft,
+        but both must be entered before approval is requested or the LC is
+        opened. Returns the labels of the ones still missing."""
+        self.ensure_one()
+        problems = []
+        if self.opening_fee <= 0:
+            problems.append("Bank Fee")
+        if self.opening_vat_amount <= 0:
+            problems.append("Opening VAT Amount")
+        return problems
+
     def _check_ready_to_request_opening(self):
         self.ensure_one()
         rec = self
         if rec.state != 'draft':
-            raise ValidationError("Only draft LC can be submitted for opening.")
+            raise ValidationError(
+                "Only draft LC can be submitted for opening. If this LC is "
+                "On Hold, resume it first."
+            )
+        if not rec.name:
+            raise ValidationError(
+                "Enter the LC Reference (issued by the bank) before "
+                "requesting the LC opening."
+            )
+        problems = rec._opening_charges_problems()
+        if problems:
+            raise ValidationError(
+                "Enter an amount greater than zero for the following before "
+                "requesting approval:\n\n- " + "\n- ".join(problems)
+                + "\n\n(You can still save the LC as a draft with these at 0.)"
+            )
         if not rec.margin_account_id:
             raise ValidationError("Select Margin Account.")
         if not rec.bank_journal_id:
@@ -377,6 +419,24 @@ class LCManagement(models.Model):
             )
         if not rec.bank_journal_id.default_account_id:
             raise ValidationError("Bank journal missing default account.")
+
+    def action_put_on_hold(self):
+        """Pause a draft LC (e.g. waiting for the bank or the supplier).
+        The LC is locked until it is resumed and cannot be submitted for
+        opening while on hold."""
+        for rec in self:
+            if rec.state != 'draft':
+                raise ValidationError("Only a draft LC can be put on hold.")
+            rec.write({'state': 'on_hold'})
+            rec.message_post(body=f"LC put on hold by {self.env.user.name}.")
+
+    def action_resume_from_hold(self):
+        """Bring an on-hold LC back to Draft so it can be edited again."""
+        for rec in self:
+            if rec.state != 'on_hold':
+                raise ValidationError("Only an LC that is on hold can be resumed.")
+            rec.write({'state': 'draft'})
+            rec.message_post(body=f"LC resumed (back to Draft) by {self.env.user.name}.")
 
     def action_withdraw_opening_request(self):
         """Lets the requester pull a pending_approval LC back to draft,
@@ -483,8 +543,12 @@ class LCManagement(models.Model):
             + rec.opening_vat_amount
         )
 
-        preview_lines = [
-            f"Debit  {rec.margin_account_id.name}: {rec.margin_amount_company_currency:,.2f} {rec.company_currency_id.name}",
+        preview_lines = []
+        if not float_is_zero(rec.margin_amount_company_currency, precision_digits=2):
+            preview_lines.append(
+                f"Debit  {rec.margin_account_id.name}: {rec.margin_amount_company_currency:,.2f} {rec.company_currency_id.name}"
+            )
+        preview_lines += [
             f"Debit  {rec.opening_fee_account_id.name}: {rec.opening_fee:,.2f} {rec.company_currency_id.name}",
             f"Debit  {rec.opening_vat_account_id.name}: {rec.opening_vat_amount:,.2f} {rec.company_currency_id.name}",
             f"Credit {bank_account.name}: {total_credit:,.2f} {rec.company_currency_id.name}",
@@ -523,7 +587,6 @@ class LCManagement(models.Model):
             ("exchange_rate", "Exchange Rate"),
             ("lc_type_id", "LC Margin"),
             ("margin_account_id", "Margin Account"),
-            ("opening_fee", "Opening Fee"),
             ("opening_fee_account_id", "Opening Fee Account"),
             ("opening_vat_account_id", "Opening VAT Account"),
         ]
@@ -547,6 +610,13 @@ class LCManagement(models.Model):
                 raise ValidationError(
                     "Please complete the following fields before opening the LC:\n\n- "
                     + "\n- ".join(missing)
+                )
+
+            problems = rec._opening_charges_problems()
+            if problems:
+                raise ValidationError(
+                    "These must be greater than zero before the LC can be "
+                    "opened:\n\n- " + "\n- ".join(problems)
                 )
 
             # ===================================
@@ -573,9 +643,10 @@ class LCManagement(models.Model):
                     "Margin Percentage cannot exceed 100%."
                 )
 
-            if rec.margin_amount_company_currency <= 0:
+            # A 0% margin LC is valid, so a zero margin amount is allowed.
+            if rec.margin_amount_company_currency < 0:
                 raise ValidationError(
-                    "Margin Amount must be greater than zero - check the LC "
+                    "Margin Amount cannot be negative - check the LC "
                     "Amount and LC Margin percentage."
                 )
 
@@ -646,16 +717,19 @@ class LCManagement(models.Model):
             # FREEZE OPENING RATE
             rec.opening_rate = rec.exchange_rate
 
+            margin_lines = []
+            if not float_is_zero(rec.margin_amount_company_currency, precision_digits=2):
+                margin_lines.append((0, 0, {
+                    'name': f"LC Margin Payment - {rec.name}",
+                    'account_id': rec.margin_account_id.id,
+                    'debit': rec.margin_amount_company_currency,
+                    'credit': 0.0,
+                }))
+
             move = self.env['account.move'].create({
                 'move_type': 'entry',
                 'journal_id': rec.bank_journal_id.id,
-                'line_ids': [
-                    (0, 0, {
-                        'name': f"LC Margin Payment - {rec.name}",
-                        'account_id': rec.margin_account_id.id,
-                        'debit': rec.margin_amount_company_currency,
-                        'credit': 0.0,
-                    }),
+                'line_ids': margin_lines + [
                     (0, 0, {
                         'name': f"LC Opening Fee - {rec.name}",
                         'account_id': rec.opening_fee_account_id.id,
@@ -708,7 +782,7 @@ class LCManagement(models.Model):
                     )
             rec.used_amount = total_used
 
-            if rec.state in ('draft', 'settled'):
+            if rec.state in ('draft', 'on_hold', 'settled'):
                 continue
 
             if float_is_zero(total_used, precision_rounding=rec.currency_id.rounding):
@@ -1003,13 +1077,24 @@ class LCManagement(models.Model):
             },
         }
 
+    @api.depends('name')
+    def _compute_display_name(self):
+        for rec in self:
+            rec.display_name = rec.name or _("Draft LC (no reference yet)")
+
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if 'name' in vals and not (vals['name'] or '').strip():
+                vals['name'] = False
         records = super().create(vals_list)
         records._autolink_fee_account()
         return records
 
     def write(self, vals):
+        if 'name' in vals and not (vals['name'] or '').strip():
+            vals['name'] = False
+        old_names = {rec.id: rec.name for rec in self} if 'name' in vals else {}
         res = super().write(vals)
         if vals.get('opening_fee_account_id'):
             for rec in self:
@@ -1017,9 +1102,68 @@ class LCManagement(models.Model):
         if vals.get('opening_vat_account_id'):
             for rec in self:
                 self.env['lc.account.setup.request']._auto_complete_for_lc(rec, 'vat')
-        if vals.get('name'):
-            self._autolink_fee_account()
+        if 'name' in vals:
+            self._refresh_fee_account_after_reference_change(
+                old_names, explicit_fee='opening_fee_account_id' in vals,
+            )
         return res
+
+    # States in which the fee account may still follow the LC reference.
+    # Once the LC is open the opening entry is posted with that account, so
+    # it must never change behind the accountant's back.
+    _FEE_AUTOLINK_STATES = ('draft', 'on_hold', 'pending_approval')
+
+    @staticmethod
+    def _account_matches_reference(account, reference):
+        return bool(
+            account and reference
+            and reference.lower() in (account.name or '').lower()
+        )
+
+    def _find_fee_account_for(self, reference):
+        if not reference:
+            return self.env['account.account']
+        return self.env['account.account'].sudo().search(
+            [('name', 'ilike', reference)], limit=1
+        )
+
+    def _refresh_fee_account_after_reference_change(self, old_names, explicit_fee=False):
+        """Keep the Fee Account in step with the LC Reference.
+
+        When the reference is corrected (e.g. it was typed as the previous
+        LC by mistake), the fee account that was auto-matched to the OLD
+        reference is replaced by the account matching the NEW one, or
+        cleared if none exists yet (the accountant can then be asked via
+        'Request Account Setup', and the account hook links it once it is
+        created). A fee account that was picked by hand - one that does not
+        match the old reference - is left alone, as is anything explicitly
+        written in the same save.
+        """
+        for rec in self:
+            if explicit_fee or rec.state not in self._FEE_AUTOLINK_STATES:
+                continue
+            old_name = old_names.get(rec.id)
+            if old_name == rec.name:
+                continue
+            current = rec.opening_fee_account_id
+            if current and not self._account_matches_reference(current, old_name):
+                continue
+            new = self._find_fee_account_for(rec.name)
+            if new.id == current.id:
+                continue
+            if new:
+                rec.opening_fee_account_id = new.id
+                if current:
+                    rec.message_post(body=(
+                        f"Fee Account changed automatically from {current.display_name} "
+                        f"to {new.display_name} because the LC Reference changed."
+                    ))
+            else:
+                rec.opening_fee_account_id = False
+                rec.message_post(body=(
+                    f"Fee Account {current.display_name} was cleared because the LC "
+                    f"Reference changed and no matching account exists yet."
+                ))
 
     def _autolink_fee_account(self):
         """Auto-fill the Fee Account from the Chart of Accounts by matching
@@ -1041,16 +1185,17 @@ class LCManagement(models.Model):
 
     @api.onchange('name')
     def _onchange_name_autolink_fee_account(self):
-        """Live UI feedback: the moment you type the LC reference and click
-        away, check for a matching GL account immediately - no Save needed.
-        This doesn't touch the database (onchange never does); the actual
-        persisted link still happens through _autolink_fee_account() on
-        create/write, same as before. This is purely so the user sees it
-        fill in right away instead of only after saving."""
-        if not self.opening_fee_account_id and self.name:
-            match = self.env['account.account'].sudo().search([('name', 'ilike', self.name)], limit=1)
-            if match:
-                self.opening_fee_account_id = match
+        """Live UI feedback: when the LC reference changes, update the Fee
+        Account in the form straight away (same rule as
+        _refresh_fee_account_after_reference_change, which persists it on
+        save - the field is read-only here so the form itself cannot)."""
+        if self.state not in self._FEE_AUTOLINK_STATES:
+            return
+        current = self.opening_fee_account_id
+        old_name = self._origin.name if self._origin else False
+        if current and not self._account_matches_reference(current, old_name):
+            return
+        self.opening_fee_account_id = self._find_fee_account_for(self.name)
 
     def action_open_cancel_wizard(self):
         self.ensure_one()

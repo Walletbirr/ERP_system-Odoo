@@ -37,4 +37,31 @@
         <field name="perm_unlink">0</field>
     </record>
 
+    <!--
+        Counter-rules. Record rules attached to groups are combined with OR,
+        but ONLY among the rules that exist for the user's groups. Odoo's
+        Purchase groups define no rule on purchase.order, so for a user who
+        is both a purchaser and in an accounting group (e.g. the Administrator),
+        the two "confirmed only" rules above became the ONLY group rules and
+        hid that user's own draft/sent RFQs: saving a new RFQ failed with
+        "You don't have permission to do this" when Odoo re-read it.
+
+        These rules give Purchase users (and, through implication, Purchase
+        Administrators) unrestricted rows again. Accountants who are NOT
+        purchasers stay limited to confirmed orders, as intended.
+    -->
+    <record id="rule_purchase_order_purchase_user_all" model="ir.rule">
+        <field name="name">Purchase Orders: Purchase users see all (counters accounting restriction)</field>
+        <field name="model_id" ref="purchase.model_purchase_order"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+
+    <record id="rule_purchase_order_line_purchase_user_all" model="ir.rule">
+        <field name="name">Purchase Order Lines: Purchase users see all (counters accounting restriction)</field>
+        <field name="model_id" ref="purchase.model_purchase_order_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+
 </odoo>
