@@ -13,7 +13,7 @@ jobs:
   # ---------------------------------------------------------------------------
   deploy-uat:
     if: github.ref == 'refs/heads/jk'
-    runs-on: [self-hosted, uat-65]
+    runs-on: [self-hosted, uat]
     environment: uat
     permissions:
       contents: read
