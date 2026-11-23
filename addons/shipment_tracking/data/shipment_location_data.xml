@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/data/shipment_location_data.xml -->
+<odoo>
+    <data noupdate="1">
+
+        <!--
+            Seed a few common ports/locations as editable master-data records.
+            Users can rename, reorder, archive, or add new ports from
+            Shipments ▸ Configuration ▸ Ports — these are just a starting
+            point and are NOT re-synced on module upgrade (noupdate="1").
+            The same list is used for both "Port of Loading" and
+            "Final Destination" on the Shipment form.
+        -->
+        <record id="shipment_location_shanghai" model="shipment.location">
+            <field name="name">Shanghai, China</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="shipment_location_ningbo" model="shipment.location">
+            <field name="name">Ningbo, China</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <record id="shipment_location_guangzhou" model="shipment.location">
+            <field name="name">Guangzhou, China</field>
+            <field name="sequence">30</field>
+        </record>
+
+        <record id="shipment_location_djibouti" model="shipment.location">
+            <field name="name">Djibouti Port</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <record id="shipment_location_mojo" model="shipment.location">
+            <field name="name">Mojo Dry Port</field>
+            <field name="sequence">50</field>
+        </record>
+
+        <record id="shipment_location_dubai" model="shipment.location">
+            <field name="name">Jebel Ali, Dubai</field>
+            <field name="sequence">60</field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,7 +1,7 @@
 # /custom_addons/shipment_tracking/__manifest__.py
 {
     'name': 'Shipment & Container Tracking',
-    'version': '18.0.8.0.0',
+    'version': '18.0.8.1.0',
     'category': 'Inventory/Purchase',
     'summary': 'Import shipment, container tracking and local transport management',
     'description': """
@@ -36,13 +36,17 @@
         'data/cron.xml',
         'data/shipment_cost_stage_data.xml',
         'data/shipment_carrier_data.xml',
+        'data/shipment_location_data.xml',
+        'views/purchase_order_views.xml',
         'views/shipment_views.xml',         
         'views/container_views.xml',
         'views/local_transport_views.xml',   
         'views/shipment_transport_inherit.xml',
         'views/shipment_cost_stage_views.xml',
         'views/shipment_carrier_views.xml',
+        'views/shipment_location_views.xml',
         'views/shipment_payment_views.xml', 
+        'views/shipment_cost_settings_views.xml',
         'views/stock_landed_cost_inherit_views.xml',
         'views/shipment_landed_cost_views.xml', # May be Deleted
     ],

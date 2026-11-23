@@ -25,6 +25,12 @@ class StockPicking(models.Model):
 
             po = picking.purchase_id
 
+            # Local purchases don't go through shipment tracking at all -
+            # only import purchases (is_import checked on the PO) need a
+            # shipment / local transport trail before they can be received.
+            if not po.is_import:
+                continue
+
             # ── 1. Find shipment(s) linked to this PO ─────────────────────
             shipments = self.env['shipment.tracking'].search([
                 ('purchase_order_id', '=', po.id),
