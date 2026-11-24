@@ -1,39 +1,86 @@
 name: Deploy Odoo
 
-# jk   -> UAT server        (deploy script)
+# jk   -> UAT server        (pull jk in place, restart, health check, auto-rollback)
 # main -> production server (copy files into /opt/odoo, restart)
 on:
   push:
     branches:
       - jk
       - main
-
 jobs:
   # ---------------------------------------------------------------------------
-  # UAT: only the runner labelled "uat", only for pushes to jk.
+  # UAT: only the runner labelled "uat-65", only for pushes to jk.
   # ---------------------------------------------------------------------------
   deploy-uat:
     if: github.ref == 'refs/heads/jk'
     runs-on: [self-hosted, uat]
     environment: uat
+    permissions:
+      contents: read
     concurrency:
       group: deploy-uat
       cancel-in-progress: false
+    env:
+      REPO_DIR: /opt/odoo/ERP_system-Odoo
     steps:
-      - name: Deploy to UAT (pull jk, restart, health check, auto-rollback)
+      - name: Preflight - check permissions
         run: |
-          sudo -n -u odoo-deploy /usr/local/bin/deploy-odoo.sh
+          sudo -n -l /usr/bin/systemctl restart odoo >/dev/null
+          test -w "$REPO_DIR/.git"
+          echo "All required permissions are in place"
 
-      - name: Show deploy log
-        if: always()
+      - name: Pull jk into /opt/odoo/ERP_system-Odoo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tail -n 50 /var/log/odoo-deploy/deploy.log || true
+          cd "$REPO_DIR"
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "::error::Local changes on the server - refusing to overwrite them"
+            git status --short
+            exit 1
+          fi
+          echo "PREV_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          PREV=$(git rev-parse HEAD)
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" \
+            fetch --prune "https://github.com/${{ github.repository }}.git" jk
+          git checkout -q -B jk "$GITHUB_SHA"
+          echo "Deployed $PREV -> $(git rev-parse HEAD)"
+          if ! git diff --quiet "$PREV" HEAD -- requirements.txt; then
+            echo "::warning::requirements.txt changed - install the new packages into /opt/odoo/venv"
+          fi
+
+      - name: Restart Odoo
+        run: |
+          sudo -n /usr/bin/systemctl restart odoo
+
+      - name: Health check
+        id: health
+        run: |
+          jar=$(mktemp); trap 'rm -f "$jar"' EXIT
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-redirs 3 \
+              -c "$jar" -b "$jar" http://127.0.0.1:8069/web/login || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 3
+          done
+          exit 1
+
+      - name: Roll back if the health check failed
+        if: failure() && steps.health.outcome == 'failure'
+        run: |
+          cd "$REPO_DIR"
+          git checkout -q -B jk "$PREV_SHA"
+          sudo -n /usr/bin/systemctl restart odoo
+          echo "::error::Health check failed - rolled back to $PREV_SHA"
+          exit 1
 
       - name: Show Odoo status
         if: always()
         run: |
           systemctl status odoo --no-pager || true
-          journalctl -u odoo -n 50 --no-pager || true
+          tail -n 50 /var/log/odoo/odoo.log || true
 
   # ---------------------------------------------------------------------------
   # Production: only for pushes to main.
