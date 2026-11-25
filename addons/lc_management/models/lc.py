@@ -35,6 +35,16 @@ class LCManagement(models.Model):
         currency_field='company_currency_id',
         required=False
     )
+    # Insurance - paid at opening with the other LC costs and posted to the
+    # LC's GIT account. The insurer name is free text and optional; the
+    # amount may stay 0.
+    insurer_name = fields.Char(string="Insurer")
+    insurance_amount = fields.Monetary(
+        string="Insurance Amount",
+        currency_field='company_currency_id',
+        default=0.0,
+    )
+
     # opening_fee_account_id = fields.Many2one(
     #     'account.account',
     #     string="Opening Fee Account",
@@ -42,10 +52,13 @@ class LCManagement(models.Model):
     # )
     opening_fee_account_id = fields.Many2one(
         'account.account',
-        string="Fee Account",
-        help="Selected per LC based on its own reference. If this account "
-             "doesn't exist yet, use the 'Request Account Setup' button to "
-             "notify the accountant."
+        string="GIT Account",
+        help="The Goods-in-Transit account of this LC (named after the LC "
+             "reference). Every LC cost is posted here directly from the "
+             "bank: the margin payment, bank fee and insurance at opening, "
+             "and the fee and balance at settlement. If it doesn't exist "
+             "yet, use the 'Request Account Setup' button to notify the "
+             "accountant."
     )
     
     opening_date = fields.Date(
@@ -175,24 +188,12 @@ class LCManagement(models.Model):
     lc_type_id = fields.Many2one(
         'lc.margin', string="LC margin", required=False
     )
-    margin_account_id = fields.Many2one(
-        'account.account', string="Margin Account", required=False,
-        default=lambda self: self.env.company.lc_default_margin_account_id
-    )
     partner_id = fields.Many2one(
         'res.partner',
         string="Supplier",
         required=False,
         domain="[('contact_type_code', '=', 'vendor')]",
     )
-    release_move_id = fields.Many2one(
-        'account.move',
-        string='Release Journal Entry',
-        readonly=True,
-        help="Deprecated single-release field, kept for backward compatibility with old records. "
-             "New releases are tracked per settlement line."
-    )
-
     amount = fields.Monetary(
         string='Total Amount',
         currency_field='currency_id',
@@ -235,27 +236,9 @@ class LCManagement(models.Model):
         store=True
     )
     margin_amount_company_currency = fields.Float(
-        string="Margin Amount (ETB)",
+        string="Margin Paid at Opening (ETB)",
         compute="_compute_margin_amount_company",
         store=True
-    )
-
-    # =========================================================
-    # CUMULATIVE MARGIN RELEASE TRACKING (REPLACES margin_released BOOLEAN)
-    # =========================================================
-    margin_released_amount = fields.Monetary(
-        string="Margin Released (Cumulative)",
-        currency_field='company_currency_id',
-        compute='_compute_margin_released_amount',
-        store=True,
-        help="Cumulative amount of margin released across all confirmed settlement lines. "
-             "Derived directly from settlement lines so it can never drift out of sync."
-    )
-    margin_remaining_to_release = fields.Monetary(
-        string="Margin Remaining to Release",
-        currency_field='company_currency_id',
-        compute='_compute_margin_remaining_to_release',
-        store=False
     )
 
     settlement_rate = fields.Float(
@@ -263,15 +246,6 @@ class LCManagement(models.Model):
         digits=(12, 6),
         readonly=True,
         help="Convenience field showing the most recent confirmed settlement line's rate."
-    )
-
-    # FX Gain/Loss - summed across confirmed settlement lines, display-only
-    # (no separate posting to dedicated FX accounts).
-    fx_gain_loss = fields.Monetary(
-        string="FX Gain/Loss",
-        currency_field='company_currency_id',
-        compute="_compute_fx_gain_loss",
-        store=True
     )
 
     rate_locked = fields.Boolean(string="Rate Locked", default=False)
@@ -403,13 +377,11 @@ class LCManagement(models.Model):
                 "requesting approval:\n\n- " + "\n- ".join(problems)
                 + "\n\n(You can still save the LC as a draft with these at 0.)"
             )
-        if not rec.margin_account_id:
-            raise ValidationError("Select Margin Account.")
         if not rec.bank_journal_id:
             raise ValidationError("Select Bank Journal.")
         if not rec.opening_fee_account_id:
             raise ValidationError(
-                "Select the Opening Fee Account. If it doesn't exist yet, use "
+                "Select the GIT Account. If it doesn't exist yet, use "
                 "'Request Account Setup' first to notify the accountant."
             )
         if not rec.opening_vat_account_id:
@@ -524,12 +496,10 @@ class LCManagement(models.Model):
                 "This LC must be submitted for opening approval first "
                 "(use 'Request LC Opening')."
             )
-        if not rec.margin_account_id:
-            raise ValidationError("Select Margin Account.")
         if not rec.bank_journal_id:
             raise ValidationError("Select Bank Journal.")
         if not rec.opening_fee_account_id:
-            raise ValidationError("Select Opening Fee Account.")
+            raise ValidationError("Select the GIT Account.")
         if not rec.opening_vat_account_id:
             raise ValidationError("Select Opening VAT Account.")
 
@@ -540,18 +510,23 @@ class LCManagement(models.Model):
         total_credit = (
             rec.margin_amount_company_currency
             + rec.opening_fee
+            + rec.insurance_amount
             + rec.opening_vat_amount
         )
 
+        cur = rec.company_currency_id.name
+        git = rec.opening_fee_account_id.name
         preview_lines = []
         if not float_is_zero(rec.margin_amount_company_currency, precision_digits=2):
             preview_lines.append(
-                f"Debit  {rec.margin_account_id.name}: {rec.margin_amount_company_currency:,.2f} {rec.company_currency_id.name}"
+                f"Debit  {git} (LC margin payment): {rec.margin_amount_company_currency:,.2f} {cur}"
             )
+        preview_lines.append(f"Debit  {git} (bank fee): {rec.opening_fee:,.2f} {cur}")
+        if not float_is_zero(rec.insurance_amount, precision_digits=2):
+            preview_lines.append(f"Debit  {git} (insurance): {rec.insurance_amount:,.2f} {cur}")
         preview_lines += [
-            f"Debit  {rec.opening_fee_account_id.name}: {rec.opening_fee:,.2f} {rec.company_currency_id.name}",
-            f"Debit  {rec.opening_vat_account_id.name}: {rec.opening_vat_amount:,.2f} {rec.company_currency_id.name}",
-            f"Credit {bank_account.name}: {total_credit:,.2f} {rec.company_currency_id.name}",
+            f"Debit  {rec.opening_vat_account_id.name}: {rec.opening_vat_amount:,.2f} {cur}",
+            f"Credit {bank_account.name}: {total_credit:,.2f} {cur}",
         ]
         preview_text = "\n".join(preview_lines)
 
@@ -586,8 +561,7 @@ class LCManagement(models.Model):
             ("expiry_date", "Expiry Date"),
             ("exchange_rate", "Exchange Rate"),
             ("lc_type_id", "LC Margin"),
-            ("margin_account_id", "Margin Account"),
-            ("opening_fee_account_id", "Opening Fee Account"),
+            ("opening_fee_account_id", "GIT Account"),
             ("opening_vat_account_id", "Opening VAT Account"),
         ]
 
@@ -643,6 +617,9 @@ class LCManagement(models.Model):
                     "Margin Percentage cannot exceed 100%."
                 )
 
+            if rec.insurance_amount < 0:
+                raise ValidationError("Insurance Amount cannot be negative.")
+
             # A 0% margin LC is valid, so a zero margin amount is allowed.
             if rec.margin_amount_company_currency < 0:
                 raise ValidationError(
@@ -674,19 +651,9 @@ class LCManagement(models.Model):
                     "The selected Bank Journal does not have a Default Account configured."
                 )
 
-            if rec.margin_account_id == rec.opening_fee_account_id:
-                raise ValidationError(
-                    "Margin Account and Opening Fee Account cannot be the same."
-                )
-
-            if rec.margin_account_id == rec.opening_vat_account_id:
-                raise ValidationError(
-                    "Margin Account and Opening VAT Account cannot be the same."
-                )
-
             if rec.opening_fee_account_id == rec.opening_vat_account_id:
                 raise ValidationError(
-                    "Opening Fee Account and Opening VAT Account cannot be the same."
+                    "GIT Account and Opening VAT Account cannot be the same."
                 )
 
     def action_open(self):
@@ -695,12 +662,10 @@ class LCManagement(models.Model):
             if rec.state != 'pending_approval':
                 raise ValidationError("Only an LC pending approval can be opened.")
 
-            if not rec.margin_account_id:
-                raise ValidationError("Select Margin Account.")
             if not rec.bank_journal_id:
                 raise ValidationError("Select Bank Journal.")
             if not rec.opening_fee_account_id:
-                raise ValidationError("Select Opening Fee Account.")
+                raise ValidationError("Select the GIT Account.")
             if not rec.opening_vat_account_id:
                 raise ValidationError("Select Opening VAT Account.")
 
@@ -711,25 +676,34 @@ class LCManagement(models.Model):
             total_credit = (
                 rec.margin_amount_company_currency
                 + rec.opening_fee
+                + rec.insurance_amount
                 + rec.opening_vat_amount
             )
 
             # FREEZE OPENING RATE
             rec.opening_rate = rec.exchange_rate
 
-            margin_lines = []
+            git_lines = []
             if not float_is_zero(rec.margin_amount_company_currency, precision_digits=2):
-                margin_lines.append((0, 0, {
+                git_lines.append((0, 0, {
                     'name': f"LC Margin Payment - {rec.name}",
-                    'account_id': rec.margin_account_id.id,
+                    'account_id': rec.opening_fee_account_id.id,
                     'debit': rec.margin_amount_company_currency,
+                    'credit': 0.0,
+                }))
+
+            if not float_is_zero(rec.insurance_amount, precision_digits=2):
+                git_lines.append((0, 0, {
+                    'name': f"LC Insurance - {rec.name}",
+                    'account_id': rec.opening_fee_account_id.id,
+                    'debit': rec.insurance_amount,
                     'credit': 0.0,
                 }))
 
             move = self.env['account.move'].create({
                 'move_type': 'entry',
                 'journal_id': rec.bank_journal_id.id,
-                'line_ids': margin_lines + [
+                'line_ids': git_lines + [
                     (0, 0, {
                         'name': f"LC Opening Fee - {rec.name}",
                         'account_id': rec.opening_fee_account_id.id,
@@ -807,19 +781,6 @@ class LCManagement(models.Model):
         for rec in self:
             rec.margin_amount = (rec.amount * rec.lc_type_id.margin_percentage) / 100
 
-    @api.depends('margin_amount_company_currency', 'margin_released_amount')
-    def _compute_margin_remaining_to_release(self):
-        for rec in self:
-            rec.margin_remaining_to_release = max(
-                rec.margin_amount_company_currency - rec.margin_released_amount, 0.0
-            )
-
-    @api.depends('settlement_line_ids.margin_released_this_line', 'settlement_line_ids.state')
-    def _compute_margin_released_amount(self):
-        for rec in self:
-            confirmed_lines = rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed')
-            rec.margin_released_amount = sum(confirmed_lines.mapped('margin_released_this_line'))
-
     @api.onchange('currency_id')
     def _onchange_currency_id(self):
         if self.rate_locked:
@@ -841,15 +802,6 @@ class LCManagement(models.Model):
     def _compute_local_amount(self):
         for rec in self:
             rec.local_currency_amount = rec.amount * rec.exchange_rate
-
-    # =========================================================
-    # FX GAIN/LOSS - SUMMED ACROSS CONFIRMED SETTLEMENT LINES
-    # =========================================================
-    @api.depends('settlement_line_ids.fx_gain_loss_this_line', 'settlement_line_ids.state')
-    def _compute_fx_gain_loss(self):
-        for rec in self:
-            confirmed_lines = rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed')
-            rec.fx_gain_loss = sum(confirmed_lines.mapped('fx_gain_loss_this_line'))
 
     @api.depends('margin_amount', 'exchange_rate')
     def _compute_margin_amount_company(self):
@@ -988,15 +940,13 @@ class LCManagement(models.Model):
                 if not self.env.user.has_group('account.group_account_manager'):
                     raise ValidationError("Only Accounting Managers can cancel a settled LC.")
 
-            # Reverse all confirmed settlement lines (fee/VAT + margin release moves)
+            # Reverse all confirmed settlement lines (settlement entries)
             for line in rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed'):
                 line.action_cancel_line()
 
             # Reverse legacy single-move fields if present (old records)
             if rec.settlement_move_id:
                 rec._reverse_move(rec.settlement_move_id)
-            if rec.release_move_id:
-                rec._reverse_move(rec.release_move_id)
 
             # Reverse opening entry
             if rec.opening_move_id:
@@ -1155,13 +1105,13 @@ class LCManagement(models.Model):
                 rec.opening_fee_account_id = new.id
                 if current:
                     rec.message_post(body=(
-                        f"Fee Account changed automatically from {current.display_name} "
+                        f"GIT Account changed automatically from {current.display_name} "
                         f"to {new.display_name} because the LC Reference changed."
                     ))
             else:
                 rec.opening_fee_account_id = False
                 rec.message_post(body=(
-                    f"Fee Account {current.display_name} was cleared because the LC "
+                    f"GIT Account {current.display_name} was cleared because the LC "
                     f"Reference changed and no matching account exists yet."
                 ))
 

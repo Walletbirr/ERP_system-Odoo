@@ -10,7 +10,6 @@
             <list>
                 <field name="name"/>
                 <field name="bank_journal_id"/>
-                <field name="margin_account_id"/>
                 <field name="partner_id"/>
                 <field name="amount"/>
                 <field name="currency_id"/>
@@ -190,11 +189,6 @@
 
                         <group string="Banking Information">
                             <field name="bank_journal_id" readonly="not can_edit_lc_details"/>
-                            <field name="margin_account_id"
-                                    options="{'no_create': True,
-                                                'no_create_edit': True,
-                                                'no_open': True}"
-                                    readonly="not can_edit_lc_accounts"/>
                             <field name="currency_id" readonly="not can_edit_lc_details"/>
                             <field name="exchange_rate" readonly="state != 'draft'"/>
                         </group>
@@ -222,12 +216,8 @@
                                    options="{'currency_field': 'currency_id'}" readonly="1"/>
                         </group>
 
-                        <group string="Margin Release Progress">
+                        <group string="Margin Paid at Opening">
                             <field name="margin_amount_company_currency" readonly="1"/>
-                            <field name="margin_released_amount" widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                            <field name="margin_remaining_to_release" widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             <field name="local_currency_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                         </group>
@@ -279,11 +269,11 @@
                                    />
                         </group>
 
-                        <group string="FX Summary">
-                            <field name="fx_gain_loss"
-                                   widget="monetary"
+                        <group string="Insurance">
+                            <field name="insurer_name" readonly="not can_edit_lc_details"/>
+                            <field name="insurance_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="1"/>
+                                   readonly="not can_edit_lc_details"/>
                         </group>
                     </group>
 
@@ -468,16 +458,17 @@
                             </group>
                         </group>
 
-                        <group invisible="state == 'draft'">
-                            <group string="Result">
-                                <field name="margin_released_this_line" string="Margin Released" widget="monetary"
+                        <group>
+                            <group string="Settlement Calculation">
+                                <field name="settlement_value_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" widget="monetary"
+                                <field name="margin_applied_this_line" string="Less: Margin Already Paid" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="balance_to_pay_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             </group>
-                            <group string="Posted Entries">
+                            <group string="Posted Entry" invisible="state == 'draft'">
                                 <field name="settlement_move_id" readonly="1"/>
-                                <field name="release_move_id" readonly="1"/>
                             </group>
                         </group>
 
@@ -566,8 +557,8 @@
                                                 <field name="settlement_rate"/>
                                                 <field name="settlement_fee" options="{'currency_field': 'company_currency_id'}"/>
                                                 <field name="settlement_vat_amount" options="{'currency_field': 'company_currency_id'}"/>
-                                                <field name="margin_released_this_line" string="Margin Released" options="{'currency_field': 'company_currency_id'}"/>
-                                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="margin_applied_this_line" string="Margin Paid" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="balance_to_pay_company" string="Balance Paid Now" options="{'currency_field': 'company_currency_id'}"/>
                                                 <field name="state" widget="badge"
                                                     decoration-warning="state == 'draft'"
                                                     decoration-info="state == 'submitted'"
@@ -658,16 +649,17 @@
                             </group>
                         </group>
 
-                        <group invisible="state == 'draft'">
-                            <group string="Result (this tranche)">
-                                <field name="margin_released_this_line" string="Margin Released" widget="monetary"
+                        <group>
+                            <group string="Settlement Calculation (this tranche)">
+                                <field name="settlement_value_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" widget="monetary"
+                                <field name="margin_applied_this_line" string="Less: Margin Already Paid" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="balance_to_pay_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             </group>
-                            <group string="Posted Entries (this tranche)">
+                            <group string="Posted Entry (this tranche)" invisible="state == 'draft'">
                                 <field name="settlement_move_id" readonly="1"/>
-                                <field name="release_move_id" readonly="1"/>
                             </group>
                         </group>
 

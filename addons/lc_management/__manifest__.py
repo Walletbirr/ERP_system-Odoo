@@ -1,6 +1,6 @@
 {
     'name': 'LC Management',
-    'version': '1.5',
+    'version': '2.0',
     'summary': 'Letter of Credit Management',
     'category': 'Inventory/Purchase',
     'license': 'LGPL-3',

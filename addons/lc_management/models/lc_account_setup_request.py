@@ -15,7 +15,7 @@ class LCAccountSetupRequest(models.Model):
         tracking=True,
     )
     account_purpose = fields.Selection([
-        ('fee', 'Opening / Settlement Fee Account'),
+        ('fee', 'GIT Account (LC costs)'),
         ('vat', 'Opening / Settlement VAT Account'),
         ('other', 'Other Account'),
     ], string="Account Needed For", required=True, default='fee', tracking=True)

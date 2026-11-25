@@ -28,10 +28,6 @@
                         <field name="lc_default_vat_account_id"/>
                     </group>
 
-                    <group string="Defaults">
-                        <field name="lc_default_margin_account_id"/>
-                    </group>
-
                     <group string="Notifications">
                         <field name="lc_default_accountant_id"/>
                     </group>

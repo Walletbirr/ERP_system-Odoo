@@ -181,8 +181,9 @@
                 <sheet>
 
                     <div class="alert alert-info" role="alert">
-                        Approving this will post the following journal entries and release the
-                        matching share of LC margin. Review, then approve or cancel.
+                        Approving this will post the following journal entry. The balance is
+                        calculated at the settlement rate, less the margin already paid at
+                        opening. Review, then approve or cancel.
                     </div>
 
                     <group>

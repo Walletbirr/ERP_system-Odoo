@@ -30,12 +30,6 @@ class ResCompany(models.Model):
         help="Suggested by default as who to send new-account requests and "
              "payment approvals to. Can be overridden per request."
     )
-    lc_default_margin_account_id = fields.Many2one(
-        'account.account',
-        string="Default Margin Account",
-        help="Automatically suggested as the Margin Account on new Letters "
-             "of Credit. Can still be changed per LC."
-    )
 
     def action_open_lc_settings(self):
         """Opens a small, self-contained settings form scoped to just the
