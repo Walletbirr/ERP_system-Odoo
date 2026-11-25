@@ -201,7 +201,7 @@
                             <field name="supplier_id" readonly="1"/>
                         </group>
                         <group>
-                            <field name="port_of_discharge" readonly="1"/>
+                            <field name="port_of_discharge" readonly="1" options="{'no_open': True}"/>
                             <field name="shipment_actual_arrival" readonly="1"/>
                         </group>
                     </group>

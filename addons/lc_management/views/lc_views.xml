@@ -10,7 +10,6 @@
             <list>
                 <field name="name"/>
                 <field name="bank_journal_id"/>
-                <field name="margin_account_id"/>
                 <field name="partner_id"/>
                 <field name="amount"/>
                 <field name="currency_id"/>
@@ -19,6 +18,7 @@
                 <field name="state"
                        widget="badge"
                        decoration-muted="state == 'draft'"
+                       decoration-primary="state == 'on_hold'"
                        decoration-info="state == 'open'"
                        decoration-warning="state == 'utilized'"
                        decoration-success="state == 'settled'"/>
@@ -36,6 +36,7 @@
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column">
                 <field name="name"/>
+                <field name="display_name"/>
                 <field name="bank_journal_id"/>
                 <field name="partner_id"/>
                 <field name="amount"/>
@@ -46,7 +47,7 @@
                 <templates>
                     <t t-name="card">
                         <div class="oe_kanban_global_click">
-                            <div class="fw-bold text-primary"><field name="name"/></div>
+                            <div class="fw-bold text-primary"><field name="display_name"/></div>
                             <div class="text-muted small"><field name="bank_journal_id"/></div>
                             <div class="small mt-1"><field name="partner_id"/></div>
                             <div class="small">Amount: <field name="amount"/> <field name="currency_id"/></div>
@@ -55,6 +56,7 @@
                                 <field name="state"
                                        widget="badge"
                                        decoration-muted="state == 'draft'"
+                       decoration-primary="state == 'on_hold'"
                                        decoration-info="state == 'open'"
                                        decoration-warning="state == 'utilized'"
                                        decoration-success="state == 'settled'"/>
@@ -81,11 +83,36 @@
 
                 <header>
 
-                    <button name="action_open_with_confirmation"
-                            string="Open LC"
+                    <button name="action_request_opening"
+                            string="Request LC Opening"
                             type="object"
                             class="btn-primary"
                             invisible="state != 'draft'"/>
+
+                    <button name="action_put_on_hold"
+                            string="Put On Hold"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'draft'"/>
+
+                    <button name="action_resume_from_hold"
+                            string="Resume"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'on_hold'"/>
+
+                    <button name="action_open_with_confirmation"
+                            string="Approve &amp; Open LC"
+                            type="object"
+                            class="btn-primary"
+                            groups="lc_management.group_lc_accountant,account.group_account_manager"
+                            invisible="state != 'pending_approval'"/>
+
+                    <button name="action_withdraw_opening_request"
+                            string="Withdraw Request"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'pending_approval'"/>
 
                     <button name="action_open_cancel_wizard"
                             string="Cancel LC"
@@ -95,12 +122,30 @@
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="draft,open,utilized,settled"/>
+                           statusbar_visible="draft,pending_approval,open,utilized,settled"/>
+
+                    <div class="alert alert-info mt-2" role="alert"
+                         invisible="state != 'pending_approval'">
+                        <strong>Awaiting accountant approval</strong>
+                        <span invisible="not opening_assigned_accountant_id">
+                            - sent to <field name="opening_assigned_accountant_id" nolabel="1" readonly="1" class="d-inline"/>
+                        </span>
+                        <span invisible="not opening_request_date">
+                            on <field name="opening_request_date" nolabel="1" readonly="1" class="d-inline"/>
+                        </span>
+                    </div>
 
                     <div class="alert alert-warning mt-2" role="alert"
                          invisible="not has_draft_settlement_lines">
                         <strong>Action needed:</strong> there are unconfirmed settlement lines waiting
-                        for review in the Settlement tab.
+                        for review - see the Settlements smart button above.
+                    </div>
+
+                    <div class="alert alert-info mt-2" role="alert"
+                         invisible="not pending_account_setup_count">
+                        <strong>Waiting on Accounting:</strong>
+                        <field name="pending_account_setup_count" nolabel="1" readonly="1" class="d-inline"/>
+                        account setup request(s) still open - see the "Account Setup Requests" tab below.
                     </div>
 
                     <group string="Cancellation Information" invisible="state != 'cancelled'">
@@ -111,6 +156,24 @@
 
                 <sheet>
 
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_settlements"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-money"
+                                invisible="state in ('draft','on_hold')">
+                            <field name="settlement_line_count" widget="statinfo" string="Settlements"/>
+                        </button>
+                    </div>
+
+                    <widget name="web_ribbon" title="On Hold" bg_color="text-bg-warning"
+                            invisible="state != 'on_hold'"/>
+                    <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
+                            invisible="state != 'cancelled'"/>
+                    <widget name="web_ribbon" title="Settled" bg_color="text-bg-success"
+                            invisible="state != 'settled'"/>
+
+
                     <!-- ===================================================== -->
                     <!-- TOP INFORMATION -->
                     <!-- ===================================================== -->
@@ -118,16 +181,15 @@
                     <group>
 
                         <group string="LC Information">
-                            <field name="name" readonly="state in ('open','utilized','settled')"/>
-                            <field name="partner_id" readonly="state in ('open','utilized','settled')"/>
-                            <field name="lc_type_id" readonly="state in ('open','utilized','settled')"/>
-                            <field name="expiry_date" readonly="state in ('open','utilized','settled')"/>
+                            <field name="name" readonly="not can_edit_lc_details"/>
+                            <field name="partner_id" readonly="not can_edit_lc_details"/>
+                            <field name="lc_type_id" readonly="not can_edit_lc_details"/>
+                            <field name="expiry_date" readonly="not can_edit_lc_details"/>
                         </group>
 
                         <group string="Banking Information">
-                            <field name="bank_journal_id" readonly="state in ('open','utilized','settled')"/>
-                            <field name="margin_account_id" readonly="state in ('open','utilized','settled')"/>
-                            <field name="currency_id" readonly="state in ('open','utilized','settled')"/>
+                            <field name="bank_journal_id" readonly="not can_edit_lc_details"/>
+                            <field name="currency_id" readonly="not can_edit_lc_details"/>
                             <field name="exchange_rate" readonly="state != 'draft'"/>
                         </group>
 
@@ -142,8 +204,10 @@
                         <group string="LC Amount Details">
                             <field name="amount" widget="monetary"
                                    options="{'currency_field': 'currency_id'}"
-                                   readonly="state in ('open','utilized','settled')"/>
+                                   readonly="not can_edit_lc_details"/>
                             <field name="company_currency_id" invisible="1"/>
+                            <field name="can_edit_lc_details" invisible="1"/>
+                            <field name="can_edit_lc_accounts" invisible="1"/>
                             <field name="margin_amount" widget="monetary"
                                    options="{'currency_field': 'currency_id'}" readonly="1"/>
                             <field name="paid_amount" widget="monetary"
@@ -152,12 +216,8 @@
                                    options="{'currency_field': 'currency_id'}" readonly="1"/>
                         </group>
 
-                        <group string="Margin Release Progress">
+                        <group string="Margin Paid at Opening">
                             <field name="margin_amount_company_currency" readonly="1"/>
-                            <field name="margin_released_amount" widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                            <field name="margin_remaining_to_release" widget="monetary"
-                                   options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             <field name="local_currency_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                         </group>
@@ -172,24 +232,76 @@
                         <group string="LC Opening Charges">
                             <field name="opening_fee" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('open','utilized','settled')"/>
-                            <field name="opening_fee_account_id"
-                                   readonly="state in ('open','utilized','settled')"/>
+                                   readonly="not can_edit_lc_details"/>
+                            <label for="opening_fee_account_id"/>
+                            <div class="o_row">
+                                <field name="opening_fee_account_id"
+                                         options="{'no_create': True,
+                                                'no_create_edit': True,
+                                                'no_open': True}"
+                                       readonly="not can_edit_lc_accounts"/>
+                                <button name="action_request_fee_account_setup"
+                                        string="Request Account Setup"
+                                        type="object"
+                                        class="btn-link"
+                                        icon="fa-bell-o"
+                                        invisible="opening_fee_account_id or state in ('on_hold','open','utilized','settled','cancelled')"/>
+                            </div>
                             <field name="opening_vat_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="state in ('open','utilized','settled')"/>
-                            <field name="opening_vat_account_id"
-                                   readonly="state in ('open','utilized','settled')"/>
+                                   readonly="not can_edit_lc_details"/>
+                            <label for="opening_vat_account_id"/>
+                            <div class="o_row">
+                                <field name="opening_vat_account_id"
+                                         options="{'no_create': True,
+                                                    'no_create_edit': True,
+                                                    'no_open': True}"
+                                       readonly="not can_edit_lc_accounts"/>
+                                <button name="action_request_vat_account_setup"
+                                        string="Request Account Setup"
+                                        type="object"
+                                        class="btn-link"
+                                        icon="fa-bell-o"
+                                        invisible="opening_vat_account_id or state in ('on_hold','open','utilized','settled','cancelled')"/>
+                            </div>
                             <field name="opening_date"
-                                   readonly="state in ('open','utilized','settled')"
-                                   required="state != 'draft'"/>
+                                   readonly="not can_edit_lc_details"
+                                   />
                         </group>
 
-                        <group string="FX Summary">
-                            <field name="fx_gain_loss"
-                                   widget="monetary"
+                        <group string="Insurance">
+                            <field name="insurer_name" readonly="not can_edit_lc_details"/>
+                            <field name="insurance_amount" widget="monetary"
                                    options="{'currency_field': 'company_currency_id'}"
-                                   readonly="1"/>
+                                   readonly="not can_edit_lc_details"/>
+                        </group>
+                    </group>
+
+                    <group invisible="state in ('draft','on_hold')">
+                        <group string="Opening Approval Trail">
+                            <field name="opening_requested_by_id" readonly="1"/>
+                            <field name="opening_request_date" readonly="1"/>
+                            <field name="opening_assigned_accountant_id" readonly="1"/>
+                            <field name="opening_approved_by_id" readonly="1"/>
+                            <field name="opening_approved_date" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group invisible="not account_setup_request_ids">
+                        <group string="Account Setup Approval Trail" colspan="2">
+                            <field name="account_setup_request_ids" nolabel="1" colspan="2">
+                                <list create="false" delete="false">
+                                    <field name="account_purpose"/>
+                                    <field name="requested_by_id"/>
+                                    <field name="sent_date"/>
+                                    <field name="assigned_accountant_id"/>
+                                    <field name="completed_date"/>
+                                    <field name="state" widget="badge"
+                                           decoration-warning="state == 'sent'"
+                                           decoration-info="state == 'viewed'"
+                                           decoration-success="state == 'completed'"/>
+                                </list>
+                            </field>
                         </group>
                     </group>
 
@@ -203,44 +315,14 @@
                             <field name="purchase_ids" options="{'delete': false, 'create': false}"/>
                         </page>
 
-                        <page string="Settlement"
-                              invisible="state in ('draft',)">
-
-                            <div class="alert alert-info mb-2" role="alert">
-                                Each line below is created automatically the moment a Purchase Order's
-                                shipment reaches its final destination - the amount mirrors that PO's
-                                total exactly. Click a line to open it, enter the bank's settlement fee,
-                                VAT, and rate, then confirm to post the accounting entries and release
-                                the matching share of LC margin.
-                            </div>
-
-                            <field name="settlement_line_ids">
-                                <list decoration-muted="state == 'cancelled'"
-                                      decoration-success="state == 'confirmed'"
-                                      decoration-warning="state == 'draft'">
-                                    <field name="purchase_order_id"/>
-                                    <field name="shipment_id"/>
-                                    <field name="parent_settlement_line_id" optional="show" string="Split From"/>
-                                    <field name="vendor_bill_id"/>
-                                    <field name="lc_currency_id" column_invisible="1"/>
-                                    <field name="amount_to_settle" options="{'currency_field': 'lc_currency_id'}"/>
-                                    <field name="settlement_date"/>
-                                    <field name="company_currency_id" column_invisible="1"/>
-                                    <field name="margin_released_this_line" options="{'currency_field': 'company_currency_id'}"/>
-                                    <field name="state" widget="badge"
-                                           decoration-warning="state == 'draft'"
-                                           decoration-success="state == 'confirmed'"
-                                           decoration-muted="state == 'cancelled'"/>
-                                </list>
-                            </field>
-
-                        </page>
-
                     </notebook>
 
                 </sheet>
 
+                <chatter/>
+
             </form>
+
 
         </field>
     </record>
@@ -296,11 +378,17 @@
             <form>
 
                 <header>
-                    <button name="action_confirm_with_preview"
-                            string="Confirm Settlement"
+                    <button name="action_request_payment"
+                            string="Send Payment Request"
                             type="object"
                             class="btn-primary"
                             invisible="state != 'draft' or (is_root_line and not amount_to_settle)"/>
+                    <button name="action_confirm_with_preview"
+                            string="Approve &amp; Post Payment"
+                            type="object"
+                            class="btn-primary"
+                            groups="lc_management.group_lc_accountant,account.group_account_manager"
+                            invisible="state != 'submitted'"/>
                     <button name="action_open_split_wizard"
                             string="Split Into Partial Payment"
                             type="object"
@@ -313,7 +401,7 @@
                                decoration-warning="po_settlement_status == 'pending'"
                                decoration-success="po_settlement_status == 'completed'"/>
                     </div>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,confirmed"/>
                 </header>
 
                 <sheet>
@@ -347,6 +435,11 @@
                             part of it right now, click <strong>Split Into Partial Payment</strong> instead.
                         </div>
 
+                        <div class="alert alert-success" role="alert"
+                             invisible="po_settlement_status != 'completed'">
+                            This Purchase Order is fully settled.
+                        </div>
+
                         <group>
                             <group string="Amount to Settle">
                                 <field name="amount_to_settle" widget="monetary"
@@ -356,7 +449,8 @@
                             </group>
                             <group string="Bank Charges (enter as billed by the bank)">
                                 <field name="settlement_fee" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}"/>
+                                       options="{'currency_field': 'company_currency_id'}"
+                                       readonly="state in ('confirmed','cancelled')"/>
                                 <field name="settlement_fee_account_id"/>
                                 <field name="settlement_vat_amount" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}"/>
@@ -364,21 +458,27 @@
                             </group>
                         </group>
 
-                        <div class="alert alert-success" role="alert"
-                             invisible="po_settlement_status != 'completed'">
-                            This Purchase Order is fully settled.
-                        </div>
-
-                        <group invisible="state == 'draft'">
-                            <group string="Result">
-                                <field name="margin_released_this_line" string="Margin Released" widget="monetary"
+                        <group>
+                            <group string="Settlement Calculation">
+                                <field name="settlement_value_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" widget="monetary"
+                                <field name="margin_applied_this_line" string="Less: Margin Already Paid" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="balance_to_pay_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             </group>
-                            <group string="Posted Entries">
+                            <group string="Posted Entry" invisible="state == 'draft'">
                                 <field name="settlement_move_id" readonly="1"/>
-                                <field name="release_move_id" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <group invisible="state == 'draft'">
+                            <group string="Payment Approval Trail">
+                                <field name="requested_by_id" readonly="1"/>
+                                <field name="request_date" readonly="1"/>
+                                <field name="assigned_accountant_id" readonly="1"/>
+                                <field name="approved_by_id" readonly="1"/>
+                                <field name="approved_date" readonly="1"/>
                             </group>
                         </group>
 
@@ -448,6 +548,7 @@
                                         <field name="all_tranche_ids" options="{'no_open': True}">
                                             <list decoration-muted="state == 'cancelled'"
                                                 decoration-success="state == 'confirmed'"
+                                                decoration-info="state == 'submitted'"
                                                 decoration-warning="state == 'draft'">
                                                 <field name="lc_currency_id" column_invisible="1"/>
                                                 <field name="company_currency_id" column_invisible="1"/>
@@ -456,10 +557,11 @@
                                                 <field name="settlement_rate"/>
                                                 <field name="settlement_fee" options="{'currency_field': 'company_currency_id'}"/>
                                                 <field name="settlement_vat_amount" options="{'currency_field': 'company_currency_id'}"/>
-                                                <field name="margin_released_this_line" string="Margin Released" options="{'currency_field': 'company_currency_id'}"/>
-                                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="margin_applied_this_line" string="Margin Paid" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="balance_to_pay_company" string="Balance Paid Now" options="{'currency_field': 'company_currency_id'}"/>
                                                 <field name="state" widget="badge"
                                                     decoration-warning="state == 'draft'"
+                                                    decoration-info="state == 'submitted'"
                                                     decoration-success="state == 'confirmed'"
                                                     decoration-muted="state == 'cancelled'"/>
                                                 <button name="action_open_self" type="object"
@@ -547,23 +649,36 @@
                             </group>
                         </group>
 
-                        <group invisible="state == 'draft'">
-                            <group string="Result (this tranche)">
-                                <field name="margin_released_this_line" string="Margin Released" widget="monetary"
+                        <group>
+                            <group string="Settlement Calculation (this tranche)">
+                                <field name="settlement_value_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="fx_gain_loss_this_line" string="FX Gain/Loss" widget="monetary"
+                                <field name="margin_applied_this_line" string="Less: Margin Already Paid" widget="monetary"
+                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
+                                <field name="balance_to_pay_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                             </group>
-                            <group string="Posted Entries (this tranche)">
+                            <group string="Posted Entry (this tranche)" invisible="state == 'draft'">
                                 <field name="settlement_move_id" readonly="1"/>
-                                <field name="release_move_id" readonly="1"/>
+                            </group>
+                        </group>
+
+                        <group invisible="state == 'draft'">
+                            <group string="Payment Approval Trail">
+                                <field name="requested_by_id" readonly="1"/>
+                                <field name="request_date" readonly="1"/>
+                                <field name="assigned_accountant_id" readonly="1"/>
+                                <field name="approved_by_id" readonly="1"/>
+                                <field name="approved_date" readonly="1"/>
                             </group>
                         </group>
 
                     </div>
 
 
+
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -681,6 +796,7 @@
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="lc_id"
                        options="{'no_create': True, 'no_create_edit': True}"
+                       invisible="not is_import"
                        readonly="state in ('purchase','done')"/>
             </xpath>
         </field>

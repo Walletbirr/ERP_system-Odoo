@@ -5,11 +5,26 @@ from odoo.exceptions import ValidationError
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
 
+    # NOTE: `is_import` is defined in the shipment_tracking module
+    # (models/purchase_order.py), which this module depends on. It's not
+    # redefined here - lc_management only adds the LC-specific field and
+    # logic on top of that existing "is this an import order" flag.
+
     lc_id = fields.Many2one(
         'lc.management',
         string="Letter of Credit",
         domain="[('partner_id', '=', partner_id), ('state', 'in', ('open', 'utilized'))]"
     )
+
+    # -------------------------
+    # ONCHANGE: IMPORT TOGGLE
+    # -------------------------
+    @api.onchange('is_import')
+    def _onchange_is_import(self):
+        # Switching back to "local" clears any LC that was selected while
+        # the order was flagged as an import, so it can't linger unseen.
+        if not self.is_import:
+            self.lc_id = False
 
     # -------------------------
     # ONCHANGE: LC SELECTION
@@ -45,6 +60,10 @@ class PurchaseOrder(models.Model):
     # -------------------------
     def button_confirm(self):
         for po in self:
+            if not po.is_import:
+                # Local purchase: no LC involved, nothing to validate.
+                continue
+
             if not po.lc_id:
                 raise ValidationError("Please assign LC before confirming.")
 
@@ -67,7 +86,7 @@ class PurchaseOrder(models.Model):
         res = super().button_confirm()
 
         for po in self:
-            lc = po.lc_id
-            lc._compute_used_amount()
+            if po.is_import and po.lc_id:
+                po.lc_id._compute_used_amount()
 
         return res

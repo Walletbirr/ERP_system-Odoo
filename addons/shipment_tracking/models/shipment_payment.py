@@ -91,9 +91,20 @@ class ShipmentCost(models.Model):
     tax_account_id = fields.Many2one(
         'account.account', string='Tax Account',
         domain="[('account_type', 'not in', ['asset_receivable', 'liability_payable'])]",
+        default=lambda self: self._default_tax_account_id(),
         tracking=True,
-        help='Chart of Accounts entry for the tax portion of this cost.',
+        help=(
+            'Chart of Accounts entry for the tax portion of this cost. '
+            'Defaults from Costs ▸ Configuration ▸ Tax Account Settings — '
+            'update the default there, not per record.'
+        ),
     )
+
+    @api.model
+    def _default_tax_account_id(self):
+        """Pulls the default Tax Account set in Costs ▸ Configuration ▸ Tax Account Settings."""
+        param = self.env['ir.config_parameter'].sudo().get_param('shipment_tracking.tax_account_id')
+        return int(param) if param else False
 
     # ── Total (fee + tax) ─────────────────────────────────────────────────────
     total_amount = fields.Monetary(

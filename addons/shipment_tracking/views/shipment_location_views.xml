@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/views/shipment_location_views.xml -->
+<odoo>
+
+    <!-- ══ LOCATION — LIST VIEW (editable, drag to reorder) ══ -->
+    <record id="view_shipment_location_list" model="ir.ui.view">
+        <field name="name">shipment.location.list</field>
+        <field name="model">shipment.location</field>
+        <field name="arch" type="xml">
+            <list string="Ports" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="notes"/>
+                <field name="active" widget="boolean_toggle" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ══ LOCATION — FORM VIEW ══ -->
+    <record id="view_shipment_location_form" model="ir.ui.view">
+        <field name="name">shipment.location.form</field>
+        <field name="model">shipment.location</field>
+        <field name="arch" type="xml">
+            <form string="Port / Location">
+                <sheet>
+                    <group>
+                        <field name="name" placeholder="e.g. Shanghai, China"/>
+                        <field name="sequence"/>
+                        <field name="notes" placeholder="Optional description..."/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ══ LOCATION — SEARCH VIEW ══ -->
+    <record id="view_shipment_location_search" model="ir.ui.view">
+        <field name="name">shipment.location.search</field>
+        <field name="model">shipment.location</field>
+        <field name="arch" type="xml">
+            <search string="Search Ports">
+                <field name="name"/>
+                <filter name="inactive" string="Archived" domain="[('active','=',False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ══ ACTION ══ -->
+    <record id="action_shipment_location" model="ir.actions.act_window">
+        <field name="name">Ports</field>
+        <field name="res_model">shipment.location</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_shipment_location_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first Port / Location.</p>
+            <p>Ports are fully customizable — add, rename, reorder, or archive
+               them as your trade routes change. The same list is used as the
+               dropdown for both "Port of Loading" and "Final Destination"
+               on every Shipment record.</p>
+        </field>
+    </record>
+
+    <!-- Reuses the existing "Configuration" menu defined in
+         shipment_cost_stage_views.xml (menu_shipment_costs_configuration),
+         which already sits under the root "Shipment Tracking" menu. -->
+    <menuitem id="menu_shipment_location" name="Ports"
+              parent="menu_shipment_costs_configuration"
+              action="action_shipment_location" sequence="3"/>
+
+</odoo>

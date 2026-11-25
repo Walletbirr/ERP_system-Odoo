@@ -23,8 +23,12 @@ class ShipmentTracking(models.Model):
         required=True, tracking=True,
     )
     incoterm_id = fields.Many2one('account.incoterms', string='Incoterms', tracking=True)
-    port_of_loading = fields.Char(string='Port of Loading', tracking=True)
-    port_of_discharge = fields.Char(string='Final Destination', tracking=True)
+    port_of_loading = fields.Many2one(
+        'shipment.location', string='Port of Loading', tracking=True,
+    )
+    port_of_discharge = fields.Many2one(
+        'shipment.location', string='Final Destination', tracking=True,
+    )
     etd = fields.Date(string='Departure Date', required=True, tracking=True)
     eta = fields.Date(string='ETA (Est. Arrival)', required=True, tracking=True)
 
@@ -48,6 +52,7 @@ class ShipmentTracking(models.Model):
     purchase_order_id = fields.Many2one(
         'purchase.order', string='Purchase Order', tracking=True,
         domain=[('state', 'in', ['purchase', 'done'])],
+        required=True,
     )
     supplier_id = fields.Many2one(
         related='purchase_order_id.partner_id', string='Supplier', store=True, readonly=True,
@@ -190,7 +195,7 @@ class ShipmentTracking(models.Model):
             rec.cost_currency_id = self.env.company.currency_id
 
     @api.depends('state', 'intermediate_port_ids', 'intermediate_port_ids.state',
-                 'intermediate_port_ids.name', 'port_of_discharge')
+                 'intermediate_port_ids.name', 'port_of_discharge', 'port_of_discharge.name')
     def _compute_dynamic_labels(self):
         """
         Only ONE button group is visible at a time:
@@ -205,7 +210,7 @@ class ShipmentTracking(models.Model):
             → "Depart to [destination]"
         """
         for rec in self:
-            discharge = rec.port_of_discharge or 'Destination Port'
+            discharge = rec.port_of_discharge.name or 'Destination Port'
 
             reached_port = rec.intermediate_port_ids.filtered(
                 lambda p: p.state == 'reached'
@@ -242,11 +247,11 @@ class ShipmentTracking(models.Model):
                 rec.show_depart_btn      = False
                 rec.show_final_btn       = True
 
-    @api.depends('state', 'port_of_loading', 'port_of_discharge')
+    @api.depends('state', 'port_of_loading', 'port_of_discharge', 'port_of_discharge.name')
     def _compute_progress_bar_html(self):
         """Build a clean HTML progress bar showing all shipment stages."""
         for rec in self:
-            destination = rec.port_of_discharge or 'Destination Port'
+            destination = rec.port_of_discharge.name or 'Destination Port'
             state_order = ['planned', 'in_transit', 'arrived']
             current_idx = state_order.index(rec.state) if rec.state in state_order else 0
 
@@ -286,11 +291,12 @@ class ShipmentTracking(models.Model):
             )
 
     @api.depends('state', 'intermediate_port_ids', 'intermediate_port_ids.state',
-                 'intermediate_port_ids.name', 'port_of_loading', 'port_of_discharge')
+                 'intermediate_port_ids.name', 'port_of_loading', 'port_of_loading.name',
+                 'port_of_discharge', 'port_of_discharge.name')
     def _compute_port_progress_summary(self):
         """Builds a readable progress string: Loading → [ports] → Discharge"""
         for rec in self:
-            parts = [rec.port_of_loading or 'Origin']
+            parts = [rec.port_of_loading.name or 'Origin']
             for p in rec.intermediate_port_ids:
                 if p.state == 'passed':
                     parts.append('✓ %s' % p.name)
@@ -298,15 +304,16 @@ class ShipmentTracking(models.Model):
                     parts.append('⬤ %s' % p.name)
                 else:
                     parts.append('○ %s' % p.name)
-            parts.append(rec.port_of_discharge or 'Destination')
+            parts.append(rec.port_of_discharge.name or 'Destination')
             rec.port_progress_summary = ' → '.join(parts)
 
     @api.depends('state', 'intermediate_port_ids', 'intermediate_port_ids.state',
-                 'intermediate_port_ids.name')
+                 'intermediate_port_ids.name', 'port_of_loading', 'port_of_loading.name',
+                 'port_of_discharge', 'port_of_discharge.name')
     def _compute_current_port_label(self):
         for rec in self:
             if rec.state == 'planned':
-                rec.current_port_label = rec.port_of_loading or 'Origin'
+                rec.current_port_label = rec.port_of_loading.name or 'Origin'
             elif rec.state == 'in_transit':
                 next_port = rec.intermediate_port_ids.filtered(
                     lambda p: p.state in ('pending', 'reached')
@@ -314,9 +321,9 @@ class ShipmentTracking(models.Model):
                 if next_port:
                     rec.current_port_label = next_port[0].name
                 else:
-                    rec.current_port_label = rec.port_of_discharge or 'Destination'
+                    rec.current_port_label = rec.port_of_discharge.name or 'Destination'
             else:
-                rec.current_port_label = rec.port_of_discharge or 'Arrived'
+                rec.current_port_label = rec.port_of_discharge.name or 'Arrived'
 
     @api.depends('intermediate_port_ids', 'intermediate_port_ids.state')
     def _compute_has_started_moving(self):
@@ -415,7 +422,7 @@ class ShipmentTracking(models.Model):
             'res_model': 'local.transport.trip', 'view_mode': 'form',
             'context': {
                 'default_shipment_id': self.id,
-                'default_origin_location': self.port_of_discharge or '',
+                'default_origin_location': self.port_of_discharge.name or '',
             },
         }
 
@@ -436,7 +443,7 @@ class ShipmentTracking(models.Model):
                 raise UserError(_('Shipment must be In Transit to arrive at an intermediate port.'))
             next_port = rec._get_next_pending_port()
             if not next_port:
-                discharge = rec.port_of_discharge or 'Destination Port'
+                discharge = rec.port_of_discharge.name or 'Destination Port'
                 raise UserError(_(
                     'No pending intermediate ports remaining.\n'
                     'Use "Arrived at %s" to complete the shipment.'
@@ -506,6 +513,17 @@ class ShipmentTracking(models.Model):
                     )
 
                 rec.state = 'cancelled'
+
+    def unlink(self):
+        for rec in self:
+            if rec.state != 'planned':
+                raise UserError(_(
+                    'Cannot delete "%s" because it is %s.\n'
+                    'Only shipments in the Planned status can be deleted. '
+                   
+                ) % (rec.reference, dict(rec._fields['state'].selection).get(rec.state)))
+        return super().unlink()
+
     def _validate_po_cancellation(self):
         active_shipments = self.filtered(
             lambda s: s.state != 'cancelled'

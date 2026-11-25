@@ -44,18 +44,61 @@
         </field>
     </record>
 
+    <record id="view_lc_open_request_wizard_form" model="ir.ui.view">
+        <field name="name">lc.open.request.wizard.form</field>
+        <field name="model">lc.open.request.wizard</field>
+        <field name="arch" type="xml">
+
+            <form string="Send Opening Request">
+
+                <sheet>
+
+                    <div class="alert alert-info" role="alert">
+                        This sends a notification to the accountant you choose below, asking
+                        them to review and open this LC. They'll see it on their dashboard and
+                        get an activity reminder until they act on it.
+                    </div>
+
+                    <group>
+                        <field name="lc_id" readonly="1"/>
+                        <field name="accountant_id"/>
+                        <field name="note" placeholder="Anything the accountant should know before approving..."/>
+                    </group>
+
+                </sheet>
+
+                <footer>
+
+                    <button
+                        name="action_send"
+                        string="Send"
+                        type="object"
+                        class="btn-primary"/>
+
+                    <button
+                        string="Cancel"
+                        special="cancel"
+                        class="btn-secondary"/>
+
+                </footer>
+
+            </form>
+
+        </field>
+    </record>
+
     <record id="view_lc_open_confirm_wizard_form" model="ir.ui.view">
         <field name="name">lc.open.confirm.wizard.form</field>
         <field name="model">lc.open.confirm.wizard</field>
         <field name="arch" type="xml">
 
-            <form string="Confirm Opening LC">
+            <form string="Approve &amp; Open LC">
 
                 <sheet>
 
                     <div class="alert alert-info" role="alert">
-                        Opening this LC will post the following journal entry. Review it, then
-                        confirm or cancel.
+                        Approving this will post the following journal entry and open the LC.
+                        Review it, then approve or cancel.
                     </div>
 
                     <group>
@@ -69,7 +112,50 @@
 
                     <button
                         name="action_confirm_open"
-                        string="Confirm"
+                        string="Approve &amp; Open"
+                        type="object"
+                        class="btn-primary"/>
+
+                    <button
+                        string="Cancel"
+                        special="cancel"
+                        class="btn-secondary"/>
+
+                </footer>
+
+            </form>
+
+        </field>
+    </record>
+
+    <record id="view_lc_settlement_payment_request_wizard_form" model="ir.ui.view">
+        <field name="name">lc.settlement.payment.request.wizard.form</field>
+        <field name="model">lc.settlement.payment.request.wizard</field>
+        <field name="arch" type="xml">
+
+            <form string="Send Payment Request">
+
+                <sheet>
+
+                    <div class="alert alert-info" role="alert">
+                        This sends a notification to the accountant you choose below, asking
+                        them to review and approve this payment. They'll see it on their
+                        dashboard and get an activity reminder until they act on it.
+                    </div>
+
+                    <group>
+                        <field name="settlement_line_id" readonly="1"/>
+                        <field name="accountant_id"/>
+                        <field name="note" placeholder="Anything the accountant should know before approving..."/>
+                    </group>
+
+                </sheet>
+
+                <footer>
+
+                    <button
+                        name="action_send"
+                        string="Send"
                         type="object"
                         class="btn-primary"/>
 
@@ -90,13 +176,14 @@
         <field name="model">lc.settlement.confirm.wizard</field>
         <field name="arch" type="xml">
 
-            <form string="Confirm Settlement">
+            <form string="Approve &amp; Post Payment">
 
                 <sheet>
 
                     <div class="alert alert-info" role="alert">
-                        Confirming this settlement will post the following journal entries
-                        and release the matching share of LC margin. Review, then confirm or cancel.
+                        Approving this will post the following journal entry. The balance is
+                        calculated at the settlement rate, less the margin already paid at
+                        opening. Review, then approve or cancel.
                     </div>
 
                     <group>
@@ -110,7 +197,7 @@
 
                     <button
                         name="action_confirm_settlement"
-                        string="Confirm"
+                        string="Approve &amp; Post"
                         type="object"
                         class="btn-primary"/>
 

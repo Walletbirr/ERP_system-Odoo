@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from datetime import date
 from odoo.exceptions import ValidationError
 from odoo.tools.float_utils import float_is_zero
@@ -7,44 +7,168 @@ from odoo.tools.float_utils import float_is_zero
 class LCManagement(models.Model):
     _name = 'lc.management'
     _description = 'Letter of Credit'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    name = fields.Char(string="LC Reference", required=True)
+    # The LC Reference is issued by the bank, so it does not exist yet when
+    # the Purchase Officer first drafts the LC. It is optional while in Draft
+    # and enforced later (see _check_ready_to_request_opening and
+    # _validate_before_open). Postgres allows many NULLs under unique(name).
+    name = fields.Char(
+        string="LC Reference",
+        required=False,
+        copy=False,
+        tracking=True,
+    )
 
     bank_journal_id = fields.Many2one(
         'account.journal',
-        string="Bank Journal",
+        string="Bank",
         domain="[('type', '=', 'bank')]",
-        required=True
+        required=False
     )
 
     # =========================================================
     # OPENING CHARGES (ONE FEE/VAT FOR THE WHOLE LC - UNCHANGED)
     # =========================================================
     opening_fee = fields.Monetary(
-        string="Opening Bank Fee",
+        string="Bank Fee",
         currency_field='company_currency_id',
-        required=True
+        required=False
     )
+    # Insurance - paid at opening with the other LC costs and posted to the
+    # LC's GIT account. The insurer name is free text and optional; the
+    # amount may stay 0.
+    insurer_name = fields.Char(string="Insurer")
+    insurance_amount = fields.Monetary(
+        string="Insurance Amount",
+        currency_field='company_currency_id',
+        default=0.0,
+    )
+
+    # opening_fee_account_id = fields.Many2one(
+    #     'account.account',
+    #     string="Opening Fee Account",
+    #     required=False
+    # )
     opening_fee_account_id = fields.Many2one(
         'account.account',
-        string="Opening Fee Account",
-        required=True
+        string="GIT Account",
+        help="The Goods-in-Transit account of this LC (named after the LC "
+             "reference). Every LC cost is posted here directly from the "
+             "bank: the margin payment, bank fee and insurance at opening, "
+             "and the fee and balance at settlement. If it doesn't exist "
+             "yet, use the 'Request Account Setup' button to notify the "
+             "accountant."
     )
+    
     opening_date = fields.Date(
         string="Opening Date",
-        required=True,
+        required=False,
         default=fields.Date.today
     )
     opening_vat_amount = fields.Monetary(
         string="Opening VAT Amount",
         currency_field='company_currency_id',
-        required=True
+        required=False
     )
+    # opening_vat_account_id = fields.Many2one(
+    #     'account.account',
+    #     string="Opening VAT Account",
+    #     required=False
+    # )
     opening_vat_account_id = fields.Many2one(
         'account.account',
         string="Opening VAT Account",
-        required=True
+        default=lambda self: self.env.company.lc_default_vat_account_id,
+        help="Defaults from the LC Management settings (Settings > LC Management), "
+             "instead of being searched for by a hardcoded account name. Can still be "
+             "changed per LC."
     )
+
+    account_setup_request_ids = fields.One2many(
+        'lc.account.setup.request', 'lc_id', string="Account Setup Requests"
+    )
+    pending_account_setup_count = fields.Integer(
+        string="Pending Account Requests",
+        compute='_compute_pending_account_setup_count'
+    )
+
+    @api.depends('account_setup_request_ids.state')
+    def _compute_pending_account_setup_count(self):
+        for rec in self:
+            rec.pending_account_setup_count = len(
+                rec.account_setup_request_ids.filtered(lambda r: r.state != 'completed')
+            )
+
+    can_edit_lc_details = fields.Boolean(
+        string="Can Edit LC Details",
+        compute='_compute_can_edit_lc_details',
+        help="Governs the general LC fields (reference, supplier, margin "
+             "type, dates, journal, currency, amount, opening charges):\n"
+             "- Draft: editable (normally the Purchase Officer filling in "
+             "the request).\n"
+             "- Pending Approval: editable ONLY for the specific accountant "
+             "this LC's opening was sent to (opening_assigned_accountant_id) "
+             "- the Purchase Officer is fully locked out once submitted, "
+             "she only comes back for Settlement afterwards.\n"
+             "- Open/Utilized/Settled/Cancelled: locked for everyone."
+    )
+    can_edit_lc_accounts = fields.Boolean(
+        string="Can Edit LC Accounts",
+        compute='_compute_can_edit_lc_details',
+        help="Governs specifically the Margin/Fee/VAT Account fields. "
+             "These are auto-filled by reference matching (see "
+             "_autolink_fee_account / account_account.py), so the Purchase "
+             "Officer never needs or gets access to them - not even in "
+             "Draft. Only the specific accountant this LC was sent to can "
+             "edit them, and only while it's Pending Approval."
+    )
+
+    def _is_assigned_accountant_or_admin(self):
+        self.ensure_one()
+        user = self.env.user
+        if user.has_group('base.group_system'):
+            return True
+        return bool(self.opening_assigned_accountant_id) and user.id == self.opening_assigned_accountant_id.id
+
+    @api.depends('state', 'opening_assigned_accountant_id')
+    def _compute_can_edit_lc_details(self):
+        for rec in self:
+            is_assigned = rec._is_assigned_accountant_or_admin()
+            if rec.state == 'draft':
+                rec.can_edit_lc_details = True
+            elif rec.state == 'pending_approval':
+                rec.can_edit_lc_details = is_assigned
+            else:
+                rec.can_edit_lc_details = False
+            # Accounts are stricter than the general fields: never editable
+            # in draft for anyone, only for the assigned accountant while
+            # pending approval.
+            rec.can_edit_lc_accounts = rec.state == 'pending_approval' and is_assigned
+
+    settlement_line_count = fields.Integer(
+        string="Settlement Count",
+        compute='_compute_settlement_line_count'
+    )
+
+    @api.depends('settlement_line_ids.is_root_line')
+    def _compute_settlement_line_count(self):
+        for rec in self:
+            rec.settlement_line_count = len(
+                rec.settlement_line_ids.filtered(lambda l: l.is_root_line)
+            )
+
+    def action_view_settlements(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': f"Settlements - {self.name}",
+            'res_model': 'lc.settlement.line',
+            'view_mode': 'list,form',
+            'domain': [('lc_id', '=', self.id), ('is_root_line', '=', True)],
+            'context': {'create': False},
+        }
+
 
     cancel_reason = fields.Text(readonly=True)
 
@@ -62,30 +186,24 @@ class LCManagement(models.Model):
 
     # Core LC Fields
     lc_type_id = fields.Many2one(
-        'lc.margin', string="LC margin", required=True
+        'lc.margin', string="LC margin", required=False
     )
-    margin_account_id = fields.Many2one(
-        'account.account', string="Margin Account", required=True
+    partner_id = fields.Many2one(
+        'res.partner',
+        string="Supplier",
+        required=False,
+        domain="[('contact_type_code', '=', 'vendor')]",
     )
-    partner_id = fields.Many2one('res.partner', string="Supplier", required=True)
-    release_move_id = fields.Many2one(
-        'account.move',
-        string='Release Journal Entry',
-        readonly=True,
-        help="Deprecated single-release field, kept for backward compatibility with old records. "
-             "New releases are tracked per settlement line."
-    )
-
     amount = fields.Monetary(
-        string='Amount',
+        string='Total Amount',
         currency_field='currency_id',
-        required=True
+        required=False
     )
     currency_id = fields.Many2one(
         'res.currency',
         string='Currency',
         default=lambda self: self.env.company.currency_id,
-        required=True,
+        required=False,
     )
     vendor_bill_ids = fields.Many2many(
         'account.move',
@@ -118,27 +236,9 @@ class LCManagement(models.Model):
         store=True
     )
     margin_amount_company_currency = fields.Float(
-        string="Margin Amount (ETB)",
+        string="Margin Paid at Opening (ETB)",
         compute="_compute_margin_amount_company",
         store=True
-    )
-
-    # =========================================================
-    # CUMULATIVE MARGIN RELEASE TRACKING (REPLACES margin_released BOOLEAN)
-    # =========================================================
-    margin_released_amount = fields.Monetary(
-        string="Margin Released (Cumulative)",
-        currency_field='company_currency_id',
-        compute='_compute_margin_released_amount',
-        store=True,
-        help="Cumulative amount of margin released across all confirmed settlement lines. "
-             "Derived directly from settlement lines so it can never drift out of sync."
-    )
-    margin_remaining_to_release = fields.Monetary(
-        string="Margin Remaining to Release",
-        currency_field='company_currency_id',
-        compute='_compute_margin_remaining_to_release',
-        store=False
     )
 
     settlement_rate = fields.Float(
@@ -146,15 +246,6 @@ class LCManagement(models.Model):
         digits=(12, 6),
         readonly=True,
         help="Convenience field showing the most recent confirmed settlement line's rate."
-    )
-
-    # FX Gain/Loss - summed across confirmed settlement lines, display-only
-    # (no separate posting to dedicated FX accounts).
-    fx_gain_loss = fields.Monetary(
-        string="FX Gain/Loss",
-        currency_field='company_currency_id',
-        compute="_compute_fx_gain_loss",
-        store=True
     )
 
     rate_locked = fields.Boolean(string="Rate Locked", default=False)
@@ -173,7 +264,7 @@ class LCManagement(models.Model):
     )
     
 
-    expiry_date = fields.Date(required=True)
+    expiry_date = fields.Date(required=False)
 
     remaining_amount = fields.Monetary(
         string="Remaining Amount",
@@ -201,11 +292,30 @@ class LCManagement(models.Model):
 
     state = fields.Selection([
         ('draft', 'Draft'),
+        ('on_hold', 'On Hold'),
+        ('pending_approval', 'Pending Approval'),
         ('open', 'Open'),
         ('utilized', 'Utilized'),
         ('settled', 'Settled'),
         ('cancelled', 'Cancelled'),
-    ], default='draft')
+    ], default='draft', tracking=True)
+
+    # =========================================================
+    # OPENING REQUEST -> APPROVAL WORKFLOW
+    # =========================================================
+    opening_assigned_accountant_id = fields.Many2one(
+        'res.users', string="Opening Sent To", readonly=True,
+        help="The accountant asked to review and approve opening this LC."
+    )
+    opening_request_note = fields.Text(string="Note Sent With Request", readonly=True)
+    opening_requested_by_id = fields.Many2one(
+        'res.users', string="Opening Requested By", readonly=True
+    )
+    opening_request_date = fields.Datetime(string="Opening Requested On", readonly=True)
+    opening_approved_by_id = fields.Many2one(
+        'res.users', string="Opening Approved By", readonly=True
+    )
+    opening_approved_date = fields.Datetime(string="Opening Approved On", readonly=True)
 
     purchase_ids = fields.One2many('purchase.order', 'lc_id')
 
@@ -229,21 +339,167 @@ class LCManagement(models.Model):
 
     # ========================= BUTTONS =========================
 
-    def action_open_with_confirmation(self):
-        """Validates the LC, builds a plain-text preview of the journal
-        entry lines that action_open will post, and opens a confirmation
-        wizard. The actual posting only happens if the user confirms."""
+    def _is_lc_accountant(self):
+        return (
+            self.env.user.has_group('lc_management.group_lc_accountant')
+            or self.env.user.has_group('account.group_account_manager')
+        )
+
+    def _opening_charges_problems(self):
+        """Bank Fee and Opening VAT may be 0 while the LC is only a draft,
+        but both must be entered before approval is requested or the LC is
+        opened. Returns the labels of the ones still missing."""
+        self.ensure_one()
+        problems = []
+        if self.opening_fee <= 0:
+            problems.append("Bank Fee")
+        if self.opening_vat_amount <= 0:
+            problems.append("Opening VAT Amount")
+        return problems
+
+    def _check_ready_to_request_opening(self):
         self.ensure_one()
         rec = self
-
         if rec.state != 'draft':
-            raise ValidationError("Only draft LC can be opened.")
-        if not rec.margin_account_id:
-            raise ValidationError("Select Margin Account.")
+            raise ValidationError(
+                "Only draft LC can be submitted for opening. If this LC is "
+                "On Hold, resume it first."
+            )
+        if not rec.name:
+            raise ValidationError(
+                "Enter the LC Reference (issued by the bank) before "
+                "requesting the LC opening."
+            )
+        problems = rec._opening_charges_problems()
+        if problems:
+            raise ValidationError(
+                "Enter an amount greater than zero for the following before "
+                "requesting approval:\n\n- " + "\n- ".join(problems)
+                + "\n\n(You can still save the LC as a draft with these at 0.)"
+            )
         if not rec.bank_journal_id:
             raise ValidationError("Select Bank Journal.")
         if not rec.opening_fee_account_id:
-            raise ValidationError("Select Opening Fee Account.")
+            raise ValidationError(
+                "Select the GIT Account. If it doesn't exist yet, use "
+                "'Request Account Setup' first to notify the accountant."
+            )
+        if not rec.opening_vat_account_id:
+            raise ValidationError(
+                "Select the Opening VAT Account. If it doesn't exist yet, use "
+                "'Request Account Setup' first to notify the accountant."
+            )
+        if not rec.bank_journal_id.default_account_id:
+            raise ValidationError("Bank journal missing default account.")
+
+    def action_put_on_hold(self):
+        """Pause a draft LC (e.g. waiting for the bank or the supplier).
+        The LC is locked until it is resumed and cannot be submitted for
+        opening while on hold."""
+        for rec in self:
+            if rec.state != 'draft':
+                raise ValidationError("Only a draft LC can be put on hold.")
+            rec.write({'state': 'on_hold'})
+            rec.message_post(body=f"LC put on hold by {self.env.user.name}.")
+
+    def action_resume_from_hold(self):
+        """Bring an on-hold LC back to Draft so it can be edited again."""
+        for rec in self:
+            if rec.state != 'on_hold':
+                raise ValidationError("Only an LC that is on hold can be resumed.")
+            rec.write({'state': 'draft'})
+            rec.message_post(body=f"LC resumed (back to Draft) by {self.env.user.name}.")
+
+    def action_withdraw_opening_request(self):
+        """Lets the requester pull a pending_approval LC back to draft,
+        e.g. to fix something before the accountant reviews it."""
+        for rec in self:
+            if rec.state != 'pending_approval':
+                raise ValidationError("Only an LC pending approval can be withdrawn.")
+            rec.write({'state': 'draft'})
+            rec.message_post(body=f"Opening request withdrawn by {self.env.user.name}.")
+
+    def action_request_opening(self):
+        """Purchase Officer step: validate the LC is ready to open, then let
+        them pick which accountant should review and approve it."""
+        self.ensure_one()
+        self._check_ready_to_request_opening()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Send Opening Request',
+            'res_model': 'lc.open.request.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_lc_id': self.id},
+        }
+
+    def _send_opening_request(self, accountant, note=None):
+        self.ensure_one()
+        self.write({
+            'state': 'pending_approval',
+            'opening_assigned_accountant_id': accountant.id if accountant else False,
+            'opening_request_note': note,
+            'opening_requested_by_id': self.env.user.id,
+            'opening_request_date': fields.Datetime.now(),
+        })
+        partner_ids = accountant.partner_id.ids if accountant else []
+        if partner_ids:
+            self.message_subscribe(partner_ids=partner_ids)
+        self.message_post(
+            body=(
+                f"LC Opening requested by <b>{self.env.user.name}</b> for "
+                f"<b>{self.name}</b>. Awaiting accountant approval."
+            ),
+            partner_ids=partner_ids,
+        )
+        if accountant:
+            self.activity_schedule(
+                'mail.mail_activity_data_todo',
+                summary=f"Approve LC Opening - {self.name}",
+                note=note or "A purchase officer requested this LC be opened. Please review and approve.",
+                user_id=accountant.id,
+            )
+
+        # Live pop-up toast (fades on its own) for whoever is online right
+        # now, on top of the durable Activity/Inbox notification above -
+        # that one persists and shows on the bell/activities icon even if
+        # the accountant isn't logged in at this exact moment.
+        if accountant:
+            self.env['bus.bus']._sendone(accountant.partner_id, 'simple_notification', {
+                'type': 'info',
+                'title': 'LC Opening Request',
+                'message': f"{self.env.user.name} asked you to review and open {self.name}.",
+                'sticky': True,
+                'className': 'o_lc_request_notification',
+            })
+        self.env.user._bus_send('simple_notification', {
+            'type': 'success',
+            'title': 'Request Sent',
+            'message': (
+                f"Opening request for {self.name} sent to {accountant.name}."
+                if accountant else
+                f"Opening request for {self.name} sent, but no accountant was selected."
+            ),
+        })
+
+    def action_open_with_confirmation(self):
+        """Accountant step: builds a plain-text preview of the journal
+        entry lines that action_open will post, and opens a confirmation
+        wizard. The actual posting only happens if the accountant confirms."""
+        self.ensure_one()
+        rec = self
+
+        if not rec._is_lc_accountant():
+            raise ValidationError("Only an Accountant can approve and open this LC.")
+        if rec.state != 'pending_approval':
+            raise ValidationError(
+                "This LC must be submitted for opening approval first "
+                "(use 'Request LC Opening')."
+            )
+        if not rec.bank_journal_id:
+            raise ValidationError("Select Bank Journal.")
+        if not rec.opening_fee_account_id:
+            raise ValidationError("Select the GIT Account.")
         if not rec.opening_vat_account_id:
             raise ValidationError("Select Opening VAT Account.")
 
@@ -254,14 +510,23 @@ class LCManagement(models.Model):
         total_credit = (
             rec.margin_amount_company_currency
             + rec.opening_fee
+            + rec.insurance_amount
             + rec.opening_vat_amount
         )
 
-        preview_lines = [
-            f"Debit  {rec.margin_account_id.name}: {rec.margin_amount_company_currency:,.2f} {rec.company_currency_id.name}",
-            f"Debit  {rec.opening_fee_account_id.name}: {rec.opening_fee:,.2f} {rec.company_currency_id.name}",
-            f"Debit  {rec.opening_vat_account_id.name}: {rec.opening_vat_amount:,.2f} {rec.company_currency_id.name}",
-            f"Credit {bank_account.name}: {total_credit:,.2f} {rec.company_currency_id.name}",
+        cur = rec.company_currency_id.name
+        git = rec.opening_fee_account_id.name
+        preview_lines = []
+        if not float_is_zero(rec.margin_amount_company_currency, precision_digits=2):
+            preview_lines.append(
+                f"Debit  {git} (LC margin payment): {rec.margin_amount_company_currency:,.2f} {cur}"
+            )
+        preview_lines.append(f"Debit  {git} (bank fee): {rec.opening_fee:,.2f} {cur}")
+        if not float_is_zero(rec.insurance_amount, precision_digits=2):
+            preview_lines.append(f"Debit  {git} (insurance): {rec.insurance_amount:,.2f} {cur}")
+        preview_lines += [
+            f"Debit  {rec.opening_vat_account_id.name}: {rec.opening_vat_amount:,.2f} {cur}",
+            f"Credit {bank_account.name}: {total_credit:,.2f} {cur}",
         ]
         preview_text = "\n".join(preview_lines)
 
@@ -280,17 +545,127 @@ class LCManagement(models.Model):
             'res_id': wizard.id,
         }
 
-    def action_open(self):
-        for rec in self:
-            if rec.state != 'draft':
-                raise ValidationError("Only draft LC can be opened.")
+    def _validate_before_open(self):
 
-            if not rec.margin_account_id:
-                raise ValidationError("Select Margin Account.")
+        # ===================================
+        # REQUIRED FIELDS
+        # ===================================
+
+        required_fields = [
+            ("name", "LC Reference"),
+            ("bank_journal_id", "Bank Journal"),
+            ("partner_id", "Beneficiary"),
+            ("currency_id", "Currency"),
+            ("amount", "LC Amount"),
+            ("opening_date", "Opening Date"),
+            ("expiry_date", "Expiry Date"),
+            ("exchange_rate", "Exchange Rate"),
+            ("lc_type_id", "LC Margin"),
+            ("opening_fee_account_id", "GIT Account"),
+            ("opening_vat_account_id", "Opening VAT Account"),
+        ]
+
+        for rec in self:
+
+            missing = []
+
+            # ===================================
+            # CHECK REQUIRED FIELDS
+            # ===================================
+
+            for field_name, label in required_fields:
+
+                value = rec[field_name]
+
+                if value in (False, None, ''):
+                    missing.append(label)
+
+            if missing:
+                raise ValidationError(
+                    "Please complete the following fields before opening the LC:\n\n- "
+                    + "\n- ".join(missing)
+                )
+
+            problems = rec._opening_charges_problems()
+            if problems:
+                raise ValidationError(
+                    "These must be greater than zero before the LC can be "
+                    "opened:\n\n- " + "\n- ".join(problems)
+                )
+
+            # ===================================
+            # BUSINESS VALIDATIONS
+            # ===================================
+
+            if rec.amount <= 0:
+                raise ValidationError(
+                    "LC Amount must be greater than zero."
+                )
+
+            if rec.exchange_rate <= 0:
+                raise ValidationError(
+                    "Exchange Rate must be greater than zero."
+                )
+
+            if rec.lc_type_id.margin_percentage < 0:
+                raise ValidationError(
+                    "Margin Percentage cannot be negative."
+                )
+
+            if rec.lc_type_id.margin_percentage > 100:
+                raise ValidationError(
+                    "Margin Percentage cannot exceed 100%."
+                )
+
+            if rec.insurance_amount < 0:
+                raise ValidationError("Insurance Amount cannot be negative.")
+
+            # A 0% margin LC is valid, so a zero margin amount is allowed.
+            if rec.margin_amount_company_currency < 0:
+                raise ValidationError(
+                    "Margin Amount cannot be negative - check the LC "
+                    "Amount and LC Margin percentage."
+                )
+
+            if rec.opening_fee <= 0:
+                raise ValidationError(
+                    "Opening Fee must be greater than zero."
+                )
+
+            if rec.opening_vat_amount <= 0:
+                raise ValidationError(
+                    "Opening VAT Amount must be greater than zero."
+                )
+
+            if rec.expiry_date <= rec.opening_date:
+                raise ValidationError(
+                    "Expiry Date must be later than Opening Date."
+                )
+
+            # ===================================
+            # ACCOUNTING VALIDATIONS
+            # ===================================
+
+            if rec.bank_journal_id.default_account_id is False:
+                raise ValidationError(
+                    "The selected Bank Journal does not have a Default Account configured."
+                )
+
+            if rec.opening_fee_account_id == rec.opening_vat_account_id:
+                raise ValidationError(
+                    "GIT Account and Opening VAT Account cannot be the same."
+                )
+
+    def action_open(self):
+        self._validate_before_open()
+        for rec in self:
+            if rec.state != 'pending_approval':
+                raise ValidationError("Only an LC pending approval can be opened.")
+
             if not rec.bank_journal_id:
                 raise ValidationError("Select Bank Journal.")
             if not rec.opening_fee_account_id:
-                raise ValidationError("Select Opening Fee Account.")
+                raise ValidationError("Select the GIT Account.")
             if not rec.opening_vat_account_id:
                 raise ValidationError("Select Opening VAT Account.")
 
@@ -301,22 +676,34 @@ class LCManagement(models.Model):
             total_credit = (
                 rec.margin_amount_company_currency
                 + rec.opening_fee
+                + rec.insurance_amount
                 + rec.opening_vat_amount
             )
 
             # FREEZE OPENING RATE
             rec.opening_rate = rec.exchange_rate
 
+            git_lines = []
+            if not float_is_zero(rec.margin_amount_company_currency, precision_digits=2):
+                git_lines.append((0, 0, {
+                    'name': f"LC Margin Payment - {rec.name}",
+                    'account_id': rec.opening_fee_account_id.id,
+                    'debit': rec.margin_amount_company_currency,
+                    'credit': 0.0,
+                }))
+
+            if not float_is_zero(rec.insurance_amount, precision_digits=2):
+                git_lines.append((0, 0, {
+                    'name': f"LC Insurance - {rec.name}",
+                    'account_id': rec.opening_fee_account_id.id,
+                    'debit': rec.insurance_amount,
+                    'credit': 0.0,
+                }))
+
             move = self.env['account.move'].create({
                 'move_type': 'entry',
                 'journal_id': rec.bank_journal_id.id,
-                'line_ids': [
-                    (0, 0, {
-                        'name': f"LC Margin Payment - {rec.name}",
-                        'account_id': rec.margin_account_id.id,
-                        'debit': rec.margin_amount_company_currency,
-                        'credit': 0.0,
-                    }),
+                'line_ids': git_lines + [
                     (0, 0, {
                         'name': f"LC Opening Fee - {rec.name}",
                         'account_id': rec.opening_fee_account_id.id,
@@ -369,7 +756,7 @@ class LCManagement(models.Model):
                     )
             rec.used_amount = total_used
 
-            if rec.state in ('draft', 'settled'):
+            if rec.state in ('draft', 'on_hold', 'settled'):
                 continue
 
             if float_is_zero(total_used, precision_rounding=rec.currency_id.rounding):
@@ -394,19 +781,6 @@ class LCManagement(models.Model):
         for rec in self:
             rec.margin_amount = (rec.amount * rec.lc_type_id.margin_percentage) / 100
 
-    @api.depends('margin_amount_company_currency', 'margin_released_amount')
-    def _compute_margin_remaining_to_release(self):
-        for rec in self:
-            rec.margin_remaining_to_release = max(
-                rec.margin_amount_company_currency - rec.margin_released_amount, 0.0
-            )
-
-    @api.depends('settlement_line_ids.margin_released_this_line', 'settlement_line_ids.state')
-    def _compute_margin_released_amount(self):
-        for rec in self:
-            confirmed_lines = rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed')
-            rec.margin_released_amount = sum(confirmed_lines.mapped('margin_released_this_line'))
-
     @api.onchange('currency_id')
     def _onchange_currency_id(self):
         if self.rate_locked:
@@ -428,15 +802,6 @@ class LCManagement(models.Model):
     def _compute_local_amount(self):
         for rec in self:
             rec.local_currency_amount = rec.amount * rec.exchange_rate
-
-    # =========================================================
-    # FX GAIN/LOSS - SUMMED ACROSS CONFIRMED SETTLEMENT LINES
-    # =========================================================
-    @api.depends('settlement_line_ids.fx_gain_loss_this_line', 'settlement_line_ids.state')
-    def _compute_fx_gain_loss(self):
-        for rec in self:
-            confirmed_lines = rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed')
-            rec.fx_gain_loss = sum(confirmed_lines.mapped('fx_gain_loss_this_line'))
 
     @api.depends('margin_amount', 'exchange_rate')
     def _compute_margin_amount_company(self):
@@ -490,59 +855,6 @@ class LCManagement(models.Model):
             rec.vendor_bill_ids = bills
             rec.bill_count = len(bills)
 
-    # @api.depends(
-    # 'purchase_ids.invoice_ids.amount_total',
-    # 'purchase_ids.invoice_ids.amount_residual',
-    # 'purchase_ids.invoice_ids.state',
-    # 'purchase_ids.invoice_ids.currency_id'
-    # )
-    # def _compute_paid_amount(self):
-    #     for rec in self:
-    #         total_paid = 0.0
-    #         for po in rec.purchase_ids:
-    #             for bill in po.invoice_ids.filtered(lambda b: b.state == 'posted'):
-    #                 paid = bill.amount_total - bill.amount_residual
-    #                 if bill.currency_id == rec.currency_id:
-    #                     total_paid += paid
-    #                 else:
-    #                     total_paid += bill.currency_id._convert(
-    #                         paid,
-    #                         rec.currency_id,
-    #                         rec.env.company,
-    #                         fields.Date.context_today(rec)
-    #                     )
-    #         rec.paid_amount = total_paid
-
-    #     # A vendor bill can get reconciled as paid well after every settlement
-    #     # line was already confirmed - that's the only other moment the LC can
-    #     # newly become fully paid, so it needs the same check that
-    #     # lc.settlement.line.action_confirm runs. Reading rec.remaining_amount
-    #     # inside _refresh_settlement_state below will correctly pick up the
-    #     # paid_amount just written above, since it's a stored field Odoo
-    #     # recomputes on next access.
-    #     self._refresh_settlement_state()
-    # @api.depends(
-    # 'purchase_ids.invoice_ids.amount_total',
-    # 'purchase_ids.invoice_ids.amount_residual',
-    # 'purchase_ids.invoice_ids.state',
-    # 'purchase_ids.invoice_ids.currency_id'
-    # )
-    # def _compute_paid_amount(self):
-    #     for rec in self:
-    #         total_paid = 0.0
-    #         for po in rec.purchase_ids:
-    #             for bill in po.invoice_ids.filtered(lambda b: b.state == 'posted'):
-    #                 paid = bill.amount_total - bill.amount_residual
-    #                 if bill.currency_id == rec.currency_id:
-    #                     total_paid += paid
-    #                 else:
-    #                     total_paid += bill.currency_id._convert(
-    #                         paid,
-    #                         rec.currency_id,
-    #                         rec.env.company,
-    #                         fields.Date.context_today(rec)
-    #                     )
-    #         rec.paid_amount = total_paid
     @api.depends(
     'purchase_ids.invoice_ids.amount_total',
     'purchase_ids.invoice_ids.amount_residual',
@@ -566,10 +878,7 @@ class LCManagement(models.Model):
                         )
             rec.paid_amount = total_paid
 
-        # remaining_amount depends on paid_amount, but Odoo only recomputes it
-        # lazily after this method returns - reading it immediately below would
-        # see a stale value. Force it fresh right now, exactly like the manual
-        # Recheck button does, before checking whether the LC is now settled.
+        
         self._compute_remaining_amount()
         self._refresh_settlement_state()
     @api.model
@@ -584,7 +893,7 @@ class LCManagement(models.Model):
             lc._compute_paid_amount()
             lc._compute_remaining_amount()
             lc._refresh_settlement_state()
-    # ====================== CAN CLOSE ======================
+    
     @api.depends(
         'state',
         'remaining_amount',
@@ -592,13 +901,7 @@ class LCManagement(models.Model):
         'vendor_bill_ids.payment_state',
         'settlement_line_ids.state',
     )
-    # =========================================================
-    # SETTLEMENT STATE PROGRESSION
-    # Called explicitly after a settlement line is confirmed
-    # (see lc.settlement.line.action_confirm). Not a compute,
-    # since state is manually-driven and a recursive compute write
-    # would fight with action_open/action_close.
-    # =========================================================
+   
     def _refresh_settlement_state(self):
         for rec in self:
             if rec.state not in ('open', 'utilized'):
@@ -637,15 +940,13 @@ class LCManagement(models.Model):
                 if not self.env.user.has_group('account.group_account_manager'):
                     raise ValidationError("Only Accounting Managers can cancel a settled LC.")
 
-            # Reverse all confirmed settlement lines (fee/VAT + margin release moves)
+            # Reverse all confirmed settlement lines (settlement entries)
             for line in rec.settlement_line_ids.filtered(lambda l: l.state == 'confirmed'):
                 line.action_cancel_line()
 
             # Reverse legacy single-move fields if present (old records)
             if rec.settlement_move_id:
                 rec._reverse_move(rec.settlement_move_id)
-            if rec.release_move_id:
-                rec._reverse_move(rec.release_move_id)
 
             # Reverse opening entry
             if rec.opening_move_id:
@@ -700,6 +1001,151 @@ class LCManagement(models.Model):
             if rec.state == 'settled':
                 if not self.env.user.has_group('account.group_account_manager'):
                     raise ValidationError("Only Accounting Managers can cancel a settled LC.")
+
+    # =========================================================
+    # NOTIFY ACCOUNTANT: GL ACCOUNT NOT YET CREATED
+    # =========================================================
+    def action_request_fee_account_setup(self):
+        self.ensure_one()
+        return self._open_account_setup_request_form('fee')
+
+    def action_request_vat_account_setup(self):
+        self.ensure_one()
+        return self._open_account_setup_request_form('vat')
+
+    def _open_account_setup_request_form(self, purpose):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Request Account Setup',
+            'res_model': 'lc.account.setup.request',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_lc_id': self.id,
+                'default_account_purpose': purpose,
+            },
+        }
+
+    @api.depends('name')
+    def _compute_display_name(self):
+        for rec in self:
+            rec.display_name = rec.name or _("Draft LC (no reference yet)")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if 'name' in vals and not (vals['name'] or '').strip():
+                vals['name'] = False
+        records = super().create(vals_list)
+        records._autolink_fee_account()
+        return records
+
+    def write(self, vals):
+        if 'name' in vals and not (vals['name'] or '').strip():
+            vals['name'] = False
+        old_names = {rec.id: rec.name for rec in self} if 'name' in vals else {}
+        res = super().write(vals)
+        if vals.get('opening_fee_account_id'):
+            for rec in self:
+                self.env['lc.account.setup.request']._auto_complete_for_lc(rec, 'fee')
+        if vals.get('opening_vat_account_id'):
+            for rec in self:
+                self.env['lc.account.setup.request']._auto_complete_for_lc(rec, 'vat')
+        if 'name' in vals:
+            self._refresh_fee_account_after_reference_change(
+                old_names, explicit_fee='opening_fee_account_id' in vals,
+            )
+        return res
+
+    # States in which the fee account may still follow the LC reference.
+    # Once the LC is open the opening entry is posted with that account, so
+    # it must never change behind the accountant's back.
+    _FEE_AUTOLINK_STATES = ('draft', 'on_hold', 'pending_approval')
+
+    @staticmethod
+    def _account_matches_reference(account, reference):
+        return bool(
+            account and reference
+            and reference.lower() in (account.name or '').lower()
+        )
+
+    def _find_fee_account_for(self, reference):
+        if not reference:
+            return self.env['account.account']
+        return self.env['account.account'].sudo().search(
+            [('name', 'ilike', reference)], limit=1
+        )
+
+    def _refresh_fee_account_after_reference_change(self, old_names, explicit_fee=False):
+        """Keep the Fee Account in step with the LC Reference.
+
+        When the reference is corrected (e.g. it was typed as the previous
+        LC by mistake), the fee account that was auto-matched to the OLD
+        reference is replaced by the account matching the NEW one, or
+        cleared if none exists yet (the accountant can then be asked via
+        'Request Account Setup', and the account hook links it once it is
+        created). A fee account that was picked by hand - one that does not
+        match the old reference - is left alone, as is anything explicitly
+        written in the same save.
+        """
+        for rec in self:
+            if explicit_fee or rec.state not in self._FEE_AUTOLINK_STATES:
+                continue
+            old_name = old_names.get(rec.id)
+            if old_name == rec.name:
+                continue
+            current = rec.opening_fee_account_id
+            if current and not self._account_matches_reference(current, old_name):
+                continue
+            new = self._find_fee_account_for(rec.name)
+            if new.id == current.id:
+                continue
+            if new:
+                rec.opening_fee_account_id = new.id
+                if current:
+                    rec.message_post(body=(
+                        f"GIT Account changed automatically from {current.display_name} "
+                        f"to {new.display_name} because the LC Reference changed."
+                    ))
+            else:
+                rec.opening_fee_account_id = False
+                rec.message_post(body=(
+                    f"GIT Account {current.display_name} was cleared because the LC "
+                    f"Reference changed and no matching account exists yet."
+                ))
+
+    def _autolink_fee_account(self):
+        """Auto-fill the Fee Account from the Chart of Accounts by matching
+        this LC's own reference (name) - no company-wide config involved,
+        since every LC's fee account is a distinct account by design.
+
+        This covers the "account created after the LC" direction. The
+        opposite direction (LC created after the account already exists)
+        is covered by account.account's own create()/write() hook calling
+        back into this same matching, see models/account_account.py.
+        """
+        Account = self.env['account.account'].sudo()
+        for rec in self:
+            if rec.opening_fee_account_id or not rec.name:
+                continue
+            match = Account.search([('name', 'ilike', rec.name)], limit=1)
+            if match:
+                rec.opening_fee_account_id = match.id
+
+    @api.onchange('name')
+    def _onchange_name_autolink_fee_account(self):
+        """Live UI feedback: when the LC reference changes, update the Fee
+        Account in the form straight away (same rule as
+        _refresh_fee_account_after_reference_change, which persists it on
+        save - the field is read-only here so the form itself cannot)."""
+        if self.state not in self._FEE_AUTOLINK_STATES:
+            return
+        current = self.opening_fee_account_id
+        old_name = self._origin.name if self._origin else False
+        if current and not self._account_matches_reference(current, old_name):
+            return
+        self.opening_fee_account_id = self._find_fee_account_for(self.name)
 
     def action_open_cancel_wizard(self):
         self.ensure_one()

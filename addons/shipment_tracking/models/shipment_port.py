@@ -14,7 +14,17 @@ class ShipmentPort(models.Model):
         required=True, ondelete='cascade', index=True,
     )
     sequence = fields.Integer(string='Order', default=10)
-    name = fields.Char(string='Port Name', required=True)
+    location_id = fields.Many2one(
+        'shipment.location', string='Port Name',
+        required=True, ondelete='restrict',
+    )
+    # Kept as a stored, read-only mirror of location_id.name so every existing
+    # button label, chatter message, and search filter that already reads
+    # "port.name" as plain text (see shipment.py) keeps working unchanged.
+    name = fields.Char(
+        string='Port Name (Text)', related='location_id.name',
+        store=True, readonly=True,
+    )
     arrival_date = fields.Date(string='Expected Arrival')
     actual_arrival_date = fields.Date(string='Actual Arrival')
     state = fields.Selection([

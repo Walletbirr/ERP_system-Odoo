@@ -32,8 +32,8 @@ class LocalTransportTrip(models.Model):
     supplier_id = fields.Many2one(
         related='shipment_id.supplier_id', string='Supplier', readonly=True, store=True,
     )
-    port_of_discharge = fields.Char(
-        related='shipment_id.port_of_discharge',
+    port_of_discharge = fields.Many2one(
+        'shipment.location', related='shipment_id.port_of_discharge',
         string='Final Destination', readonly=True,
     )
     shipment_actual_arrival = fields.Date(
@@ -58,7 +58,7 @@ class LocalTransportTrip(models.Model):
     @api.onchange('shipment_id')
     def _onchange_shipment_id(self):
         if self.shipment_id:
-            self.origin_location = self.shipment_id.port_of_discharge
+            self.origin_location = self.shipment_id.port_of_discharge.name or ''
 
     @api.constrains('departure_date', 'expected_arrival_date')
     def _check_departure_before_arrival(self):

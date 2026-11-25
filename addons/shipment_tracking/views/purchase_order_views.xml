@@ -1,0 +1,22 @@
+<odoo>
+
+    <!-- ===================================================== -->
+    <!-- PURCHASE ORDER INHERIT: Local / Import toggle -->
+    <!-- Local purchases (unchecked) skip the shipment tracking -->
+    <!-- flow entirely and receive normally. Import purchases -->
+    <!-- (checked) must go through Shipment -> Arrived -> Local -->
+    <!-- Transport Delivered before the receipt can be validated. -->
+    <!-- ===================================================== -->
+    <record id="purchase_order_shipment_tracking_inherit" model="ir.ui.view">
+        <field name="name">purchase.order.shipment.tracking</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="is_import"
+                       readonly="state in ('purchase','done')"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

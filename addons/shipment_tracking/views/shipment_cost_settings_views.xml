@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shipment_tracking/views/shipment_cost_settings_views.xml -->
+<odoo>
+
+    <!-- ══ COST SETTINGS — FORM VIEW ══ -->
+    <record id="view_shipment_cost_settings_form" model="ir.ui.view">
+        <field name="name">shipment.cost.settings.form</field>
+        <field name="model">shipment.cost.settings</field>
+        <field name="arch" type="xml">
+            <form string="Tax Account Settings">
+                <sheet>
+                    <group>
+                        <field name="tax_account_id" placeholder="Select a Tax Account..."/>
+                    </group>
+                    <p class="text-muted">
+                        This account is automatically applied as the Tax Account on every
+                        new Shipment Cost record. The Tax Account field on Shipment Cost is
+                        read-only — change the default here to update it everywhere.
+                    </p>
+                </sheet>
+                <footer>
+                    <button name="action_save" type="object" string="Save" class="btn-primary"/>
+                    <button string="Discard" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ══ ACTION ══ -->
+    <record id="action_shipment_cost_settings" model="ir.actions.act_window">
+        <field name="name">Tax Account Settings</field>
+        <field name="res_model">shipment.cost.settings</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_shipment_cost_settings_form"/>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_shipment_cost_settings" name="Tax Account Settings"
+              parent="menu_shipment_costs_configuration"
+              action="action_shipment_cost_settings"
+              groups="purchase.group_purchase_manager"
+              sequence="20"/>
+
+</odoo>
