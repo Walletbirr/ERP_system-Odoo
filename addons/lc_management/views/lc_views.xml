@@ -214,6 +214,9 @@
                                    options="{'currency_field': 'currency_id'}" readonly="1"/>
                             <field name="remaining_amount" widget="monetary"
                                    options="{'currency_field': 'currency_id'}" readonly="1"/>
+                            <field name="git_account_balance" widget="monetary"
+                                   options="{'currency_field': 'company_currency_id'}"
+                                   invisible="state in ('draft', 'on_hold', 'pending_approval')"/>
                         </group>
 
                         <group string="Margin Paid at Opening">
@@ -351,9 +354,11 @@
                 <field name="purchase_order_id"/>
                 <field name="shipment_id"/>
                 <field name="lc_currency_id" column_invisible="1"/>
-                <field name="po_total_amount" string="PO Total" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_order_total" string="PO Total" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_margin_paid" string="Margin Paid" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_total_amount" string="Balance to Settle" options="{'currency_field': 'lc_currency_id'}"/>
                 <field name="po_total_settled" string="Settled So Far" options="{'currency_field': 'lc_currency_id'}"/>
-                <field name="po_remaining_to_settle" string="Remaining" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="po_left_to_pay" string="Left to Pay" options="{'currency_field': 'lc_currency_id'}"/>
                 <field name="po_tranche_count" string="Tranches"/>
                 <field name="po_settlement_status" widget="badge" string="Status"
                        decoration-muted="po_settlement_status == 'draft'"
@@ -390,7 +395,7 @@
                             groups="lc_management.group_lc_accountant,account.group_account_manager"
                             invisible="state != 'submitted'"/>
                     <button name="action_open_split_wizard"
-                            string="Split Into Partial Payment"
+                            string="Split Into Tranches"
                             type="object"
                             class="btn-secondary"
                             invisible="state != 'draft' or (is_root_line and not amount_to_settle)"/>
@@ -432,7 +437,7 @@
                         <div class="alert alert-info" role="alert" invisible="state != 'draft' or not amount_to_settle">
                             If the amount below is correct, fill in the bank's fee, VAT, and rate
                             and click <strong>Confirm Settlement</strong>. If you only want to settle
-                            part of it right now, click <strong>Split Into Partial Payment</strong> instead.
+                            part of it right now, click <strong>Split Into Tranches</strong> instead.
                         </div>
 
                         <div class="alert alert-success" role="alert"
@@ -442,10 +447,11 @@
 
                         <group>
                             <group string="Amount to Settle">
-                                <field name="amount_to_settle" widget="monetary"
+                                <field name="amount_to_settle" string="Amount to Settle" widget="monetary"
                                        options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
                                 <field name="settlement_date"/>
                                 <field name="settlement_rate"/>
+                                <field name="vendor_bill_id" readonly="state != 'draft'"/>
                             </group>
                             <group string="Bank Charges (enter as billed by the bank)">
                                 <field name="settlement_fee" widget="monetary"
@@ -461,8 +467,6 @@
                         <group>
                             <group string="Settlement Calculation">
                                 <field name="settlement_value_company" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="margin_applied_this_line" string="Less: Margin Already Paid" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                                 <field name="balance_to_pay_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
@@ -505,12 +509,18 @@
 
                         <group>
                             <group string="Settlement Progress">
-                                <field name="po_total_amount" string="PO Total" widget="monetary"
+                                <field name="po_order_total" string="PO Total" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="po_margin_paid" string="Margin Already Paid (at LC opening)" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                <field name="po_total_amount" string="Balance to Settle" widget="monetary"
                                        options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
                                 <field name="po_total_settled" string="Settled So Far" widget="monetary"
-                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
-                                <field name="po_remaining_to_settle" string="Remaining" widget="monetary"
-                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"
+                                       decoration-success="po_left_to_pay == 0"/>
+                                <field name="po_left_to_pay" string="Left to Pay" widget="monetary"
+                                       options="{'currency_field': 'lc_currency_id'}" readonly="1"
+                                       decoration-warning="po_left_to_pay &gt; 0"/>
                             </group>
                             <group string="Overview">
                                 <field name="po_tranche_count" string="Number of Tranches" readonly="1"/>
@@ -529,7 +539,7 @@
                                    options="{'currency_field': 'lc_currency_id'}" nolabel="1"/>.
                             Fill in the bank's fee, VAT, and rate below and click
                             <strong>Confirm Settlement</strong>, or click
-                            <strong>Split Into Partial Payment</strong> to settle only part of it now.
+                            <strong>Split Into Tranches</strong> to settle only part of it now.
                         </div>
 
                         <group invisible="state != 'draft' or not amount_to_settle">
@@ -552,13 +562,12 @@
                                                 decoration-warning="state == 'draft'">
                                                 <field name="lc_currency_id" column_invisible="1"/>
                                                 <field name="company_currency_id" column_invisible="1"/>
-                                                <field name="amount_to_settle" string="Amount" options="{'currency_field': 'lc_currency_id'}"/>
+                                                <field name="amount_to_settle" string="Amount to Settle" options="{'currency_field': 'lc_currency_id'}"/>
                                                 <field name="settlement_date"/>
                                                 <field name="settlement_rate"/>
                                                 <field name="settlement_fee" options="{'currency_field': 'company_currency_id'}"/>
                                                 <field name="settlement_vat_amount" options="{'currency_field': 'company_currency_id'}"/>
-                                                <field name="margin_applied_this_line" string="Margin Paid" options="{'currency_field': 'company_currency_id'}"/>
-                                                <field name="balance_to_pay_company" string="Balance Paid Now" options="{'currency_field': 'company_currency_id'}"/>
+                                                <field name="balance_to_pay_company" string="Paid Now (Br)" options="{'currency_field': 'company_currency_id'}"/>
                                                 <field name="state" widget="badge"
                                                     decoration-warning="state == 'draft'"
                                                     decoration-info="state == 'submitted'"
@@ -600,7 +609,7 @@
                         <div class="alert alert-info" role="alert" invisible="state != 'draft' or not amount_to_settle">
                             If the amount below is correct, fill in the bank's fee, VAT, and rate
                             and click <strong>Confirm Settlement</strong>. If you only want to settle
-                            part of it right now, click <strong>Split Into Partial Payment</strong> instead.
+                            part of it right now, click <strong>Split Into Tranches</strong> instead.
                         </div>
 
                         <group>
@@ -608,6 +617,7 @@
                                 <field name="lc_id" readonly="1"/>
                                 <field name="purchase_order_id" readonly="1"/>
                                 <field name="shipment_id" readonly="1"/>
+                                <field name="vendor_bill_id" readonly="state != 'draft'"/>
                                 <field name="parent_settlement_line_id" readonly="1" invisible="not parent_settlement_line_id"/>
                             </group>
                         </group>
@@ -615,7 +625,7 @@
                         <!-- DRAFT: editable amount + bank charges -->
                         <group invisible="state != 'draft' or not amount_to_settle">
                             <group string="Amount to Settle (this tranche)">
-                                <field name="amount_to_settle" widget="monetary"
+                                <field name="amount_to_settle" string="Amount to Settle" widget="monetary"
                                        options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
                                 <field name="settlement_date"/>
                                 <field name="settlement_rate"/>
@@ -634,7 +644,7 @@
                         <!-- no PO-level totals, no breakdown table. -->
                         <group invisible="state != 'confirmed'">
                             <group string="Amount Paid (this tranche)">
-                                <field name="amount_to_settle" string="Amount Paid" widget="monetary"
+                                <field name="amount_to_settle" string="Amount to Settle" widget="monetary"
                                        options="{'currency_field': 'lc_currency_id'}" readonly="1"/>
                                 <field name="settlement_date" readonly="1"/>
                                 <field name="settlement_rate" readonly="1"/>
@@ -652,8 +662,6 @@
                         <group>
                             <group string="Settlement Calculation (this tranche)">
                                 <field name="settlement_value_company" widget="monetary"
-                                       options="{'currency_field': 'company_currency_id'}" readonly="1"/>
-                                <field name="margin_applied_this_line" string="Less: Margin Already Paid" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
                                 <field name="balance_to_pay_company" widget="monetary"
                                        options="{'currency_field': 'company_currency_id'}" readonly="1"/>
@@ -798,6 +806,15 @@
                        options="{'no_create': True, 'no_create_edit': True}"
                        invisible="not is_import"
                        readonly="state in ('purchase','done')"/>
+                <field name="lc_currency_id" invisible="1"/>
+                <field name="lc_margin_pct" string="LC Margin" invisible="not is_import or not lc_id"/>
+                <field name="lc_po_margin" invisible="not is_import or not lc_id"
+                       widget="monetary" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="lc_po_balance" invisible="not is_import or not lc_id"
+                       widget="monetary" options="{'currency_field': 'lc_currency_id'}"/>
+                <field name="lc_available_amount" string="LC Available"
+                       invisible="not is_import or not lc_id or state in ('purchase', 'done')"
+                       widget="monetary" options="{'currency_field': 'lc_currency_id'}"/>
             </xpath>
         </field>
     </record>

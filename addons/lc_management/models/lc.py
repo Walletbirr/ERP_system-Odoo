@@ -278,6 +278,15 @@ class LCManagement(models.Model):
         compute='_compute_paid_amount',
         store=True,
     )
+    git_account_balance = fields.Monetary(
+        string="GIT Account Balance",
+        currency_field='company_currency_id',
+        compute='_compute_git_account_balance',
+        help="Balance left on this LC's GIT account after the vendor bills "
+             "have credited it: opening/settlement charges and the "
+             "exchange-rate difference. Clear it with a manual entry once "
+             "the LC is settled.",
+    )
 
     # Accounting
     opening_move_id = fields.Many2one(
@@ -332,6 +341,14 @@ class LCManagement(models.Model):
         compute="_compute_used_amount",
         store=True
     )
+    available_amount = fields.Monetary(
+        string="Available for New Purchases",
+        currency_field='currency_id',
+        compute="_compute_available_amount",
+        store=True,
+        help="LC amount not yet taken by confirmed purchase orders. An LC "
+             "with nothing available no longer appears on the purchase order."
+    )
 
     _sql_constraints = [
         ('unique_name', 'unique(name)', 'LC Reference must be unique!')
@@ -358,6 +375,9 @@ class LCManagement(models.Model):
         return problems
 
     def _check_ready_to_request_opening(self):
+        """Everything is optional while the LC is a draft. Only when the
+        officer asks for approval must the whole form be complete; all the
+        gaps are listed together so they can be fixed in one go."""
         self.ensure_one()
         rec = self
         if rec.state != 'draft':
@@ -365,31 +385,39 @@ class LCManagement(models.Model):
                 "Only draft LC can be submitted for opening. If this LC is "
                 "On Hold, resume it first."
             )
-        if not rec.name:
-            raise ValidationError(
-                "Enter the LC Reference (issued by the bank) before "
-                "requesting the LC opening."
-            )
-        problems = rec._opening_charges_problems()
+
+        must_be_filled = [
+            ('name', "LC Reference"),
+            ('partner_id', "Supplier"),
+            ('lc_type_id', "LC Margin"),
+            ('expiry_date', "Expiry Date"),
+            ('bank_journal_id', "Bank"),
+            ('currency_id', "Currency"),
+            ('opening_date', "Opening Date"),
+            ('insurer_name', "Insurer"),
+            ('opening_fee_account_id', "GIT Account (use 'Request Account Setup' if it doesn't exist yet)"),
+            ('opening_vat_account_id', "Opening VAT Account (use 'Request Account Setup' if it doesn't exist yet)"),
+        ]
+        problems = [
+            label for field_name, label in must_be_filled
+            if rec[field_name] in (False, None, '')
+        ]
+        if rec.amount <= 0:
+            problems.append("Total Amount (greater than zero)")
+        if rec.exchange_rate <= 0:
+            problems.append("Exchange Rate (greater than zero)")
+        problems += [f"{label} (greater than zero)"
+                     for label in rec._opening_charges_problems()]
+        if rec.insurance_amount <= 0:
+            problems.append("Insurance Amount (greater than zero)")
+
         if problems:
             raise ValidationError(
-                "Enter an amount greater than zero for the following before "
-                "requesting approval:\n\n- " + "\n- ".join(problems)
-                + "\n\n(You can still save the LC as a draft with these at 0.)"
+                "Please complete the following before requesting approval:"
+                "\n\n- " + "\n- ".join(problems)
+                + "\n\n(You can still save the LC as a draft with these empty.)"
             )
-        if not rec.bank_journal_id:
-            raise ValidationError("Select Bank Journal.")
-        if not rec.opening_fee_account_id:
-            raise ValidationError(
-                "Select the GIT Account. If it doesn't exist yet, use "
-                "'Request Account Setup' first to notify the accountant."
-            )
-        if not rec.opening_vat_account_id:
-            raise ValidationError(
-                "Select the Opening VAT Account. If it doesn't exist yet, use "
-                "'Request Account Setup' first to notify the accountant."
-            )
-        if not rec.bank_journal_id.default_account_id:
+        if rec.bank_journal_id and not rec.bank_journal_id.default_account_id:
             raise ValidationError("Bank journal missing default account.")
 
     def action_put_on_hold(self):
@@ -839,6 +867,11 @@ class LCManagement(models.Model):
                             )
             rec.billed_amount = total_billed
 
+    @api.depends('amount', 'used_amount')
+    def _compute_available_amount(self):
+        for rec in self:
+            rec.available_amount = max(rec.amount - rec.used_amount, 0.0)
+
     # ====================== REMAINING AMOUNT ======================
     @api.depends('amount', 'paid_amount')
     def _compute_remaining_amount(self):
@@ -855,32 +888,36 @@ class LCManagement(models.Model):
             rec.vendor_bill_ids = bills
             rec.bill_count = len(bills)
 
-    @api.depends(
-    'purchase_ids.invoice_ids.amount_total',
-    'purchase_ids.invoice_ids.amount_residual',
-    'purchase_ids.invoice_ids.state',
-    'purchase_ids.invoice_ids.currency_id'
-    )
+    @api.depends('settlement_line_ids.state', 'settlement_line_ids.amount_to_settle',
+                 'opening_move_id', 'margin_amount')
     def _compute_paid_amount(self):
+        """Paid = the margin paid at opening + every confirmed settlement.
+        Settlements pay the balance only, so nothing is counted twice."""
         for rec in self:
-            total_paid = 0.0
-            for po in rec.purchase_ids:
-                for bill in po.invoice_ids.filtered(lambda b: b.state == 'posted'):
-                    paid = bill.amount_total - bill.amount_residual
-                    if bill.currency_id == rec.currency_id:
-                        total_paid += paid
-                    else:
-                        total_paid += bill.currency_id._convert(
-                            paid,
-                            rec.currency_id,
-                            rec.env.company,
-                            fields.Date.context_today(rec)
-                        )
-            rec.paid_amount = total_paid
+            margin = rec.margin_amount if (
+                rec.opening_move_id and rec.state != 'cancelled') else 0.0
+            rec.paid_amount = margin + sum(
+                rec.settlement_line_ids.filtered(
+                    lambda l: l.state == 'confirmed').mapped('amount_to_settle'))
 
-        
         self._compute_remaining_amount()
         self._refresh_settlement_state()
+
+    def _compute_git_account_balance(self):
+        """What remains on the LC's own GIT account once the bills have
+        credited it: bank charges plus the exchange-rate difference."""
+        MoveLine = self.env['account.move.line']
+        for rec in self:
+            account = rec.opening_fee_account_id
+            if not account or not rec.id:
+                rec.git_account_balance = 0.0
+                continue
+            data = MoveLine._read_group(
+                [('account_id', '=', account.id),
+                 ('parent_state', '=', 'posted')],
+                aggregates=['balance:sum'])
+            rec.git_account_balance = (data[0][0] or 0.0) if data else 0.0
+
     @api.model
     def _cron_refresh_settlement_states(self):
         """Scheduled fallback: periodically re-checks every Utilized LC in
@@ -956,6 +993,7 @@ class LCManagement(models.Model):
                 'state': 'cancelled',
                 'rate_locked': False,
             })
+            rec.purchase_ids._lc_sync_margin_payment()
 
     def _reverse_move(self, move):
         """Reverse and post an accounting move."""
@@ -1187,6 +1225,11 @@ class LCManagement(models.Model):
                 lc.env.company,
                 fields.Date.context_today(lc)
             )
+        # The margin was already paid when the LC opened, so only the rest
+        # of the PO is left to settle (and to split into tranches).
+        margin_pct = lc.lc_type_id.margin_percentage or 0.0
+        amount_to_settle = lc.currency_id.round(
+            amount_to_settle * (100.0 - margin_pct) / 100.0)
 
         company_currency = lc.env.company.currency_id
         default_rate = self.env['res.currency']._get_conversion_rate(

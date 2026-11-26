@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="purchase_order_form_bank_payment" model="ir.ui.view">
+        <field name="name">purchase.order.form.bank.payment</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Smart button: one Payments button, replaces Vendor Bills -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_bank_payments" type="object"
+                        class="oe_stat_button bp-stat-button" icon="fa-university"
+                        invisible="not x_direct_pay or state in ('draft', 'sent', 'to approve')">
+                    <field name="currency_id" invisible="1"/>
+                    <div class="o_stat_info">
+                        <span class="o_stat_value">
+                            <field name="bank_paid_amount" widget="monetary"/>
+                        </span>
+                        <span class="o_stat_text">
+                            Payments
+                            (<field name="bank_payment_count" nolabel="1"/>)
+                        </span>
+                    </div>
+                </button>
+            </xpath>
+
+            <!-- Payments page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Payments" name="bank_payments"
+                      invisible="state in ('draft', 'sent', 'to approve')">
+                    <field name="currency_id" invisible="1"/>
+                    <div class="bp-page">
+                        <div class="bp-header">
+                            <div>
+                                <div class="bp-title">Payment Summary</div>
+                                <div class="bp-sub">
+                                    <field name="x_direct_pay" nolabel="1"
+                                           readonly="state in ('purchase', 'done', 'cancel')"/>
+                                    <span> Pay directly from bank</span>
+                                </div>
+                            </div>
+                            <field name="bank_payment_status" widget="badge"
+                                   invisible="not x_direct_pay"
+                                   decoration-danger="bank_payment_status == 'not_paid'"
+                                   decoration-warning="bank_payment_status == 'partial'"
+                                   decoration-success="bank_payment_status == 'paid'"/>
+                        </div>
+
+                        <div class="bp-cards" invisible="not x_direct_pay">
+                            <div class="bp-card">
+                                <span class="bp-card-label">Order Total</span>
+                                <field name="amount_total" widget="monetary" class="bp-card-value"/>
+                            </div>
+                            <div class="bp-card bp-card-paid">
+                                <span class="bp-card-label">Paid</span>
+                                <field name="bank_paid_amount" widget="monetary" class="bp-card-value"/>
+                            </div>
+                            <div class="bp-card bp-card-left">
+                                <span class="bp-card-label">Remaining</span>
+                                <field name="bank_remaining_amount" widget="monetary" class="bp-card-value"/>
+                            </div>
+                        </div>
+
+                        <div class="bp-actions" invisible="not x_direct_pay">
+                            <button name="action_new_bank_payment" type="object"
+                                    string="New Payment" class="btn btn-primary"
+                                    icon="fa-plus"
+                                    invisible="state not in ('purchase', 'done') or bank_payment_status == 'paid'"/>
+                            <button name="action_view_bank_payments" type="object"
+                                    string="Open All Payments" class="btn btn-secondary"
+                                    icon="fa-list"/>
+                        </div>
+
+                        <div class="alert alert-info mt-3" role="alert"
+                             invisible="x_direct_pay">
+                            This purchase uses a normal vendor bill (credit supplier).
+                            Direct payments are off.
+                        </div>
+
+                        <field name="bank_payment_ids" readonly="1"
+                               invisible="not x_direct_pay or not bank_payment_ids">
+                            <list decoration-muted="state == 'cancelled'">
+                                <field name="currency_id" column_invisible="1"/>
+                                <field name="name"/>
+                                <field name="date"/>
+                                <field name="memo"/>
+                                <field name="journal_id"/>
+                                <field name="rate_display" string="Rate"/>
+                                <field name="amount" sum="Total"/>
+                                <field name="state" widget="badge"
+                                       decoration-success="state == 'posted'"
+                                       decoration-info="state == 'draft'"
+                                       decoration-muted="state == 'cancelled'"/>
+                            </list>
+                        </field>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

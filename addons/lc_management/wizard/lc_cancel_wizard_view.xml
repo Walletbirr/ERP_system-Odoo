@@ -218,40 +218,51 @@
         <field name="model">lc.settlement.split.wizard</field>
         <field name="arch" type="xml">
 
-            <form string="Split Into Partial Settlement">
-
+            <form string="Split Into Tranches">
                 <sheet>
-
+                    <field name="lc_currency_id" invisible="1"/>
                     <div class="alert alert-info" role="alert">
-                        Enter how much of the current amount you're settling right now.
-                        The remainder will stay as its own line until it's paid off too -
-                        each tranche can have its own bank fee, VAT, and rate.
+                        Split the settlement of <field name="purchase_order_id" readonly="1" nolabel="1" class="d-inline"/>
+                        into as many tranches as you need, all at once. Each tranche gets its
+                        own date and rate, and later its own bank fee and VAT. Whatever you
+                        don't allocate stays as one more tranche.
                     </div>
 
                     <group>
-                        <field name="settlement_line_id" readonly="1"/>
-                        <field name="lc_currency_id" invisible="1"/>
-                        <field name="current_amount"/>
-                        <field name="split_amount"/>
+                        <group>
+                            <field name="settlement_line_id" invisible="1"/>
+                            <field name="current_amount"/>
+                            <field name="allocated"/>
+                            <field name="remainder" decoration-danger="remainder &lt; 0"
+                                   decoration-success="remainder == 0"/>
+                        </group>
+                        <group string="Quick Split">
+                            <label for="quick_count"/>
+                            <div class="o_row">
+                                <field name="quick_count" nolabel="1" class="oe_inline"/>
+                                <button name="action_quick_split" type="object"
+                                        string="Apply" class="btn-secondary" icon="fa-magic"/>
+                            </div>
+                        </group>
                     </group>
 
+                    <field name="part_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="lc_currency_id" column_invisible="1"/>
+                            <field name="amount" sum="Allocated"/>
+                            <field name="percent" readonly="1"/>
+                            <field name="date"/>
+                            <field name="rate" optional="show"/>
+                        </list>
+                    </field>
                 </sheet>
 
                 <footer>
-
-                    <button
-                        name="action_confirm_split"
-                        string="Split"
-                        type="object"
-                        class="btn-primary"/>
-
-                    <button
-                        string="Cancel"
-                        special="cancel"
-                        class="btn-secondary"/>
-
+                    <button name="action_confirm_split" string="Create Tranches"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
                 </footer>
-
             </form>
 
         </field>

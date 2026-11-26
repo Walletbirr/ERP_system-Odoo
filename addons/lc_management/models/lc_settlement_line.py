@@ -39,12 +39,19 @@ class LCSettlementLine(models.Model):
         readonly=True,
         help="The shipment whose arrival at final destination triggered this settlement line."
     )
+    product_summary = fields.Char(
+        string="Products", compute='_compute_product_summary')
     vendor_bill_id = fields.Many2one(
         'account.move',
         string="Vendor Bill",
-        readonly=True,
-        help="Optional reference to the vendor bill for this Purchase Order, if one exists "
-             "by the time this line is viewed. Not used to size the settlement amount."
+        copy=False,
+        domain="[('x_is_lc_bill', '=', True), ('state', '=', 'posted'), "
+               "('x_lc_id', '=', lc_id), "
+               "('invoice_line_ids.purchase_line_id.order_id', '=', purchase_order_id)]",
+        help="The posted LC bill this tranche pays. Filled automatically when "
+             "the purchase order has exactly one LC bill; pick it here when "
+             "there are several. Confirming the tranche marks that bill as "
+             "paid, in the bill currency, without any payment."
     )
     parent_settlement_line_id = fields.Many2one(
         'lc.settlement.line',
@@ -76,7 +83,7 @@ class LCSettlementLine(models.Model):
              "(this line plus all its splits)."
     )
     po_total_amount = fields.Monetary(
-        string="PO Total",
+        string="Balance to Settle",
         currency_field='lc_currency_id',
         compute='_compute_po_rollup',
         store=True,
@@ -208,12 +215,12 @@ class LCSettlementLine(models.Model):
         help="Amount to settle x settlement rate."
     )
     balance_to_pay_company = fields.Monetary(
-        string="Balance Paid Now (to GIT)",
+        string="Paid Now (to GIT)",
         currency_field='company_currency_id',
         compute='_compute_settlement_balance',
-        help="Value at the settlement rate, less the margin already paid at "
-             "opening. This is what leaves the bank for the goods in this "
-             "tranche and is posted to the LC's GIT account."
+        help="The tranche amount at the settlement rate. The margin was paid "
+             "at LC opening, so this is the whole amount that leaves the "
+             "bank now and is posted to the LC's GIT account."
     )
 
     # =========================================================
@@ -252,42 +259,13 @@ class LCSettlementLine(models.Model):
                 value - line.margin_applied_this_line
             )
 
-    @api.depends(
-        'amount_to_settle',
-        'state',
-        'lc_id.amount',
-        'lc_id.margin_amount_company_currency',
-        'lc_id.settlement_line_ids.amount_to_settle',
-        'lc_id.settlement_line_ids.state',
-    )
+    @api.depends('amount_to_settle')
     def _compute_margin_applied_this_line(self):
+        """The margin is paid in full at LC opening and the settlement
+        amount is already the balance after it, so no margin is deducted
+        here. Kept (always zero) so older settlement entries still read."""
         for line in self:
-            lc = line.lc_id
-
-            if (
-                not lc
-                or line.state == 'cancelled'
-                or float_is_zero(lc.amount, precision_rounding=lc.currency_id.rounding or 0.01)
-            ):
-                line.margin_applied_this_line = 0.0
-                continue
-
-            # Proportional share of the margin this tranche represents.
-            theoretical = lc.margin_amount_company_currency * (line.amount_to_settle / lc.amount)
-
-            # Cap at what is still unapplied, worked out from the sibling
-            # CONFIRMED lines (excluding self by id) so the result is the same
-            # however many times or in whatever order Odoo recomputes it.
-            others = lc.settlement_line_ids.filtered(
-                lambda l: l.id != line.id and l.state == 'confirmed'
-            )
-            applied_by_others = min(
-                sum(lc.margin_amount_company_currency * (l.amount_to_settle / lc.amount)
-                    for l in others),
-                lc.margin_amount_company_currency,
-            )
-            remaining = max(lc.margin_amount_company_currency - applied_by_others, 0.0)
-            line.margin_applied_this_line = min(theoretical, remaining)
+            line.margin_applied_this_line = 0.0
 
     def _prepare_settlement_entries(self):
         """Single source of truth for the settlement journal entry, used by
@@ -626,7 +604,9 @@ class LCSettlementLine(models.Model):
         other_lines = lc.settlement_line_ids.filtered(
             lambda l: l.id != line.id and l.state == 'confirmed'
         )
-        total_settled_if_confirmed = sum(other_lines.mapped('amount_to_settle')) + line.amount_to_settle
+        margin_paid = lc.margin_amount if lc.opening_move_id else 0.0
+        total_settled_if_confirmed = (
+            margin_paid + sum(other_lines.mapped('amount_to_settle')) + line.amount_to_settle)
         if float_compare(total_settled_if_confirmed, lc.amount, precision_rounding=lc.currency_id.rounding) > 0:
             raise ValidationError("This settlement would exceed the LC amount.")
 
@@ -639,8 +619,7 @@ class LCSettlementLine(models.Model):
         preview_lines = [
             f"Value at settlement rate: {line.amount_to_settle:,.2f} {lc_cur} x {rate:,.6f} = "
             f"{line.settlement_value_company:,.2f} {cur}",
-            f"Less margin already paid at opening: {line.margin_applied_this_line:,.2f} {cur}",
-            f"Balance paid now: {line.balance_to_pay_company:,.2f} {cur}",
+            f"Paid now: {line.balance_to_pay_company:,.2f} {cur}",
             "",
             "Settlement Entry:",
         ]
@@ -675,6 +654,62 @@ class LCSettlementLine(models.Model):
     # =========================================================
     # CONFIRM: VALIDATE + POST BOTH MOVES
     # =========================================================
+    @api.depends('purchase_order_id.order_line.product_id')
+    def _compute_product_summary(self):
+        for line in self:
+            names = line.purchase_order_id.order_line.filtered(
+                lambda l: not l.display_type).mapped('product_id.display_name')
+            line.product_summary = ", ".join(names[:3]) + (
+                f" +{len(names) - 3}" if len(names) > 3 else "")
+
+    def _get_lc_bill_for_confirmation(self):
+        """The posted LC bill this tranche pays, validated. Settlement and
+        bill read each other here: the tranche may not exceed what the bill
+        still has open, which is what prevents partial payments."""
+        self.ensure_one()
+        lc = self.lc_id
+        if self.purchase_order_id.x_direct_pay:
+            # Paid directly from the bank to GIT: there is no vendor bill.
+            return self.env['account.move']
+        bill = self.vendor_bill_id
+        if not bill:
+            candidates = self.purchase_order_id.invoice_ids.filtered(
+                lambda b: b.state == 'posted' and b.x_is_lc_bill
+                and b.x_lc_id == lc)
+            if not candidates:
+                raise ValidationError(
+                    f"Post the vendor bill of {self.purchase_order_id.name} "
+                    f"before confirming this settlement. The settlement pays "
+                    f"that bill."
+                )
+            if len(candidates) > 1:
+                raise ValidationError(
+                    f"{self.purchase_order_id.name} has several LC bills. "
+                    f"Choose the bill this tranche pays in the Vendor Bill field."
+                )
+            bill = candidates
+            self.vendor_bill_id = bill
+        if bill.state != 'posted' or not bill.x_is_lc_bill or bill.x_lc_id != lc:
+            raise ValidationError(
+                f"Bill {bill.display_name} is not a posted bill of {lc.name}. "
+                f"If it was posted before this feature existed, reset it to "
+                f"draft and post it again."
+            )
+        if bill.currency_id != lc.currency_id:
+            raise ValidationError(
+                f"Bill {bill.display_name} is in {bill.currency_id.name} but "
+                f"the LC is in {lc.currency_id.name}."
+            )
+        if float_compare(self.amount_to_settle, bill.x_lc_unsettled_amount,
+                         precision_rounding=lc.currency_id.rounding) > 0:
+            raise ValidationError(
+                f"This tranche ({self.amount_to_settle}) is more than bill "
+                f"{bill.display_name} has left to settle "
+                f"({bill.x_lc_unsettled_amount}). Split the tranche or pick "
+                f"the right bill."
+            )
+        return bill
+
     def action_confirm(self):
         for line in self:
             lc = line.lc_id
@@ -709,6 +744,9 @@ class LCSettlementLine(models.Model):
                     f"Shipment {line.shipment_id.reference} is no longer marked as Arrived. "
                     f"Settlement cannot be confirmed until the shipment status is corrected."
                 )
+
+            # ===================== VENDOR BILL =====================
+            line._get_lc_bill_for_confirmation()
 
             # ===================== VALIDATIONS =====================
             if float_is_zero(line.amount_to_settle, precision_rounding=lc.currency_id.rounding):
@@ -808,6 +846,73 @@ class LCSettlementLine(models.Model):
 
             line.state = 'cancelled'
 
+    def _split_into(self, parts):
+        """Split this draft line into several tranches at once.
+
+        parts: [{'amount', 'date', 'rate'}, ...]. Anything not allocated
+        stays as one more tranche, so no money is lost or double counted.
+        The root line stays a pure anchor (amount zero) exactly as with the
+        single split; a non-root line keeps the leftover, or the first part
+        if nothing is left over.
+        """
+        self.ensure_one()
+        lc = self.lc_id
+        rounding = lc.currency_id.rounding
+        if self.state != 'draft':
+            raise ValidationError("Only a draft settlement line can be split.")
+        if not parts:
+            raise ValidationError("Add at least one tranche.")
+        for part in parts:
+            if float_compare(part['amount'], 0.0, precision_rounding=rounding) <= 0:
+                raise ValidationError("Every tranche amount must be greater than zero.")
+        allocated = sum(p['amount'] for p in parts)
+        remainder = self.amount_to_settle - allocated
+        if float_compare(remainder, 0.0, precision_rounding=rounding) < 0:
+            raise ValidationError(
+                f"The tranches add up to {allocated}, which is more than "
+                f"the {self.amount_to_settle} being split.")
+        pieces = list(parts)
+        if float_compare(remainder, 0.0, precision_rounding=rounding) > 0:
+            pieces.append({'amount': remainder, 'date': False, 'rate': 0.0})
+        if len(pieces) < 2:
+            raise ValidationError(
+                "Nothing to split: the tranche covers the whole amount.")
+
+        common = {
+            'lc_id': lc.id,
+            'purchase_order_id': self.purchase_order_id.id,
+            'shipment_id': self.shipment_id.id,
+            'vendor_bill_id': self.vendor_bill_id.id,
+            'parent_settlement_line_id': self.id,
+            'settlement_fee_account_id': self.settlement_fee_account_id.id,
+            'settlement_vat_account_id': self.settlement_vat_account_id.id,
+            'state': 'draft',
+        }
+
+        def vals_for(piece):
+            return {
+                **common,
+                'amount_to_settle': piece['amount'],
+                'settlement_date': piece.get('date') or fields.Date.today(),
+                'settlement_rate': piece.get('rate') or self.settlement_rate,
+            }
+
+        Line = self.env['lc.settlement.line']
+        if self.is_root_line:
+            created = Line.create([vals_for(p) for p in pieces])
+            self.amount_to_settle = 0.0
+            return created
+
+        # Non-root: this line keeps the last piece, the rest become children.
+        keep = pieces[-1]
+        created = Line.create([vals_for(p) for p in pieces[:-1]])
+        self.write({
+            'amount_to_settle': keep['amount'],
+            'settlement_date': keep.get('date') or self.settlement_date,
+            'settlement_rate': keep.get('rate') or self.settlement_rate,
+        })
+        return created
+
     def action_open_split_wizard(self):
         """Opens a small wizard asking how much of this draft line's
         remaining amount should be split off into its own tranche, so a
@@ -820,12 +925,11 @@ class LCSettlementLine(models.Model):
 
         wizard = self.env['lc.settlement.split.wizard'].create({
             'settlement_line_id': self.id,
-            'split_amount': self.amount_to_settle,
         })
 
         return {
             'type': 'ir.actions.act_window',
-            'name': 'Split Into Partial Settlement',
+            'name': 'Split Into Tranches',
             'res_model': 'lc.settlement.split.wizard',
             'view_mode': 'form',
             'target': 'new',
@@ -953,3 +1057,101 @@ class LCSettlementLine(models.Model):
             'res_id': self.id,
             'target': 'new',
         }
+
+    # =========================================================
+    # MIRROR INTO THE PURCHASE'S PAYMENTS LIST
+    # =========================================================
+    def write(self, vals):
+        res = super().write(vals)
+        if 'state' in vals:
+            self._sync_po_payment()
+        return res
+
+    def _sync_po_payment(self):
+        """A confirmed tranche appears on its PO as a payment of its whole
+        amount; the margin is already on the PO from the LC opening, so
+        margin + tranches add up to the PO total."""
+        Payment = self.env['purchase.bank.payment'].with_context(bp_sync=True)
+        for line in self:
+            po = line.purchase_order_id
+            lc = line.lc_id
+            rec = Payment.search(
+                [('lc_settlement_line_id', '=', line.id)], limit=1)
+            balance = line.amount_to_settle
+            if po and lc.currency_id != po.currency_id:
+                balance = lc.currency_id._convert(
+                    balance, po.currency_id, po.company_id,
+                    line.settlement_date or fields.Date.today())
+            active = bool(
+                po and po.x_direct_pay and line.state == 'confirmed'
+                and po.currency_id
+                and not po.currency_id.is_zero(balance))
+            if not active:
+                if rec and rec.state != 'cancelled':
+                    rec.write({'state': 'cancelled'})
+                continue
+            vals = {
+                'amount': po.currency_id.round(balance),
+                'date': line.settlement_date,
+                'journal_id': lc.bank_journal_id.id,
+                'git_account_id': lc.opening_fee_account_id.id,
+                'move_id': line.settlement_move_id.id,
+                'memo': line.product_summary or lc.name,
+                'lc_id': lc.id,
+                'external_amount_company': line.balance_to_pay_company,
+                'state': 'posted',
+            }
+            if rec:
+                rec.write(vals)
+            else:
+                Payment.create({
+                    **vals, 'source': 'lc_settlement',
+                    'purchase_id': po.id,
+                    'lc_settlement_line_id': line.id})
+
+    # =========================================================
+    # MARGIN-AWARE VIEW OF WHAT HAS BEEN PAID (display only)
+    # The margin is paid at LC opening, so each tranche only pays its
+    # balance. These figures make the settlement screens show that, and
+    # match what the purchase order's Payments tab adds up.
+    # =========================================================
+    margin_pct = fields.Float(
+        string="LC Margin %", related='lc_id.lc_type_id.margin_percentage')
+    po_order_total = fields.Monetary(
+        string="PO Total",
+        currency_field='lc_currency_id', compute='_compute_paid_view')
+    po_margin_paid = fields.Monetary(
+        string="Margin Already Paid",
+        currency_field='lc_currency_id', compute='_compute_paid_view',
+        help="Margin paid at LC opening for this whole purchase order.")
+    po_paid_so_far = fields.Monetary(
+        string="Paid So Far",
+        currency_field='lc_currency_id', compute='_compute_paid_view',
+        help="Margin plus every confirmed settlement.")
+    po_left_to_pay = fields.Monetary(
+        string="Left to Pay",
+        currency_field='lc_currency_id', compute='_compute_paid_view')
+
+    @api.depends('po_total_amount', 'po_total_settled', 'purchase_order_id.amount_total',
+                 'lc_id.lc_type_id.margin_percentage', 'lc_currency_id')
+    def _compute_paid_view(self):
+        for line in self:
+            po = line.purchase_order_id
+            cur = line.lc_currency_id
+            pct = line.lc_id.lc_type_id.margin_percentage or 0.0
+            total = po.amount_total if po else 0.0
+            if po and cur and po.currency_id != cur:
+                total = po.currency_id._convert(
+                    total, cur, po.company_id, fields.Date.context_today(line))
+            margin = cur.round(total * pct / 100.0) if cur else 0.0
+            line.po_order_total = total
+            line.po_margin_paid = margin
+            line.po_paid_so_far = margin + (line.po_total_settled or 0.0)
+            line.po_left_to_pay = max(line.po_total_amount - line.po_total_settled, 0.0)
+
+    @api.depends('purchase_order_id.name', 'lc_id.name', 'amount_to_settle')
+    def _compute_display_name(self):
+        for line in self:
+            po = line.purchase_order_id.name or ''
+            lc = line.lc_id.name or ''
+            line.display_name = f"{po} - {lc}".strip(' -') or "Settlement"

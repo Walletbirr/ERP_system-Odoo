@@ -1,12 +1,12 @@
 {
     'name': 'LC Management',
-    'version': '2.0',
+    'version': '2.2',
     'summary': 'Letter of Credit Management',
     'category': 'Inventory/Purchase',
     'license': 'LGPL-3',
     'application': True,
     'depends': ['purchase', 'stock', 'account', 'mail', 'shipment_tracking',
-                'custom_contacts_manager'],
+                'custom_contacts_manager', 'purchase_bank_payment'],
     'data': [
         'security/lc_security.xml',
         'security/ir.model.access.csv',
@@ -16,6 +16,8 @@
         'views/lc_company_settings_views.xml',
         'wizard/lc_cancel_wizard_view.xml',
         'views/shipment_cost_lc_views.xml',
+        'views/account_move_lc_views.xml',
+        'views/purchase_order_lc_payment_views.xml',
     ],
     'installable': True,
 }

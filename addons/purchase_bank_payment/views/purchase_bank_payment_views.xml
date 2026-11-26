@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_purchase_bank_payment_list" model="ir.ui.view">
+        <field name="name">purchase.bank.payment.list</field>
+        <field name="model">purchase.bank.payment</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'cancelled'" sample="1">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="purchase_id"/>
+                <field name="partner_id"/>
+                <field name="journal_id"/>
+                <field name="memo" optional="show"/>
+                <field name="git_account_id" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="rate_display" string="Rate" optional="show"/>
+                <field name="amount" sum="Total"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'posted'"
+                       decoration-info="state == 'draft'"
+                       decoration-muted="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_purchase_bank_payment_form" model="ir.ui.view">
+        <field name="name">purchase.bank.payment.form</field>
+        <field name="model">purchase.bank.payment</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_post" string="Confirm Payment" type="object"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_cancel" string="Cancel Payment" type="object"
+                            invisible="state == 'cancelled' or source != 'local'"
+                            confirm="Cancel this payment? Its entry will be reversed."/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,posted"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="source" invisible="1"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="company_currency_id" invisible="1"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_move" type="object"
+                                class="oe_stat_button" icon="fa-book"
+                                invisible="not move_id">
+                            <div class="o_stat_info">
+                                <span class="o_stat_text">Journal Entry</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                        <h3 class="text-muted"><field name="purchase_id" readonly="state != 'draft'"/></h3>
+                    </div>
+                    <group>
+                        <group string="Payment">
+                            <field name="amount" readonly="state != 'draft'"/>
+                            <field name="date" readonly="state != 'draft'"/>
+                            <field name="memo" readonly="state != 'draft'"/>
+                        </group>
+                        <group string="Accounts">
+                            <field name="journal_id" readonly="state != 'draft'"
+                                   options="{'no_create': True}"/>
+                            <field name="git_account_id" readonly="state != 'draft'"
+                                   options="{'no_create': True}"/>
+                            <field name="amount_company" invisible="currency_id == company_currency_id and source == 'local'"/>
+                            <field name="rate_display" string="Rate" invisible="source == 'local'"/>
+                            <field name="move_id" invisible="not move_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+</odoo>

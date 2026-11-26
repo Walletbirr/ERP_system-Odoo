@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- LC purchases are paid by their LC: no manual "New Payment" -->
+    <record id="purchase_order_form_lc_payment" model="ir.ui.view">
+        <field name="name">purchase.order.form.lc.payment</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase_bank_payment.purchase_order_form_bank_payment"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_new_bank_payment']" position="attributes">
+                <attribute name="invisible">state not in ('purchase', 'done') or bank_payment_status == 'paid' or lc_id</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('bp-actions')]" position="after">
+                <div class="alert alert-warning" role="alert"
+                     invisible="not lc_id or not x_direct_pay">
+                    Paid through Letter of Credit <field name="lc_id" readonly="1" nolabel="1"/>.
+                    Payments appear here when each LC settlement is confirmed.
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
