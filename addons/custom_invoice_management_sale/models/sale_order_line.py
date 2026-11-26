@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
+from odoo.tools import float_round
 
 from odoo.addons.custom_invoice_management.models.account_move import cim_is_wht_tax
 
@@ -43,6 +44,15 @@ class SaleOrderLine(models.Model):
         compute='_compute_cim_selling_price',
         store=True,
         readonly=False,
+        copy=False,
+    )
+
+    # Technical: True on the Other Income line that only carries the tax
+    # rounding cents of a Selling Price. It is booked like any other line but
+    # is not shown in the Other Income total of the order.
+    cim_is_rounding = fields.Boolean(
+        string="Tax Rounding Line (technical)",
+        default=False,
         copy=False,
     )
 
@@ -107,7 +117,10 @@ class SaleOrderLine(models.Model):
                 line.cim_selling_price = 0.0
                 line.cim_auto_selling_price = 0.0
                 continue
-            auto = line._cim_line_total_before_wht()
+            # Default Selling Price: the line total rounded to a whole currency
+            # unit. The few cents of tax rounding are carried by the untaxed
+            # Other Income line that balancing adds.
+            auto = float_round(line._cim_line_total_before_wht(), precision_digits=0)
             current = line.cim_selling_price
             currency = line.currency_id or line.order_id.currency_id
             # Empty, or still the price we filled in: follow the line.
