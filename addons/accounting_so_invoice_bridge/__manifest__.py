@@ -1,6 +1,6 @@
 {
     'name': 'Accounting - Create Invoice from Sales Order',
-    'version': '18.0.31.0.0',
+    'version': '18.0.32.0.0',
     'category': 'Accounting/Accounting',
     'summary': 'Accounting approves the payment proof FIRST; only then can the '
                'salesperson create the invoice, which Accounting confirms.',

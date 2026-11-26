@@ -65,6 +65,19 @@ class AccountPaymentRegister(models.TransientModel):
         return journal
 
     @api.model
+    def _proof_for_moves(self, moves):
+        """Most recently approved payment proof of the order behind this
+        single customer invoice (empty if none)."""
+        moves = moves.filtered(
+            lambda m: m.move_type == 'out_invoice').sudo()
+        proofs = moves.x_sale_order_ids.payment_proof_ids.filtered(
+            lambda p: p.state == 'approved')
+        if not proofs:
+            return self.env['sale.order.payment.proof']
+        return proofs.sorted(
+            lambda p: (p.reviewed_date or p.create_date, p.id))[-1]
+
+    @api.model
     def default_get(self, fields_list):
         """Main hook: the Pay dialog opens with the proof's journal already
         in place (a default is never overwritten by the computed one)."""
@@ -95,6 +108,26 @@ class AccountPaymentRegister(models.TransientModel):
                 }) for bank in banks]
                 if 'amount' in fields_list:
                     res['amount'] = sum(banks.mapped('amount'))
+            # Over / under on the approved proof: the Pay dialog takes the
+            # amount really received and books the difference to the account
+            # the accountant chose at approval (reconciled, no manual line).
+            proof = self._proof_for_moves(moves) if len(moves) == 1 \
+                else self.env['sale.order.payment.proof']
+            if proof and proof.payment_over_under \
+                    and proof.over_under_account_id:
+                rows = proof.sudo().payment_bank_ids
+                if rows:
+                    res['journal_id'] = rows[0].journal_id.id
+                    res['bridge_multi_bank'] = True
+                    res['bridge_bank_line_ids'] = [(0, 0, {
+                        'journal_id': row.journal_id.id,
+                        'amount': row.amount,
+                    }) for row in rows]
+                    if 'amount' in fields_list:
+                        res['amount'] = sum(rows.mapped('amount'))
+                res['payment_difference_handling'] = 'reconcile'
+                res['writeoff_account_id'] = proof.over_under_account_id.id
+                res['writeoff_label'] = 'OVER/UNDER'
         except Exception:
             _logger.exception(
                 "accounting_so_invoice_bridge: could not preselect the "
@@ -159,9 +192,30 @@ class AccountPaymentRegister(models.TransientModel):
             self.amount = total
         return rows
 
+    def _bridge_apply_over_under(self):
+        """Re-apply the approved proof's over / under right before the
+        payment is created: the amount really received, reconciled into the
+        account the accountant chose. Does not depend on the dialog's
+        defaults surviving the computed fields."""
+        self.ensure_one()
+        moves = self.line_ids.move_id
+        if len(moves) != 1:
+            return
+        proof = self._proof_for_moves(moves)
+        if not (proof and proof.payment_over_under
+                and proof.over_under_account_id):
+            return
+        received = sum(proof.sudo().payment_bank_ids.mapped('amount'))
+        if self.currency_id.compare_amounts(self.amount, received):
+            self.amount = received
+        self.payment_difference_handling = 'reconcile'
+        self.writeoff_account_id = proof.over_under_account_id
+        self.writeoff_label = 'OVER/UNDER'
+
     def action_create_payments(self):
         if self.bridge_multi_bank:
             self._bridge_sync_banks()
+        self._bridge_apply_over_under()
         return super().action_create_payments()
 
     def _create_payment_vals_from_wizard(self, batch_result):
