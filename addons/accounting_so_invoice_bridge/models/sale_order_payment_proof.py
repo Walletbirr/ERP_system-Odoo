@@ -98,6 +98,18 @@ class SaleOrderPaymentProof(models.Model):
     payment_bank_summary = fields.Char(
         string='Banks', compute='_compute_payment_bank_summary',
         groups=BANK_GROUPS)
+    currency_id = fields.Many2one(
+        related='sale_order_id.currency_id', string='Currency', readonly=True)
+    payment_over_under = fields.Monetary(
+        string='Over / Under', currency_field='currency_id',
+        compute='_compute_payment_over_under', store=True, groups=BANK_GROUPS,
+        help="Amount the bank(s) received minus the order total. Positive when "
+             "more arrived than the order, negative when less arrived.")
+    over_under_account_id = fields.Many2one(
+        'account.account', string='Over / Under Account', readonly=True,
+        copy=False, groups=BANK_GROUPS,
+        help="Chosen by the accountant when approving: the account the "
+             "over / under is booked to on the invoice's payment.")
     order_detail_html = fields.Html(
         string='Order Details', compute='_compute_order_detail_html',
         sanitize=False,
@@ -122,6 +134,16 @@ class SaleOrderPaymentProof(models.Model):
              'Binary cell in a list view can be stuck showing only the '
              'file size, so this always resolves to a working link.',
     )
+
+    @api.depends('payment_bank_ids.amount', 'sale_order_id.amount_total')
+    def _compute_payment_over_under(self):
+        for proof in self:
+            if proof.payment_bank_ids:
+                received = sum(proof.payment_bank_ids.mapped('amount'))
+                proof.payment_over_under = proof.currency_id.round(
+                    received - proof.sale_order_id.amount_total)
+            else:
+                proof.payment_over_under = 0.0
 
     @api.depends('payment_journal_id', 'payment_bank_ids.journal_id',
                  'payment_bank_ids.amount')
@@ -444,7 +466,8 @@ class SaleOrderPaymentProof(models.Model):
             'context': {'default_proof_ids': [(6, 0, self.ids)]},
         }
 
-    def action_approve(self, journal=None, bank_lines=None):
+    def action_approve(self, journal=None, bank_lines=None,
+                       over_under_account=None):
         """Approve. ``bank_lines`` is a list of (journal, amount): every
         bank the payment was deposited in. ``journal`` alone (old call
         style) still works and means one bank without an amount."""
@@ -484,9 +507,23 @@ class SaleOrderPaymentProof(models.Model):
                     raise UserError(_(
                         "The journal must be a bank or cash journal of the "
                         "company of order %s.", proof.sale_order_id.name))
+        currency = self[:1].sale_order_id.currency_id
+        over_under = 0.0
+        if bank_lines and len(self) == 1:
+            received = sum(amount for _journal, amount in bank_lines)
+            over_under = currency.round(
+                received - self.sale_order_id.amount_total)
+        if not currency.is_zero(over_under) and not over_under_account:
+            raise UserError(_(
+                "Choose the account the over / under of %s is booked to.",
+                formatLang(self.env, over_under, currency_obj=currency)))
         self.sudo().write({
             'state': 'approved',
             'payment_journal_id': journal.id,
+            'over_under_account_id': (
+                over_under_account.id
+                if over_under_account and not currency.is_zero(over_under)
+                else False),
             'reviewed_by': self.env.user.id,
             'reviewed_date': fields.Datetime.now(),
             'reject_reason': False,
@@ -507,6 +544,11 @@ class SaleOrderPaymentProof(models.Model):
                 for bank_journal, amount in bank_lines)
         else:
             banks_text = journal.display_name
+        if over_under and not currency.is_zero(over_under):
+            banks_text += _(
+                " | over / under %(amount)s booked to %(account)s",
+                amount=formatLang(self.env, over_under, currency_obj=currency),
+                account=over_under_account.display_name)
         self._post_note(_(
             "%(user)s approved the payment proof (payment journal: "
             "%(journal)s).", user=self.env.user.name,

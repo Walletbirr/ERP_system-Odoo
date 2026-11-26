@@ -44,6 +44,18 @@ class AccountMove(models.Model):
                 totals.setdefault(proof.payment_journal_id, None)
         return list(totals.items())
 
+    def _cash_sale_over_under_account(self):
+        """Over / under account chosen on the most recently approved payment
+        proof of the cash sale order (empty if none)."""
+        self.ensure_one()
+        order = self.x_cash_order_id.sudo()
+        proofs = order.payment_proof_ids.filtered(
+            lambda p: p.state == 'approved' and p.over_under_account_id)
+        if not proofs:
+            return self.env['account.account']
+        return proofs.sorted(
+            lambda p: (p.reviewed_date or p.create_date, p.id))[-1].over_under_account_id
+
     def _cash_sale_bank_rows(self):
         self.ensure_one()
         rows = self._cash_sale_approved_banks()
@@ -69,21 +81,49 @@ class AccountMove(models.Model):
                         "Journal %s has no default account.",
                         journal.display_name))
             term_lines = move.line_ids.filtered(
-                lambda l: l.display_type == 'payment_term')
+                lambda l: l.display_type == 'payment_term'
+                and l.name != 'OVER/UNDER')
             if not term_lines:
                 continue
-            ctx = dict(skip_invoice_sync=True, dynamic_unlink=True)
+            ctx = dict(skip_invoice_sync=True, dynamic_unlink=True,
+                       cash_sale_sync=True)
+            if not strict:
+                term_lines.with_context(**ctx).write(
+                    {'account_id': rows[0][0].default_account_id.id})
+                stale = move.line_ids.filtered(
+                    lambda l: l.display_type == 'payment_term'
+                    and l.name == 'OVER/UNDER')
+                if stale:
+                    stale.with_context(**ctx).unlink()
+                continue
+
             rows = move._cash_sale_bank_rows()
             currency = move.currency_id
+            company_cur = move.company_id.currency_id
             total = sum(a for _j, a in rows)
-            if currency.compare_amounts(total, move.amount_total):
-                if not strict:
-                    # Draft: amounts do not match yet (partial invoice or
-                    # not final). Only the first bank account is set; the
-                    # split and the check happen when it is posted.
-                    term_lines.with_context(**ctx).write(
-                        {'account_id': rows[0][0].default_account_id.id})
-                    continue
+            # Amount the banks received minus the invoice total: booked to the
+            # over / under account chosen on the approved payment proof.
+            over = currency.round(total - move.amount_total)
+            has_over = not currency.is_zero(over)
+            over_account = self.env['account.account']
+            if has_over:
+                over_account = move._cash_sale_over_under_account()
+                if not over_account:
+                    raise UserError(_(
+                        "The approved banks (%(banks)s) differ from the "
+                        "invoice total (%(total)s) by %(diff)s, but no over / "
+                        "under account was chosen on the payment proof. Ask "
+                        "Accounting to approve the payment proof again and "
+                        "choose the account.",
+                        banks=formatLang(self.env, total, currency_obj=currency),
+                        total=formatLang(self.env, move.amount_total,
+                                         currency_obj=currency),
+                        diff=formatLang(self.env, over, currency_obj=currency)))
+                if currency != company_cur:
+                    raise UserError(_(
+                        "An over / under on a cash sale can only be booked in "
+                        "the company currency."))
+            elif currency.compare_amounts(total, move.amount_total):
                 raise UserError(_(
                     "The approved banks (%(banks)s) do not add up to the "
                     "invoice total (%(total)s). Ask Accounting to approve the "
@@ -94,20 +134,32 @@ class AccountMove(models.Model):
             first = term_lines[0]
             total_balance = sum(term_lines.mapped('balance'))
             total_amount = sum(term_lines.mapped('amount_currency'))
-            company_cur = move.company_id.currency_id
+            # The bank debits add up to what the banks actually received.
+            if has_over:
+                # Always from the invoice total: the bank line already on the
+                # draft holds the received amount, so reading it again would
+                # add the difference twice.
+                bank_total = company_cur.round(move.amount_total) + over
+            else:
+                bank_total = total_balance
             commands, used = [], 0.0
             for index, (journal, amount) in enumerate(rows):
                 if index == len(rows) - 1:
-                    balance = total_balance - used
+                    balance = bank_total - used
                 else:
-                    balance = company_cur.round(total_balance * amount / total)
+                    balance = company_cur.round(bank_total * amount / total)
                     used += balance
+                if has_over:
+                    amount_currency = balance
+                elif len(rows) > 1:
+                    amount_currency = amount
+                else:
+                    amount_currency = total_amount
                 vals = {
                     'account_id': journal.default_account_id.id,
                     'name': journal.name,
                     'balance': balance,
-                    'amount_currency': (
-                        amount if len(rows) > 1 else total_amount),
+                    'amount_currency': amount_currency,
                 }
                 if index == 0:
                     commands.append(Command.update(first.id, vals))
@@ -120,40 +172,73 @@ class AccountMove(models.Model):
                         'date_maturity': first.date_maturity,
                     })
                     commands.append(Command.create(vals))
-            extra = term_lines - first
-            # delete the old extra lines and write the new split in ONE
-            # step, so the entry is never seen unbalanced half-way
-            commands += [Command.delete(l.id) for l in extra]
+            # Re-posting: drop the over / under line of the previous posting.
+            old_over = move.line_ids.filtered(
+                lambda l: l.display_type == 'payment_term'
+                and l.name == 'OVER/UNDER')
+            if has_over:
+                # Journal items only: a payment-term line like the bank
+                # lines, so it stays off the Invoice Lines tab and does not
+                # change the invoice total.
+                commands.append(Command.create({
+                    'move_id': move.id,
+                    'account_id': over_account.id,
+                    'name': 'OVER/UNDER',
+                    'display_type': 'payment_term',
+                    'partner_id': first.partner_id.id,
+                    'currency_id': currency.id,
+                    'balance': -over,
+                    'amount_currency': -over,
+                    'date_maturity': first.date_maturity,
+                }))
+            # Remove the extra bank lines and the previous over / under line in
+            # the same write as the new lines. Unlinking them on their own
+            # first leaves the entry unbalanced for a moment and fails the
+            # balance check.
+            for line in (term_lines - first) | old_over:
+                commands.append(Command.delete(line.id))
             move.with_context(**ctx).write({'line_ids': commands})
+
+    def _cash_sale_draft_sync(self):
+        """Draft cash sale: show the bank split and the OVER/UNDER line now,
+        so they can be checked before posting. Saving the draft is never
+        blocked: anything not ready yet is left for posting to report."""
+        for move in self:
+            if not (move.x_is_cash_sale and move.move_type == 'out_invoice'
+                    and move.state == 'draft'):
+                continue
+            rows = move._cash_sale_bank_rows()
+            if not rows:
+                continue
+            currency = move.currency_id
+            company_cur = move.company_id.currency_id
+            total = sum(a for _j, a in rows)
+            over = currency.round(total - move.amount_total)
+            ready = all(journal.default_account_id for journal, _a in rows)
+            if not currency.is_zero(over):
+                ready = ready and currency == company_cur \
+                    and bool(move._cash_sale_over_under_account())
+            if ready:
+                move._cash_sale_apply_banks(strict=True)
+            else:
+                move._cash_sale_apply_banks(strict=False)
+
+    def write(self, vals):
+        res = super().write(vals)
+        if (not self.env.context.get('cash_sale_sync')
+                and {'line_ids', 'invoice_line_ids', 'state'} & set(vals)):
+            self._cash_sale_draft_sync()
+        return res
 
     # ------------------------------------------------------------------
     # Hooks
     # ------------------------------------------------------------------
-    @staticmethod
-    def _cash_sale_is_manual(move):
-        """True when the accountant ticked "Manual Journal Items"
-        (invoice_lines_editable). Works without that module installed."""
-        return bool(getattr(move, 'manual_journal_items', False))
-
-    def _cash_sale_has_custom_account(self):
-        """True when the accountant already moved a receivable/bank line to
-        an account that is not one of the approved banks (for example the
-        customer's own account). That is a deliberate choice: it must never
-        be put back to the bank."""
-        self.ensure_one()
-        rows = self._cash_sale_approved_banks()
-        bank_accounts = {j.default_account_id for j, _a in rows if j.default_account_id}
-        if not bank_accounts:
-            return False
-        term_lines = self.line_ids.filtered(lambda l: l.display_type == 'payment_term')
-        return any(l.account_id not in bank_accounts for l in term_lines)
-
     @api.model_create_multi
     def create(self, vals_list):
         moves = super().create(vals_list)
         moves.filtered(
             lambda m: m.x_is_cash_sale and m.move_type == 'out_invoice'
-            and m.state == 'draft')._cash_sale_apply_banks(strict=False)
+            and m.state == 'draft')._cash_sale_draft_sync()
         return moves
 
     def _post(self, soft=True):
@@ -163,40 +248,12 @@ class AccountMove(models.Model):
         if cash:
             if not self.env.su:
                 cash._cim_check_sale_invoice_postable()
-            # The accountant owns the entry when the box is ticked, or when
-            # he already put a line on an account that is not an approved
-            # bank: in both cases nothing is reset and nothing is matched
-            # against the payment proof. Only "debits = credits" stays.
-            if 'manual_journal_items' in self._fields:
-                for move in cash.filtered(
-                        lambda m: not self._cash_sale_is_manual(m)
-                        and m._cash_sale_has_custom_account()):
-                    move.manual_journal_items = True
-            manual = cash.filtered(self._cash_sale_is_manual)
-            (cash - manual)._cash_sale_apply_banks(strict=True)
-            # receivable lines need a due date and a customer to stay open
-            # for reconciliation against the customer's other invoices
-            for move in cash:
-                dep = move.line_ids.filtered(
-                    lambda l: l.display_type != 'payment_term'
-                    and l.account_id.account_type == 'asset_receivable')
-                for line in dep.filtered(lambda l: not l.date_maturity):
-                    line.with_context(skip_invoice_sync=True).write({
-                        'date_maturity': move.invoice_date_due
-                        or move.invoice_date or fields.Date.context_today(move)})
-                for line in dep.filtered(lambda l: not l.partner_id):
-                    line.with_context(skip_invoice_sync=True).write(
-                        {'partner_id': move.partner_id.id})
+            cash._cash_sale_apply_banks(strict=True)
         return super()._post(soft=soft)
 
     def _compute_amount(self):
         super()._compute_amount()
-        # The payment term is the only thing that decides: a posted cash
-        # sale is PAID, whatever accounts the accountant used on the
-        # journal items (bank, the customer's own account, anything else).
-        # The receivable-type lines themselves stay open for the
-        # reconciliation tools, so a debit on the customer's account can
-        # still be matched against an earlier overpayment credit.
+        # The bank line is not a receivable: nothing is left to collect.
         for move in self:
             if (move.x_is_cash_sale and move.state == 'posted'
                     and move.move_type == 'out_invoice'):
@@ -204,8 +261,7 @@ class AccountMove(models.Model):
                 move.amount_residual_signed = 0.0
 
     def _reverse_moves(self, default_values_list=None, cancel=False):
-        if (not self.env.context.get('sale_order_void')
-                and any(m.x_is_cash_sale and m.state == 'posted' for m in self)):
+        if any(m.x_is_cash_sale and m.state == 'posted' for m in self):
             raise UserError(_(
                 "Credit notes on a cash sale invoice are not available yet: "
                 "Accounting must first decide how the refund is booked "

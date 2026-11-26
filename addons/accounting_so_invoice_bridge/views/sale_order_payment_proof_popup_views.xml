@@ -126,10 +126,23 @@
                            required="not multi_bank"
                            options="{'no_create': True, 'no_open': True}"
                            placeholder="Which bank did the money arrive in?"/>
+                    <field name="amount_received" string="Amount Received"
+                           invisible="not can_split" required="can_split"/>
                 </group>
 
                 <group invisible="not can_split">
                     <field name="multi_bank"/>
+                </group>
+
+                <group invisible="over_under == 0">
+                    <div class="alert alert-info mb-2" role="alert">
+                        <i class="fa fa-balance-scale"/> The amount received differs from the
+                        order total by <field name="over_under" class="oe_inline fw-bold"/>.
+                        Choose the account this difference is booked to.
+                    </div>
+                    <field name="over_under_account_id"
+                           options="{'no_create': True, 'no_open': True}"
+                           required="over_under != 0"/>
                 </group>
 
                 <!-- SEVERAL BANKS -->
@@ -172,7 +185,7 @@
                     </div>
                     <div class="alert alert-danger mt-2 mb-0" role="alert"
                          invisible="bank_state != 'over'">
-                        <i class="fa fa-times-circle"/> The amounts are more than the order total.
+                        <i class="fa fa-times-circle"/> The amounts are more than the order total: the difference is booked to the Over / Under account you choose.
                         Reduce them before approving.
                     </div>
                 </div>
