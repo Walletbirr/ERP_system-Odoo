@@ -55,8 +55,37 @@ class PaymentProofApproveWizard(models.TransientModel):
         [('empty', 'Nothing entered'), ('partial', 'Partial'),
          ('full', 'Complete'), ('over', 'Too much')],
         compute='_compute_bank_total')
+    amount_received = fields.Monetary(
+        string='Amount Received', currency_field='currency_id',
+        help="The amount that actually arrived in the bank. It starts as the "
+             "order total. Any difference is booked to the Over / Under "
+             "account you choose.")
+    over_under = fields.Monetary(
+        string='Over / Under', currency_field='currency_id',
+        compute='_compute_over_under',
+        help="Amount received minus the order total: positive when the bank "
+             "received more, negative when it received less.")
+    over_under_account_id = fields.Many2one(
+        'account.account', string='Over / Under Account',
+        domain="[('deprecated', '=', False)]",
+        help="The account the difference between the amount received and the "
+             "order total is booked to. Chosen by the accountant.")
     preview_html = fields.Html(
         string='Files', compute='_compute_preview_html', sanitize=False)
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super().default_get(fields_list)
+        if 'amount_received' in fields_list:
+            proof_ids = []
+            for command in self.env.context.get('default_proof_ids') or []:
+                if isinstance(command, (list, tuple)) and command[0] == 6:
+                    proof_ids = command[2]
+            proofs = self.env['sale.order.payment.proof'].browse(
+                proof_ids).exists()
+            if len(proofs) == 1:
+                res['amount_received'] = proofs.sale_order_id.amount_total
+        return res
 
     @api.depends('proof_ids')
     def _compute_company_id(self):
@@ -90,6 +119,20 @@ class PaymentProofApproveWizard(models.TransientModel):
             else:
                 wizard.bank_state = 'partial'
 
+    @api.depends('can_split', 'multi_bank', 'amount_received',
+                 'bank_line_ids.amount', 'order_total', 'currency_id')
+    def _compute_over_under(self):
+        for wizard in self:
+            currency = wizard.currency_id
+            if not currency or not wizard.can_split:
+                wizard.over_under = 0.0
+                continue
+            if wizard.multi_bank:
+                received = sum(wizard.bank_line_ids.mapped('amount'))
+            else:
+                received = wizard.amount_received
+            wizard.over_under = currency.round(received - wizard.order_total)
+
     @api.depends('proof_ids')
     def _compute_preview_html(self):
         for wizard in self:
@@ -104,36 +147,38 @@ class PaymentProofApproveWizard(models.TransientModel):
             if not self.journal_id:
                 raise UserError(_(
                     "Select the bank the customer's payment arrived in."))
-            # One bank: exactly what Approve always did. The whole order
-            # amount went into it, the invoice's Pay dialog is the
-            # standard one with this journal preselected.
-            self.proof_ids.action_approve(journal=self.journal_id)
-            return {'type': 'ir.actions.act_window_close'}
-
-        lines = self.bank_line_ids
-        if not lines:
-            raise UserError(_(
-                "Add at least one bank and the amount it received."))
-        if lines.filtered(lambda l: not l.journal_id):
-            raise UserError(_("Choose the bank on every row."))
-        if len(lines.journal_id) != len(lines):
-            raise UserError(_(
-                "The same bank is listed twice. Use one row per bank."))
-        for line in lines:
-            if currency.compare_amounts(line.amount, 0) <= 0:
+            if not self.can_split:
+                # Several proofs at once: one bank, the whole order amount.
+                self.proof_ids.action_approve(journal=self.journal_id)
+                return {'type': 'ir.actions.act_window_close'}
+            if currency.compare_amounts(self.amount_received, 0) <= 0:
                 raise UserError(_(
                     "Enter the amount received in %s (it must be greater "
-                    "than zero).", line.journal_id.display_name))
-        total = sum(lines.mapped('amount'))
-        if currency.compare_amounts(total, self.order_total) > 0:
+                    "than zero).", self.journal_id.display_name))
+            lines = [(self.journal_id, self.amount_received)]
+        else:
+            rows = self.bank_line_ids
+            if not rows:
+                raise UserError(_(
+                    "Add at least one bank and the amount it received."))
+            if rows.filtered(lambda l: not l.journal_id):
+                raise UserError(_("Choose the bank on every row."))
+            if len(rows.journal_id) != len(rows):
+                raise UserError(_(
+                    "The same bank is listed twice. Use one row per bank."))
+            for line in rows:
+                if currency.compare_amounts(line.amount, 0) <= 0:
+                    raise UserError(_(
+                        "Enter the amount received in %s (it must be greater "
+                        "than zero).", line.journal_id.display_name))
+            lines = [(line.journal_id, line.amount) for line in rows]
+        if not currency.is_zero(self.over_under) \
+                and not self.over_under_account_id:
             raise UserError(_(
-                "The banks add up to %(entered)s, which is more than the "
-                "order total (%(total)s). Correct the amounts.",
-                entered=formatLang(self.env, total, currency_obj=currency),
-                total=formatLang(
-                    self.env, self.order_total, currency_obj=currency)))
+                "Choose the account the over / under of %s is booked to.",
+                formatLang(self.env, self.over_under, currency_obj=currency)))
         self.proof_ids.action_approve(
-            bank_lines=[(line.journal_id, line.amount) for line in lines])
+            bank_lines=lines, over_under_account=self.over_under_account_id)
         return {'type': 'ir.actions.act_window_close'}
 
 

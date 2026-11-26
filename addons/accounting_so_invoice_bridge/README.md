@@ -1,1 +1,1 @@
-# Sales order and Accounting bridges
+# Sales order and Accounting bridge

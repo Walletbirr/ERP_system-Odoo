@@ -5,6 +5,12 @@ from odoo.exceptions import UserError
 from odoo.addons.custom_invoice_management.models.account_move import cim_is_wht_tax
 
 
+# Largest difference (in currency units) treated as tax rounding. Within this
+# tolerance the difference is booked untaxed on the Other Income line so the
+# line total equals the Selling Price exactly.
+CIM_ROUNDING_TOLERANCE = 1.0
+
+
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
@@ -102,10 +108,14 @@ class SaleOrder(models.Model):
             excise_amount = 0.0
             wht_amount = 0.0
             service_charge_amount = 0.0
+            rounding_amount = 0.0
 
             for line in order.order_line.filtered(lambda l: not l.display_type):
                 if service_product and line.product_id == service_product:
-                    service_charge_amount += line.price_subtotal
+                    if line.cim_is_rounding:
+                        rounding_amount += line.price_subtotal
+                    else:
+                        service_charge_amount += line.price_subtotal
                 if not line.tax_id:
                     continue
                 # Split the line's tax into Excise (affects base of the
@@ -130,9 +140,13 @@ class SaleOrder(models.Model):
             order.cim_wht_amount = wht_amount
             order.cim_total_before_wht = order.amount_total - wht_amount
             order.cim_vat_amount = order.amount_tax - excise_amount - wht_amount
-            order.cim_product_untaxed_amount = order.amount_untaxed - service_charge_amount
+            order.cim_product_untaxed_amount = (
+                order.amount_untaxed - service_charge_amount - rounding_amount)
             order.cim_subtotal_before_vat = order.cim_product_untaxed_amount + excise_amount
-            order.cim_before_vat_amount = order.cim_subtotal_before_vat + service_charge_amount
+            # The rounding cents are part of the taxable base and the total,
+            # they are only left out of the displayed Other Income.
+            order.cim_before_vat_amount = (
+                order.cim_subtotal_before_vat + service_charge_amount + rounding_amount)
 
     # ------------------------------------------------------------------
     # Balance
@@ -289,10 +303,13 @@ class SaleOrder(models.Model):
                 )['total_included']
             else:
                 base_total = line.price_total
-            remaining = line.cim_selling_price - base_total
+            remaining = currency.round(line.cim_selling_price - base_total)
             cmp = currency.compare_amounts(remaining, 0)
+            # Tax-rounding difference: book it untaxed on Other Income so the
+            # line total lands exactly on the Selling Price.
+            is_rounding = cmp != 0 and abs(remaining) <= CIM_ROUNDING_TOLERANCE
 
-            if cmp < 0:
+            if cmp < 0 and not is_rounding:
                 raise UserError(_(
                     "The Selling Price (%(target)s) for \"%(desc)s\" is "
                     "lower than that line's current tax-included amount "
@@ -316,7 +333,7 @@ class SaleOrder(models.Model):
                     service_line.unlink()
                 continue
 
-            if not vat_tax:
+            if not vat_tax and not is_rounding:
                 raise UserError(_(
                     "None of the order lines have a VAT (non-Excise) sale "
                     "tax configured, so there is no tax to apply on the "
@@ -325,11 +342,16 @@ class SaleOrder(models.Model):
                     desc=line.product_id.display_name or line.name,
                 ))
 
-            vat_rate = vat_tax.amount or 0.0
-            price_unit = currency.round(remaining / (1 + vat_rate / 100.0))
-            service_taxes = vat_tax | wht_taxes
+            if is_rounding:
+                price_unit = remaining
+                service_taxes = wht_taxes
+            else:
+                vat_rate = vat_tax.amount or 0.0
+                price_unit = currency.round(remaining / (1 + vat_rate / 100.0))
+                service_taxes = vat_tax | wht_taxes
 
             line_vals = {
+                'cim_is_rounding': is_rounding,
                 'product_uom_qty': 1.0,
                 'price_unit': price_unit,
                 'discount': 0.0,
@@ -344,6 +366,7 @@ class SaleOrder(models.Model):
                     and not service_line.discount
                     and service_line.tax_id == service_taxes
                     and service_line.name == service_product.name
+                    and service_line.cim_is_rounding == is_rounding
                 )
                 if not unchanged:
                     service_line.write(line_vals)
