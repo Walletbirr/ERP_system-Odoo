@@ -5,6 +5,8 @@ from . import lc
 from . import lc_settlement_line
 from . import shipment_tracking
 from . import purchase_order
+from . import purchase_bank_payment
 from . import account_move
+from . import account_move_line
 from . import account_account
 from . import shipment_cost

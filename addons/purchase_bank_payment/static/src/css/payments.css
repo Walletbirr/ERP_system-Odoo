@@ -1,0 +1,71 @@
+/* Purchase Bank Payments - brand: warm gold. Colours that touch the page
+   (background, text, borders) come from Odoo's own theme variables, so the
+   tab is readable in both light and dark mode. */
+:root {
+    --bp-brand: #a8691b;
+    --bp-brand-dark: #7e4e12;
+    --bp-paid: #2e8b57;
+    --bp-left: #c9822b;
+}
+
+.bp-page {
+    --bp-surface: var(--bs-body-bg, #fff);
+    --bp-text: var(--bs-body-color, #212529);
+    --bp-line: var(--bs-border-color, #dee2e6);
+    --bp-tint: color-mix(in srgb, var(--bp-brand) 10%, var(--bp-surface));
+    color: var(--bp-text);
+}
+
+.bp-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-radius: 12px; margin-bottom: 14px;
+    background: var(--bp-tint);
+    border: 1px solid var(--bp-line); border-left: 5px solid var(--bp-brand);
+}
+.bp-title { font-size: 1.15rem; font-weight: 700; color: var(--bp-brand); }
+.bp-sub { font-size: .85rem; color: var(--bp-text); opacity: .85; margin-top: 2px; }
+
+.bp-cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.bp-card {
+    flex: 1 1 180px; display: flex; flex-direction: column; gap: 4px;
+    padding: 14px 16px; border-radius: 12px; background: var(--bp-surface);
+    border: 1px solid var(--bp-line); border-top: 3px solid var(--bp-brand);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+.bp-card-label {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 600; color: var(--bp-brand);
+}
+.bp-card .bp-card-value, .bp-card .bp-card-value span {
+    font-size: 1.5rem; font-weight: 700; color: var(--bp-text);
+}
+.bp-card-paid { border-top-color: var(--bp-paid); }
+.bp-card-paid .bp-card-value, .bp-card-paid .bp-card-value span { color: var(--bp-paid); }
+.bp-card-left { border-top-color: var(--bp-left); }
+.bp-card-left .bp-card-value, .bp-card-left .bp-card-value span { color: var(--bp-left); }
+
+.bp-progress { margin: 6px 0 14px; }
+.bp-actions { display: flex; gap: 8px; margin-bottom: 14px; }
+.bp-actions .btn-primary { background: var(--bp-brand); border-color: var(--bp-brand); }
+.bp-actions .btn-primary:hover { background: var(--bp-brand-dark); border-color: var(--bp-brand-dark); }
+
+/* Payments list: clear header, full-strength text, readable rows */
+.bp-page .o_list_renderer {
+    border: 1px solid var(--bp-line); border-radius: 12px; overflow: hidden;
+    background: var(--bp-surface);
+}
+.bp-page .o_list_table thead th {
+    background: var(--bp-tint); color: var(--bp-brand-dark);
+    font-weight: 700; border-bottom: 2px solid var(--bp-brand);
+}
+.bp-page .o_list_table tbody td,
+.bp-page .o_list_table tbody td span,
+.bp-page .o_list_table tbody td .o_field_widget {
+    color: var(--bp-text); opacity: 1;
+}
+.bp-page .o_list_table tbody tr:hover td { background: var(--bp-tint); }
+.bp-page .o_list_table tfoot td { font-weight: 700; color: var(--bp-text); }
+.bp-page .o_list_table tbody tr.text-muted td,
+.bp-page .o_list_table tbody tr.text-muted td span { opacity: .55; }
+
+.bp-stat-button .fa-university { color: var(--bp-brand); }
