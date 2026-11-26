@@ -49,7 +49,7 @@ class BhManagementDashboardCompany(models.Model):
             SELECT sq.product_id,
                    COALESCE(sl.warehouse_id, 0) AS warehouse_id,
                    CASE WHEN sl.warehouse_id IS NULL THEN sl.id ELSE 0 END AS location_id,
-                   COALESCE(SUM(sq.quantity), 0) AS qty
+                   COALESCE(SUM(sq.quantity - sq.reserved_quantity), 0) AS qty
               FROM stock_quant sq
               JOIN stock_location sl ON sl.id = sq.location_id
              WHERE sl.usage = 'internal'
