@@ -52,34 +52,6 @@
     </record>
 
     <!--
-        Payments (Accounting > Customers > Payments / Vendors > Payments).
-        account.payment is a separate model from account.move, and its
-        partner side is driven by partner_type ('customer' / 'supplier')
-        rather than a move_type.
-    -->
-    <record id="view_account_payment_form_contact_category_domain" model="ir.ui.view">
-        <field name="name">account.payment.form.contact.category.domain</field>
-        <field name="model">account.payment</field>
-        <field name="inherit_id" ref="account.view_account_payment_form"/>
-        <field name="arch" type="xml">
-            <!--
-                The stock payment form has TWO partner_id fields: one labelled
-                "Customer" (shown for customer payments) and one labelled
-                "Vendor" (shown for vendor payments). A plain
-                <field name="partner_id" position="attributes"/> only matches
-                the first one, so each field is targeted by position:
-                [1] = Customer field, [2] = Vendor field.
-            -->
-            <xpath expr="//field[@name='partner_id'][1]" position="attributes">
-                <attribute name="domain">[('contact_type_code', 'in', ['client', 'customer'])]</attribute>
-            </xpath>
-            <xpath expr="//field[@name='partner_id'][2]" position="attributes">
-                <attribute name="domain">[('contact_type_code', '=', 'vendor')]</attribute>
-            </xpath>
-        </field>
-    </record>
-
-    <!--
         Accounting > Customers > Customers, and Accounting > Vendors >
         Vendors: the stock "Customers"/"Vendors" partner-list actions.
 
